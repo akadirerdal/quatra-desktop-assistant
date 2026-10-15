@@ -4,6 +4,7 @@
 import { Component, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { MainScreen } from '../features/assistant/MainScreen';
+import { TitleBar } from '../features/assistant/TitleBar';
 import { SettingsPanel } from '../features/settings/SettingsPanel';
 import { AssistantController } from '../features/assistant/assistant-controller';
 import { useAssistantStore } from '../state/assistant-store';
@@ -104,25 +105,11 @@ export function App(): React.JSX.Element {
     }
   };
 
-  const cycleMode = () => {
-    const s = useAssistantStore.getState();
-    s.setMode(s.mode === 'flash' ? 'pro' : 'flash');
-    const settings = useSettingsStore.getState().settings;
-    s.setCaption(
-      s.mode === 'pro'
-        ? `${strings.modePro}: ${settings.provider.proModel}`
-        : `${strings.modeFlash}: ${settings.provider.flashModel}`,
-    );
-  };
-
   return (
     <ErrorBoundary>
       <div className="app">
-        <MainScreen
-          onOpenSettings={() => setSettingsOpen(true)}
-          onToggleMic={toggleMic}
-          onModeClick={cycleMode}
-        />
+        <TitleBar />
+        <MainScreen onOpenSettings={() => setSettingsOpen(true)} onToggleMic={toggleMic} />
         {settingsOpen && (
           <ErrorBoundary>
             <SettingsPanel onClose={() => setSettingsOpen(false)} controller={controller} />

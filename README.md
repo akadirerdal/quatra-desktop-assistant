@@ -35,12 +35,14 @@ Güvenlik sınırları: renderer'da Node yok; API anahtarı yalnızca `safeStora
 npm install
 npm run dev           # yalnız renderer (tarayıcıda)
 npm run dev:electron  # Electron + Vite (canlı geliştirme)
-npm run verify        # typecheck + lint + 79 test + secret taraması (kapı)
+npm run verify        # typecheck + lint + 81 test + secret taraması (kapı)
 npm run build         # üretim derlemesi (dist + dist-electron)
 npm run package:win   # Windows NSIS kurulumu (release/)
 ```
 
-Uygulama ilk açılışta **tam ekran** başlar; **F11** ile tam ekrandan çıkılıp tekrar girilebilir.
+Pencere: özel başlık çubuğu (menü yok) — **─ küçült / □ büyüt-geri al / ✕ kapat**; ilk açılışta **tam ekran** (F11 ile çık/gir).
+
+Alt çubukta iki pill (OpenCode tarzı): **model seçici** (sağlayıcıdan gerçek liste) ve **çalışma modu** (Hızlı / Düşünceli).
 
 ## DeepSeek yapılandırması
 

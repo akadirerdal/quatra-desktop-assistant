@@ -33,6 +33,11 @@ export interface QuatraBridge {
     version(): Promise<string>;
     rendererReady(): void;
   };
+  window: {
+    minimize(): void;
+    toggleMaximize(): void;
+    close(): void;
+  };
 }
 
 export type AgentEvent =

@@ -133,14 +133,63 @@ body {
   background: var(--red);
 }
 
-.modelPill {
+/* ---------- özel başlık çubuğu ---------- */
+.titlebar {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  -webkit-app-region: drag;
+  flex: none;
+}
+.titlebarDrag {
+  flex: 1;
+  height: 100%;
+}
+.titlebarControls {
+  display: flex;
+  height: 100%;
+  -webkit-app-region: no-drag;
+}
+.winBtn {
+  width: 44px;
+  height: 100%;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.winBtn:hover {
+  background: var(--panel-2);
+  color: var(--text);
+}
+.winBtn.close:hover {
+  background: #e81123;
+  color: #fff;
+}
+
+/* ---------- alt çubuk (iki pill + popup) ---------- */
+.bottomBar {
   position: absolute;
   bottom: 14px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  align-items: center;
   gap: 8px;
+  align-items: flex-end;
+}
+.pillWrap {
+  position: relative;
+}
+.pill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   padding: 5px 14px;
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -148,9 +197,73 @@ body {
   font-size: 10.5px;
   color: var(--accent-bright);
   cursor: pointer;
+  white-space: nowrap;
 }
-.modelPill span.mode {
+.pill:hover {
+  border-color: var(--accent-dim);
+}
+.pillDim {
   color: var(--muted);
+}
+.popup {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 250px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  z-index: 25;
+}
+.popupTitle {
+  font-size: 10.5px;
+  color: var(--muted);
+  padding: 6px 10px 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.popupItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 12.5px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.popupItem:hover {
+  background: var(--panel-2);
+}
+.popupItem.active {
+  color: var(--accent-bright);
+}
+.popupItem .check {
+  display: inline-block;
+  width: 16px;
+  color: var(--green);
+}
+.popupSub {
+  display: block;
+  margin-left: 16px;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+.popupHint {
+  font-size: 10px;
+  color: var(--muted);
+  padding: 8px 10px 4px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+.popupHint.warn {
+  color: var(--yellow);
+  border-top: none;
 }
 
 /* ---------- görev balonları ---------- */

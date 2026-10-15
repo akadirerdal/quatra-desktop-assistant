@@ -3,7 +3,7 @@
  * Güvenlik: contextIsolation açık, nodeIntegration kapalı, CSP header'lı.
  * Çökme koruması: main asla sessizce ölmez; renderer çökerse pencere yenilenir.
  */
-import { app, BrowserWindow, session } from 'electron';
+import { app, BrowserWindow, session, Menu } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { registerIpc } from './ipc';
@@ -15,6 +15,9 @@ const log = appLogger.scoped('main');
 let mainWindow: BrowserWindow | null = null;
 
 function createWindow(): void {
+  // Varsayılan menü (File/Edit/View…) kaldırılır — üst panel özel çubuktur.
+  Menu.setApplicationMenu(null);
+
   mainWindow = new BrowserWindow({
     width: 1100,
     height: 750,
@@ -22,6 +25,8 @@ function createWindow(): void {
     minHeight: 480,
     backgroundColor: '#08090D',
     show: false,
+    // Özel başlık çubuğu: çerçevesiz pencere; kontroller renderer'daki TitleBar'da.
+    frame: false,
     // İlk açılışta tam ekran (F11 ile çıkılabilir/girilebilir).
     fullscreen: true,
     webPreferences: {

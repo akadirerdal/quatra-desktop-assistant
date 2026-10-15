@@ -1,25 +1,22 @@
 /**
- * Ana ekran — minimal: marka, visualizer, durum, caption, mic pill, model pill,
+ * Ana ekran — minimal: marka, visualizer, durum, caption, mic pill, alt çubuk,
  * saydam görev balonları, ayarlar dişlisi. Chat paneli YOK.
  */
 import { useEffect, useState } from 'react';
 import { Visualizer } from './Visualizer';
+import { BottomBar } from './BottomBar';
 import { useAssistantStore } from '../../state/assistant-store';
-import { useSettingsStore } from '../../state/settings-store';
 import { strings } from '../../renderer/strings';
 
 export function MainScreen(props: {
   onOpenSettings: () => void;
   onToggleMic: () => void;
-  onModeClick: () => void;
 }): React.JSX.Element {
   const status = useAssistantStore((s) => s.status);
   const caption = useAssistantStore((s) => s.caption);
   const tasks = useAssistantStore((s) => s.tasks);
-  const mode = useAssistantStore((s) => s.mode);
   const mutedByUser = useAssistantStore((s) => s.mutedByUser);
   const connection = useAssistantStore((s) => s.connection);
-  const settings = useSettingsStore((s) => s.settings);
   const [captionVisible, setCaptionVisible] = useState(false);
 
   // Caption 5 sn sonra solar.
@@ -83,12 +80,8 @@ export function MainScreen(props: {
         {mutedByUser ? strings.micOff : 'MIC'}
       </button>
 
-      {/* Model göstergesi — tıkla mod değiştir */}
-      <button className="modelPill" onClick={props.onModeClick} title={strings.modeFlash}>
-        <span>DEEPSEEK</span>
-        <span>{mode === 'pro' ? settings.provider.proModel : settings.provider.flashModel}</span>
-        <span className="mode">· {mode === 'pro' ? strings.modePro : strings.modeFlash}</span>
-      </button>
+      {/* Alt çubuk: model + mod pill'leri (OpenCode tarzı) */}
+      <BottomBar />
     </main>
   );
 }

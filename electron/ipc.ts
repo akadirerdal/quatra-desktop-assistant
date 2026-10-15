@@ -61,6 +61,21 @@ export function registerIpc(win: BrowserWindow): void {
     return { ok: true };
   });
 
+  // ---------------------------------------------------------------- pencere kontrolleri (özel başlık çubuğu)
+  ipcMain.on('window:minimize', (e) => BrowserWindow.fromWebContents(e.sender)?.minimize());
+  ipcMain.on('window:toggle-maximize', (e) => {
+    const w = BrowserWindow.fromWebContents(e.sender);
+    if (!w) return;
+    if (w.isFullScreen()) {
+      w.setFullScreen(false);
+    } else if (w.isMaximized()) {
+      w.unmaximize();
+    } else {
+      w.maximize();
+    }
+  });
+  ipcMain.on('window:close', (e) => BrowserWindow.fromWebContents(e.sender)?.close());
+
   // ---------------------------------------------------------------- native yardımcılar
   ipcMain.handle('tools:pickDirectory', async () => createNativeBridge(win).pickDirectory());
   ipcMain.handle('app:version', async () => app.getVersion());
