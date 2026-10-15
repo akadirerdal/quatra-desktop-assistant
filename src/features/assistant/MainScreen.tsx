@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import { Visualizer } from './Visualizer';
 import { useAssistantStore } from '../../state/assistant-store';
-import { useSettingsStore, activeModel } from '../../state/settings-store';
+import { useSettingsStore } from '../../state/settings-store';
 import { strings } from '../../renderer/strings';
 
 export function MainScreen(props: {
@@ -92,10 +92,3 @@ export function MainScreen(props: {
     </main>
   );
 }
-
-/** Ana ekranın mod değişiminde kullandığı yardımcı (test edilebilir). */
-export function nextModeLabel(mode: 'flash' | 'pro'): string {
-  return mode === 'flash' ? strings.modePro : strings.modeFlash;
-}
-
-export { activeModel };

@@ -500,7 +500,6 @@ function DiagnosticsSection(): React.JSX.Element {
       ranOnce.current = true;
       refresh();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connection, connectionError]);
 
   return (
