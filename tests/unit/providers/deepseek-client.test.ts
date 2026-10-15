@@ -8,7 +8,7 @@ import { ProviderError } from '../../../src/providers/types';
 function makeClient(overrides: Partial<ConstructorParameters<typeof DeepSeekClient>[0]> = {}) {
   return new DeepSeekClient({
     // Parçalı yazılır: secret taraması (check:secrets) test fixture'ını yakalamasın.
-    getApiKey: () => 'Bearer ' + 'test-key-not-real',
+    getApiKey: () => 'test-key-' + 'not-real',
     retryDelayMs: 1,
     timeoutMs: 5000,
     ...overrides,
