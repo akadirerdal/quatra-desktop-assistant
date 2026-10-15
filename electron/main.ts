@@ -55,6 +55,28 @@ function createWindow(): void {
   });
   mainWindow.webContents.on('did-finish-load', () => {
     log.info('renderer yüklendi');
+    // E2E doğrulama kancası (yalnız QUATRA_E2E env ile; normal kullanımda çalışmaz).
+    if (process.env['QUATRA_E2E'] === 'credentials') {
+      void mainWindow?.webContents
+        .executeJavaScript(
+          `(async () => {
+            const setRes = await window.quatra.credentials.set('e2e-test-key-123');
+            const hasAfterSet = await window.quatra.credentials.has();
+            const avail = await window.quatra.credentials.available();
+            await window.quatra.credentials.clear();
+            const hasAfterClear = await window.quatra.credentials.has();
+            return JSON.stringify({ setRes, hasAfterSet, avail, hasAfterClear });
+          })()`,
+        )
+        .then((result) => {
+          log.info(`E2E credentials → ${String(result)}`);
+          setTimeout(() => app.quit(), 300);
+        })
+        .catch((e) => {
+          log.error(`E2E credentials HATA: ${String(e)}`);
+          setTimeout(() => app.quit(), 300);
+        });
+    }
   });
 
   // Renderer çökerse uygulama yaşar: pencere yeniden yüklenir.

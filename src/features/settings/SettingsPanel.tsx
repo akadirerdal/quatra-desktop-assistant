@@ -137,6 +137,7 @@ function ProviderSection(): React.JSX.Element {
   const [showKey, setShowKey] = useState(false);
   const [hasKey, setHasKey] = useState(false);
   const [keyMsg, setKeyMsg] = useState<string | null>(null);
+  const [savedJustNow, setSavedJustNow] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<'idle' | 'ok' | 'bad'>('idle');
   const [testMsg, setTestMsg] = useState<string | null>(null);
@@ -151,20 +152,30 @@ function ProviderSection(): React.JSX.Element {
 
   const saveKey = async (): Promise<void> => {
     setKeyMsg(null);
-    const res = await window.quatra?.credentials.set(keyInput);
-    if (!res) return;
-    if (res.ok) {
-      setHasKey(true);
-      setKeyInput('');
-      setKeyMsg(strings.apiKeySet);
-    } else {
-      setKeyMsg(res.error ?? strings.connectFailed);
+    setSavedJustNow(false);
+    try {
+      const res = await window.quatra?.credentials.set(keyInput);
+      if (!res) {
+        setKeyMsg('Kaydetme köprüsüne ulaşılamadı (uygulama Electron dışında mı çalışıyor?).');
+        return;
+      }
+      if (res.ok) {
+        setHasKey(true);
+        setSavedJustNow(true);
+        setKeyInput(''); // güvenlik: alan temizlenir; anahtar kasada
+        setKeyMsg(null);
+      } else {
+        setKeyMsg(res.error ?? strings.connectFailed);
+      }
+    } catch (e) {
+      setKeyMsg(e instanceof Error ? e.message : 'Anahtar kaydedilemedi.');
     }
   };
 
   const clearKey = async (): Promise<void> => {
     await window.quatra?.credentials.clear();
     setHasKey(false);
+    setSavedJustNow(false);
     setTestResult('idle');
     setKeyMsg(strings.apiKeyMissing);
   };
@@ -216,7 +227,7 @@ function ProviderSection(): React.JSX.Element {
           <input
             className="input"
             type={showKey ? 'text' : 'password'}
-            placeholder={strings.apiKeyPlaceholder}
+            placeholder={hasKey && !keyInput ? strings.apiKeyPlaceholderSaved : strings.apiKeyPlaceholder}
             value={keyInput}
             onChange={(e) => setKeyInput(e.target.value)}
             autoComplete="off"
@@ -229,14 +240,18 @@ function ProviderSection(): React.JSX.Element {
             {strings.saveKey}
           </Button>
           {hasKey && (
-            <Button variant="danger" onClick={() => void clearKey()}>
+            <Button variant="danger" onClick={() => void clearKey()} title="Kayıtlı anahtarı kasasından sil">
               {strings.clearKey}
             </Button>
           )}
         </div>
-        <div className="hint">
-          {hasKey ? strings.apiKeySet : strings.apiKeyMissing} — {strings.apiKeyHint}
+        <div className="row" style={{ marginTop: 6 }}>
+          {savedJustNow && <StatusPill kind="ok" text={strings.apiKeySavedNow} />}
+          {!savedJustNow && hasKey && <StatusPill kind="ok" text={strings.apiKeySet} />}
+          {!savedJustNow && !hasKey && <StatusPill kind="warn" text={strings.apiKeyMissing} />}
         </div>
+        <div className="hint">{strings.apiKeyHint}</div>
+        {savedJustNow && <div className="hint">{strings.apiKeyClearedNote}</div>}
         {keyMsg && <div className="statusHint">{keyMsg}</div>}
       </div>
       <div className="field">
