@@ -6,10 +6,21 @@ export interface QuatraBridge {
     save(data: unknown): Promise<{ ok: boolean }>;
   };
   credentials: {
-    has(): Promise<boolean>;
+    has(id: string): Promise<boolean>;
     available(): Promise<boolean>;
-    set(key: string): Promise<{ ok: boolean; error?: string }>;
-    clear(): Promise<{ ok: boolean }>;
+    set(id: string, key: string): Promise<{ ok: boolean; error?: string }>;
+    clear(id: string): Promise<{ ok: boolean }>;
+  };
+  stt: {
+    transcribe(
+      audio: ArrayBuffer,
+      mimeType: string,
+      language?: string,
+    ): Promise<{ ok: boolean; text?: string; code?: string; message?: string }>;
+  };
+  shortcut: {
+    register(accelerator: string): Promise<{ ok: boolean; message?: string }>;
+    onTrigger(handler: () => void): () => void;
   };
   provider: {
     test(model: string): Promise<{ ok: boolean; code?: string; message?: string; latencyMs?: number }>;

@@ -13,11 +13,30 @@ const quatra = {
   },
 
   credentials: {
-    has: (): Promise<boolean> => ipcRenderer.invoke('credentials:has'),
+    has: (id: string): Promise<boolean> => ipcRenderer.invoke('credentials:has', id),
     available: (): Promise<boolean> => ipcRenderer.invoke('credentials:available'),
-    set: (key: string): Promise<{ ok: boolean; error?: string }> =>
-      ipcRenderer.invoke('credentials:set', key),
-    clear: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('credentials:clear'),
+    set: (id: string, key: string): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('credentials:set', id, key),
+    clear: (id: string): Promise<{ ok: boolean }> => ipcRenderer.invoke('credentials:clear', id),
+  },
+
+  stt: {
+    transcribe: (
+      audio: ArrayBuffer,
+      mimeType: string,
+      language?: string,
+    ): Promise<{ ok: boolean; text?: string; code?: string; message?: string }> =>
+      ipcRenderer.invoke('stt:transcribe', audio, mimeType, language),
+  },
+
+  shortcut: {
+    register: (accelerator: string): Promise<{ ok: boolean; message?: string }> =>
+      ipcRenderer.invoke('shortcut:register', accelerator),
+    onTrigger: (handler: () => void): (() => void) => {
+      const listener = () => handler();
+      ipcRenderer.on('ptt:trigger', listener);
+      return () => ipcRenderer.removeListener('ptt:trigger', listener);
+    },
   },
 
   provider: {

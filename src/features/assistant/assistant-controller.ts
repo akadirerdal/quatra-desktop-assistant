@@ -1,29 +1,39 @@
 /**
- * Asistan denetleyicisi — UI, ses ve agent arasındaki orkestrasyon.
- * Akış: dinle → STT → görev balonu aç → agent (main) → caption → TTS → idle.
- * Interruption: yeni istek eskisini iptal eder; üst üste konuşma olmaz.
- * Mod komutları: "yazılım moduna geç", "normal moda geç", "mod değiştir".
+ * Asistan denetleyicisi v2 — ses, agent, uyandırma ve global kısayol orkestrasyonu.
+ * Akış: (uyandırma | kısayol | mic butonu) → kayıt (VAD) → Whisper → agent → caption → TTS.
+ * Interruption: yeni istek eskisini iptal eder; konuşurken uyandırma aranmaz.
  */
 import { useAssistantStore, TASK_DONE_LINGER_MS } from '../../state/assistant-store';
 import { useSettingsStore, activeModel } from '../../state/settings-store';
 import { AudioService } from '../audio/audio-service';
+import { WakeWordService, matchesWakeWord } from '../audio/wake-word';
 import { strings } from '../../renderer/strings';
 import type { AgentEvent } from '../../renderer/global';
 
-type TaskId = string;
-
 export class AssistantController {
   private audio: AudioService;
+  private wake: WakeWordService | null = null;
   private offline = false;
-  private detach: (() => void) | null = null;
+  private detachAgent: (() => void) | null = null;
+  private detachShortcut: (() => void) | null = null;
+  private listening = false;
+  private lastPttAt = 0;
+  private registeredCombo: string | null = null;
 
   constructor() {
     this.audio = new AudioService(
-      (text) => this.onSttResult(text),
       (msg) => this.onAudioError(msg),
       () => this.onTtsEnd(),
     );
-    this.detach = window.quatra?.agent.onEvent((e) => this.onAgentEvent(e)) ?? null;
+    this.detachAgent = window.quatra?.agent.onEvent((e) => this.onAgentEvent(e)) ?? null;
+    this.detachShortcut =
+      window.quatra?.shortcut.onTrigger(() => {
+        // Çift tetikleme koruması (register aynı kısayolu iki kez alabilir)
+        const now = Date.now();
+        if (now - this.lastPttAt < 400) return;
+        this.lastPttAt = now;
+        void this.startCommandCapture('ptt');
+      }) ?? null;
 
     window.addEventListener('online', () => {
       this.offline = false;
@@ -37,55 +47,157 @@ export class AssistantController {
   }
 
   dispose(): void {
-    this.detach?.();
-    this.audio.stopListening();
+    this.detachAgent?.();
+    this.detachShortcut?.();
+    this.wake?.stop();
+    this.audio.stopAll();
     this.audio.stopSpeaking();
   }
 
-  /** Kullanıcı "dinle" dedi (buton veya PTT). */
-  toggleListening(): void {
-    const store = useAssistantStore.getState();
-    if (store.status === 'listening') {
-      this.audio.stopListening();
-      store.setStatus('idle');
-      return;
+  /** Ayarlar değiştikçe etkinleştirme yöntemini uygular (global kısayol / uyandırma). */
+  async syncActivation(): Promise<void> {
+    const s = useSettingsStore.getState().settings;
+    const mode = s.activation.mode;
+
+    // Global kısayol
+    if (mode === 'push_to_talk') {
+      const combo = s.activation.pushToTalkKey;
+      if (this.registeredCombo !== combo) {
+        const res = await window.quatra?.shortcut.register(combo);
+        if (res?.ok) {
+          this.registeredCombo = combo;
+        } else {
+          this.registeredCombo = null;
+          if (res?.message) useAssistantStore.getState().setCaption(res.message);
+        }
+      }
+    } else if (this.registeredCombo) {
+      await window.quatra?.shortcut.register(''); // boş = kaldır
+      this.registeredCombo = null;
     }
-    if (store.status === 'speaking') {
+
+    // Uyandırma kelimesi
+    if (mode === 'wake_word') {
+      const hasGroq = (await window.quatra?.credentials.has('groq')) ?? false;
+      if (!hasGroq) {
+        useAssistantStore.getState().setCaption(strings.wakeNeedsGroq);
+        return;
+      }
+      if (!this.wake) {
+        this.wake = new WakeWordService(
+          this.audio,
+          { wakeWord: s.activation.wakeWord },
+          {
+            onWake: () => {
+              useAssistantStore.getState().setCaption(strings.wakeDetected);
+              void this.startCommandCapture('wake');
+            },
+            onError: (msg) => {
+              const st = useAssistantStore.getState();
+              if (st.status === 'idle') st.setCaption(msg);
+            },
+          },
+        );
+      }
+      await this.wake.start();
+    } else if (this.wake) {
+      this.wake.stop();
+      this.wake = null;
+      if (!this.listening) this.audio.stopAll();
+    }
+  }
+
+  /** Kısayol/buton/uyandırma ile komut kaydını başlatır. */
+  async startCommandCapture(source: 'ptt' | 'button' | 'wake'): Promise<void> {
+    const st = useAssistantStore.getState();
+    if (this.listening || st.mutedByUser) return;
+    if (st.status === 'speaking') {
       this.interrupt();
+    }
+    this.listening = true;
+    this.wake?.pause();
+    this.audio.stopSpeaking();
+    st.setStatus('listening');
+    st.setCaption(source === 'wake' ? strings.wakeListening : strings.captionListening);
+
+    try {
+      const outcome = await this.audio.recordCommand({
+        maxMs: 15_000,
+        silenceMs: 1100,
+        waitStartMs: source === 'wake' ? 8000 : 6000,
+      });
+      if (outcome.kind === 'silence') {
+        st.setStatus('idle');
+        st.setCaption(source === 'wake' ? strings.wakeHeardNothing : strings.sttFailed);
+        return;
+      }
+      if (outcome.kind === 'error') {
+        this.onAudioError(outcome.message);
+        return;
+      }
+      st.setStatus('processing');
+      st.setCaption(strings.transcribing);
+      const res = await this.audio.transcribe(outcome.result.audio);
+      if (!res.ok) {
+        this.onAudioError(res.message);
+        return;
+      }
+      st.setCaption(res.text);
+      this.send(res.text);
+    } finally {
+      this.listening = false;
+      if (this.wake?.isRunning()) this.wake.resume();
+    }
+  }
+
+  /** Kullanıcı "dinle" dedi (buton). */
+  toggleListening(): void {
+    const st = useAssistantStore.getState();
+    if (this.listening) {
+      st.setStatus('idle');
+      this.listening = false;
+      this.audio.stopAll(); // watchdog — kayıt yarıda kesilir
+      this.wake?.resume();
       return;
     }
-    if (store.mutedByUser) return;
-    store.setCaption(strings.captionListening);
-    void this.audio.startListening();
+    if (st.mutedByUser) return;
+    void this.startCommandCapture('button');
   }
 
   interrupt(): void {
     this.audio.stopSpeaking();
     void window.quatra?.agent.cancel();
-    const store = useAssistantStore.getState();
-    store.setStatus('idle');
-    if (!store.mutedByUser) {
-      this.toggleListening();
-    }
+    const st = useAssistantStore.getState();
+    st.setStatus('idle');
   }
 
   setMuted(muted: boolean): void {
-    useAssistantStore.getState().setMuted(muted);
+    const st = useAssistantStore.getState();
+    st.setMuted(muted);
     if (muted) {
-      this.audio.stopListening();
-      useAssistantStore.getState().setStatus('muted');
+      this.wake?.pause();
+      this.audio.stopAll();
+      this.listening = false;
+      st.setStatus('muted');
     } else {
-      useAssistantStore.getState().setStatus('idle');
+      st.setStatus('idle');
+      void this.syncActivation();
     }
   }
 
-  /** Metin/ses isteğini agent'a iletir. */
+  /** Metin isteğini agent'a iletir. */
   send(text: string): void {
     const settings = useSettingsStore.getState().settings;
     const assistant = useAssistantStore.getState();
+    const lower = text.toLowerCase();
+
+    // Uyandırma kelimesi + tek kelime komut ("quatra" tek başına)
+    if (matchesWakeWord(lower, settings.activation.wakeWord) && lower.trim().split(/\s+/).length <= 2) {
+      this.sayLocal(strings.wakeReady);
+      return;
+    }
 
     // Yerel mod komutları — sağlayıcıya gitmeden anında geçiş.
-    const lower = text.toLowerCase();
     if (/(yazılım|proje|kod) moduna geç/.test(lower)) {
       assistant.setMode('pro');
       this.sayLocal(`Yazılım moduna geçildi: ${settings.provider.proModel}`);
@@ -100,7 +212,7 @@ export class AssistantController {
       const next = assistant.mode === 'flash' ? 'pro' : 'flash';
       assistant.setMode(next);
       const model = next === 'pro' ? settings.provider.proModel : settings.provider.flashModel;
-      this.sayLocal(`Mod değiştirildi: ${next === 'pro' ? 'Yazılım' : 'Normal'} — ${model}`);
+      this.sayLocal(`Mod değiştirildi: ${next === 'pro' ? 'Düşünceli' : 'Hızlı'} — ${model}`);
       return;
     }
 
@@ -111,7 +223,11 @@ export class AssistantController {
     }
 
     const model = activeModel(settings, assistant.mode);
-    const taskId: TaskId = assistant.pushTask({ title: text.slice(0, 80), detail: strings.taskRunning, state: 'running' });
+    const taskId = assistant.pushTask({
+      title: text.slice(0, 80),
+      detail: strings.taskRunning,
+      state: 'running',
+    });
     assistant.setStatus('processing');
     assistant.setCaption('');
 
@@ -127,11 +243,6 @@ export class AssistantController {
         assistant.updateTask(taskId, { state: 'error', detail: strings.taskFailed });
         assistant.setStatus('error');
       });
-  }
-
-  private onSttResult(text: string): void {
-    useAssistantStore.getState().setCaption(text);
-    this.send(text);
   }
 
   private onAgentEvent(event: AgentEvent): void {
@@ -153,7 +264,8 @@ export class AssistantController {
         }
         const settings = useSettingsStore.getState().settings;
         if (settings.voice.autoSpeak) {
-          this.audio.speak(event.text, settings.voice.rate, settings.voice.voiceName);
+          this.wake?.pause();
+          this.audio.speak(event.text, settings.voice.rate, settings.voice.pitch, settings.voice.voiceName);
         }
         break;
       }
@@ -165,9 +277,7 @@ export class AssistantController {
           store.updateTask(task.id, { state: 'error', detail: event.message });
           setTimeout(() => store.removeTask(task.id), TASK_DONE_LINGER_MS);
         }
-        if (event.category === 'auth' || event.category === 'rate_limit') {
-          store.setCaption(event.message);
-        }
+        store.setCaption(event.message);
         break;
       }
     }
@@ -179,34 +289,38 @@ export class AssistantController {
     store.setStatus('error');
     setTimeout(() => {
       if (useAssistantStore.getState().status === 'error') {
-        useAssistantStore.getState().setStatus(useAssistantStore.getState().mutedByUser ? 'muted' : 'idle');
+        useAssistantStore
+          .getState()
+          .setStatus(useAssistantStore.getState().mutedByUser ? 'muted' : 'idle');
       }
-    }, 4000);
+    }, 4500);
+    this.listening = false;
   }
 
   private onTtsEnd(): void {
     const store = useAssistantStore.getState();
     if (store.status === 'speaking') store.setStatus('idle');
+    if (this.wake?.isRunning()) this.wake.resume();
   }
 
-  /** Yerel bildirim — kısa süreliğine durum gösterip sesli söyler. */
   private sayLocal(text: string): void {
     const settings = useSettingsStore.getState().settings;
     const store = useAssistantStore.getState();
     store.setCaption(text);
     if (settings.voice.autoSpeak) {
-      this.audio.speak(text, settings.voice.rate, settings.voice.voiceName);
+      this.audio.speak(text, settings.voice.rate, settings.voice.pitch, settings.voice.voiceName);
     }
   }
 
   testVoice(text: string): void {
     const settings = useSettingsStore.getState().settings;
-    this.audio.speak(text, settings.voice.rate, settings.voice.voiceName);
+    this.audio.speak(text, settings.voice.rate, settings.voice.pitch, settings.voice.voiceName);
   }
 
   stopSpeaking(): void {
     this.audio.stopSpeaking();
     useAssistantStore.getState().setStatus('idle');
+    if (this.wake?.isRunning()) this.wake.resume();
   }
 
   get audioService(): AudioService {

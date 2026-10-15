@@ -56,10 +56,23 @@ Mod geçişi: sesli "yazılım moduna geç" / "normal moda geç" / "mod değişt
 
 ## Mikrofon ve ses
 
-- Mikrofon izni yalnızca ses özelliğini kullandığında istenir.
-- STT: tarayıcının Web Speech motoru (tr-TR). TTS: sistem `speechSynthesis`.
-- Görsel (visualizer) mikrofon seviyesini **gerçek sinyalden** alır; uydurma animasyon yoktur.
-- Konuşma çıkış sinyaline erişilemediği için konuşma animasyonu dürüst bir nefes dalgasıdır (analyser kancası hazır).
+- **Ses tanıma (STT):** Electron'da Chromium'un Web Speech servisi çalışmadığı için sesin **Groq Whisper** ile yazıya çevrilir. Ayarlar → AI Sağlayıcı → **Groq API Anahtarı** alanına console.groq.com'dan aldığın anahtarı ekle (ücretsiz kota yeterli). Ses diske yazılmaz; yalnızca bellekte kaydedilip gönderilir.
+- **Uyandırma kelimesi:** Etkinleştirme → "Uyandırma kelimesi" seçilirse bağlamda mikrofon açık kalır; «Quatra» dediğinde komut dinlemeye geçer (telaffuz varyantları: kuatra, quatro, kotra…).
+- **Bas-konuş:** Kısayol (varsayılan Ctrl+Shift+Space) artık **globaldir** — uygulama arka planda olsa da çalışır.
+- **Konuşma (TTS):** Sistem `speechSynthesis`; liste cihazdaki gerçek seslerdir. Windows'ta daha fazla ses: Ayarlar → Saat ve Dil → Konuşma → Sesleri ekle.
+- Görsel (visualizer) mikrofon seviyesini **gerçek sinyalden** alır; konuşma çıkış animasyonu dürüst nefes dalgasıdır (analyser erişimi yok).
+
+## Model seviyeleri
+
+Alt çubuktaki model pill'inden seçilir (gerçek preset'ler):
+
+| Seviye | Model | Sıcaklık | Token |
+|---|---|---|---|
+| Düşük | deepseek-chat | 0.3 | 1024 |
+| Varsayılan | deepseek-chat | 0.7 | 2048 |
+| Yüksek | deepseek-reasoner | 0.7 | 4096 |
+| Max | deepseek-reasoner | 1.0 | 8192 |
+| Ultra Max | deepseek-reasoner | 1.2 | 8192 |
 
 ## Araçlar (tool) ve izinler
 

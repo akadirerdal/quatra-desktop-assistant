@@ -1,24 +1,48 @@
 /**
- * Ses servisi — mikrofon yakalama + GERÇEK seviye analizi, STT (Web Speech), TTS (speechSynthesis).
- * Watchdog: her hata/kesinti yolunda capture serbest bırakılır; mikrofon açık unutulmaz.
- * Gizlilik: ses kaydı YAPILMAZ — yalnızca canlı seviye ölçülür ve STT motoruna anlık akar.
+ * Ses servisi v2 — gerçek mikrofon kaydı + VAD + Groq Whisper (IPC) + TTS.
+ *
+ * Neden Web Speech değil: Electron'da Chromium'un konuşma tanıma servisi
+ * (Google API anahtarları gömülü olmadığı için) çalışmaz. Bu yüzden ses
+ * MediaRecorder ile kaydedilir ve MAIN süreçte Groq Whisper'a gönderilir.
+ *
+ * Gizlilik: ses diske yazılmaz; yalnızca bellekte tutulup transkripsiyon için
+ * gönderilir (kullanıcı Groq anahtarını kendi ekler, ayarlarda açıkça yazar).
+ *
+ * Watchdog: her hata/kesinti yolunda mikrofon serbest bırakılır.
  */
 import { useAssistantStore } from '../../state/assistant-store';
-import { strings } from '../../renderer/strings';
 
-type SttResultCallback = (text: string) => void;
-type AudioErrorCallback = (message: string) => void;
+export interface RecordedCommand {
+  audio: Blob;
+  durationMs: number;
+  peakLevel: number;
+}
 
-interface SpeechRecognitionLike {
-  lang: string;
-  interimResults: boolean;
-  continuous: boolean;
-  start(): void;
-  stop(): void;
-  abort(): void;
-  onresult: ((e: { resultIndex: number; results: ArrayLike<{ isFinal: boolean; 0: { transcript: string } }> }) => void) | null;
-  onerror: ((e: { error: string }) => void) | null;
-  onend: (() => void) | null;
+export interface RecordOptions {
+  /** Azami kayıt süresi (ms). */
+  maxMs?: number;
+  /** Bu süre sessizlikte kayıt biter (ms). */
+  silenceMs?: number;
+  /** Konuşma başlamazsa bu süre içinde vazgeç (ms). */
+  waitStartMs?: number;
+  /** Seviye eşiği (0..1). */
+  threshold?: number;
+}
+
+export type RecordOutcome =
+  | { kind: 'ok'; result: RecordedCommand }
+  | { kind: 'silence' } // hiç konuşma algılanmadı
+  | { kind: 'error'; message: string };
+
+const DEFAULT_THRESHOLD = 0.05;
+
+export function pickRecorderMime(): string {
+  if (typeof MediaRecorder === 'undefined') return '';
+  const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
+  for (const c of candidates) {
+    if (MediaRecorder.isTypeSupported(c)) return c;
+  }
+  return '';
 }
 
 export class AudioService {
@@ -26,153 +50,199 @@ export class AudioService {
   private audioCtx: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
   private raf = 0;
-  private recognition: SpeechRecognitionLike | null = null;
-  private listening = false;
-  private ttsSpeaking = false;
+  private currentLevel = 0;
+  private recording = false;
 
   constructor(
-    private readonly onSttResult: SttResultCallback,
-    private readonly onAudioError: AudioErrorCallback,
+    private readonly onError: (message: string) => void,
     private readonly onTtsEnd: () => void,
   ) {}
 
-  /** Mikrofonu açar; seviye analizini başlatır. İzin reddi dürüst hatayla bildirilir. */
-  async startListening(): Promise<void> {
-    if (this.listening) return;
+  /** Mikrofon erişimi — gerekirse açar; izin reddi dürüst hatayla bildirilir. */
+  async ensureMic(): Promise<boolean> {
+    if (this.stream) return true;
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
-        this.onAudioError(strings.micNone);
-        return;
+        this.onError('Mikrofon bulunamadı.');
+        return false;
       }
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (e) {
       const denied =
         e instanceof DOMException && (e.name === 'NotAllowedError' || e.name === 'SecurityError');
-      this.onAudioError(denied ? strings.micDenied : strings.micNone);
-      return;
+      this.onError(
+        denied
+          ? 'Mikrofon izni reddedildi. Windows Ayarlar → Gizlilik → Mikrofon’dan izin ver.'
+          : 'Mikrofon bulunamadı.',
+      );
+      return false;
     }
-
-    this.listening = true;
-    useAssistantStore.getState().setLevels(0, 0);
-    useAssistantStore.getState().setStatus('listening');
-
-    // Seviye analizi (gerçek sinyal — sahte veri yok).
     try {
       this.audioCtx = new AudioContext();
       const source = this.audioCtx.createMediaStreamSource(this.stream);
       this.analyser = this.audioCtx.createAnalyser();
       this.analyser.fftSize = 512;
       source.connect(this.analyser);
-      const data = new Uint8Array(this.analyser.frequencyBinCount);
-      const tick = () => {
-        this.analyser?.getByteTimeDomainData(data);
+      this.startLevelLoop();
+    } catch {
+      // Analyser kurulamazsa seviye 0 kalır — görsel dürüst nefes animasyonuna düşer.
+    }
+    return true;
+  }
+
+  private startLevelLoop(): void {
+    const data = new Uint8Array(this.analyser?.frequencyBinCount ?? 256);
+    const tick = () => {
+      if (this.analyser) {
+        this.analyser.getByteTimeDomainData(data);
         let sum = 0;
         for (let i = 0; i < data.length; i++) {
           const v = (data[i]! - 128) / 128;
           sum += v * v;
         }
-        const rms = Math.sqrt(sum / data.length);
-        useAssistantStore.getState().setLevels(rms * 3, useAssistantStore.getState().speakLevel);
-        this.raf = requestAnimationFrame(tick);
-      };
+        this.currentLevel = Math.sqrt(sum / data.length) * 3;
+      }
+      useAssistantStore.getState().setLevels(this.currentLevel, useAssistantStore.getState().speakLevel);
       this.raf = requestAnimationFrame(tick);
-    } catch {
-      // Analyser kurulamazsa seviye 0 kalır — görsel dürüst nefes animasyonuna düşer.
+    };
+    this.raf = requestAnimationFrame(tick);
+  }
+
+  /**
+   * Komut kaydı — VAD eşliğinde: konuşma başlar, sessizlik gelince biter.
+   * Hiç konuşma yoksa 'silence' döner (uydurma transkript yok).
+   */
+  async recordCommand(options: RecordOptions = {}): Promise<RecordOutcome> {
+    const maxMs = options.maxMs ?? 15_000;
+    const silenceMs = options.silenceMs ?? 1100;
+    const waitStartMs = options.waitStartMs ?? 6000;
+    const threshold = options.threshold ?? DEFAULT_THRESHOLD;
+
+    if (this.recording) return { kind: 'error', message: 'Zaten kayıt var.' };
+    if (!(await this.ensureMic())) return { kind: 'error', message: 'Mikrofon açılamadı.' };
+    if (typeof MediaRecorder === 'undefined') {
+      return { kind: 'error', message: 'Bu ortamda ses kaydı desteklenmiyor.' };
     }
 
-    // STT (Web Speech API — gerçek motor).
-    const Ctor =
-      (window as unknown as { SpeechRecognition?: new () => SpeechRecognitionLike }).SpeechRecognition ??
-      (window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognitionLike }).webkitSpeechRecognition;
-    if (!Ctor) {
-      this.stopListening();
-      this.onAudioError('Bu sistemde konuşma tanıma motoru yok. Metin girişi için Teşhis bölümünü kullan.');
-      return;
-    }
-    this.recognition = new Ctor();
-    this.recognition.lang = 'tr-TR';
-    this.recognition.interimResults = false;
-    this.recognition.continuous = false;
-    this.recognition.onresult = (e) => {
-      let text = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i]?.isFinal) text += e.results[i]?.[0]?.transcript ?? '';
-      }
-      if (text.trim()) {
-        this.stopListening();
-        this.onSttResult(text.trim());
-      }
-    };
-    this.recognition.onerror = (e) => {
-      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-        this.onAudioError(strings.micDenied);
-      } else if (e.error === 'no-speech') {
-        // sessizlik — kullanıcıya dürüst geri bildirim
-        this.onAudioError(strings.sttFailed);
-      } else {
-        this.onAudioError(strings.sttFailed);
-      }
-      this.stopListening();
-    };
-    this.recognition.onend = () => {
-      if (this.listening) this.stopListening();
-    };
+    const mime = pickRecorderMime();
+    let recorder: MediaRecorder;
     try {
-      this.recognition.start();
+      recorder = new MediaRecorder(this.stream!, mime ? { mimeType: mime } : undefined);
     } catch {
-      // üst üste başlatma gibi durumlar — sessizce bırak
+      return { kind: 'error', message: 'Ses kaydı başlatılamadı.' };
+    }
+
+    const chunks: BlobPart[] = [];
+    recorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) chunks.push(e.data);
+    };
+
+    const started = performance.now();
+    this.recording = true;
+    let sawSpeech = false;
+    let peak = 0;
+    let lastVoiceAt = started;
+
+    return await new Promise<RecordOutcome>((resolve) => {
+      let settled = false;
+      const stopWatch: { fn?: () => void } = {};
+
+      const settle = (outcome: RecordOutcome) => {
+        if (settled) return;
+        settled = true;
+        stopWatch.fn?.();
+        this.recording = false;
+        resolve(outcome);
+      };
+
+      recorder.onstop = () => {
+        if (!sawSpeech || chunks.length === 0) {
+          settle({ kind: 'silence' });
+          return;
+        }
+        const blob = new Blob(chunks, { type: mime || 'audio/webm' });
+        settle({
+          kind: 'ok',
+          result: { audio: blob, durationMs: performance.now() - started, peakLevel: peak },
+        });
+      };
+
+      // VAD: konuşma başlangıcı/bitişi ve süre sınırlarını izler; bitince kaydı durdurur.
+      const watchId = setInterval(() => {
+        const now = performance.now();
+        peak = Math.max(peak, this.currentLevel);
+        if (this.currentLevel >= threshold) {
+          sawSpeech = true;
+          lastVoiceAt = now;
+        }
+        const stopRecorder = () => {
+          try {
+            if (recorder.state !== 'inactive') recorder.stop();
+          } catch {
+            settle({ kind: 'error', message: 'Kayıt durdurulamadı.' });
+          }
+        };
+        if (!sawSpeech && now - started > waitStartMs) {
+          stopRecorder();
+          return;
+        }
+        if (sawSpeech && now - lastVoiceAt > silenceMs) {
+          stopRecorder();
+          return;
+        }
+        if (now - started > maxMs) {
+          stopRecorder();
+        }
+      }, 60);
+      stopWatch.fn = () => clearInterval(watchId);
+
+      try {
+        recorder.start();
+      } catch {
+        settle({ kind: 'error', message: 'Ses kaydı başlatılamadı.' });
+      }
+    });
+  }
+
+  /** Kaydı Groq Whisper ile metne çevirir (main süreç üzerinden). */
+  async transcribe(audio: Blob): Promise<{ ok: true; text: string } | { ok: false; message: string }> {
+    if (!window.quatra) {
+      return { ok: false, message: 'Ses tanıma yalnızca masaüstü uygulamasında çalışır.' };
+    }
+    try {
+      const buffer = await audio.arrayBuffer();
+      const res = await window.quatra.stt.transcribe(buffer, audio.type || 'audio/webm', 'tr');
+      if (res.ok && res.text) return { ok: true, text: res.text };
+      return { ok: false, message: res.message ?? 'Sesin anlaşılamadı.' };
+    } catch {
+      return { ok: false, message: 'Ses tanıma başarısız oldu.' };
     }
   }
 
-  /** Watchdog: tüm yollarda capture serbest bırakılır. */
-  stopListening(): void {
-    cancelAnimationFrame(this.raf);
-    this.raf = 0;
-    try {
-      this.recognition?.abort();
-    } catch {
-      // yok say
-    }
-    this.recognition = null;
-    for (const track of this.stream?.getTracks() ?? []) track.stop();
-    this.stream = null;
-    this.analyser?.disconnect();
-    this.analyser = null;
-    void this.audioCtx?.close().catch(() => undefined);
-    this.audioCtx = null;
-    this.listening = false;
-    if (useAssistantStore.getState().status === 'listening') {
-      useAssistantStore.getState().setStatus('idle');
-    }
-    useAssistantStore.getState().setLevels(0, 0);
-  }
+  // ---------------------------------------------------------------- TTS
 
-  /** TTS — gerçek sistem ses motoru. Konuşma sırasında speakLevel dürüstçe 0 kalır (sinyal erişimi yok). */
-  speak(text: string, rate: number, voiceName: string): void {
+  speak(text: string, rate: number, pitch: number, voiceName: string): void {
     if (!('speechSynthesis' in window)) {
-      this.onAudioError('Bu sistemde ses çıkışı (TTS) yok. Cevap yazılı olarak gösterildi.');
+      this.onError('Bu sistemde ses çıkışı (TTS) yok. Cevap yazılı olarak gösterildi.');
       return;
     }
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'tr-TR';
     utterance.rate = rate;
+    utterance.pitch = pitch;
     const voices = window.speechSynthesis.getVoices();
     const voice = voices.find((v) => v.name === voiceName) ?? voices.find((v) => v.lang.startsWith('tr'));
     if (voice) utterance.voice = voice;
     utterance.onstart = () => {
-      this.ttsSpeaking = true;
       useAssistantStore.getState().setStatus('speaking');
     };
     utterance.onend = () => {
-      this.ttsSpeaking = false;
       this.onTtsEnd();
     };
     utterance.onerror = () => {
-      this.ttsSpeaking = false;
-      // TTS hatası akışı öldürmez: durum idle'a döner, cevap caption'da durur.
       useAssistantStore.getState().setStatus('idle');
-      this.onAudioError('Ses çalınamadı — cevap ekranda gösterildi.');
+      this.onError('Ses çalınamadı — cevap ekranda gösterildi.');
       this.onTtsEnd();
     };
     window.speechSynthesis.speak(utterance);
@@ -180,20 +250,33 @@ export class AudioService {
 
   stopSpeaking(): void {
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-    this.ttsSpeaking = false;
-  }
-
-  isListening(): boolean {
-    return this.listening;
   }
 
   isSpeaking(): boolean {
-    return this.ttsSpeaking;
+    return 'speechSynthesis' in window && window.speechSynthesis.speaking;
   }
 
-  /** Ayarlardaki ses listesi — gerçek cihaz sesleri, uydurma yok. */
+  /** Gerçek cihaz sesleri — uydurma ses listesi yok. */
   availableVoices(): Array<{ name: string; lang: string }> {
     if (!('speechSynthesis' in window)) return [];
     return window.speechSynthesis.getVoices().map((v) => ({ name: v.name, lang: v.lang }));
+  }
+
+  /** Watchdog: tüm kaynakları serbest bırak. */
+  stopAll(): void {
+    cancelAnimationFrame(this.raf);
+    this.raf = 0;
+    for (const track of this.stream?.getTracks() ?? []) track.stop();
+    this.stream = null;
+    this.analyser?.disconnect();
+    this.analyser = null;
+    void this.audioCtx?.close().catch(() => undefined);
+    this.audioCtx = null;
+    this.recording = false;
+    useAssistantStore.getState().setLevels(0, 0);
+  }
+
+  isMicOpen(): boolean {
+    return this.stream !== null;
   }
 }

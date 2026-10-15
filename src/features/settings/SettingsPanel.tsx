@@ -130,40 +130,34 @@ function GeneralSection(): React.JSX.Element {
   );
 }
 
-function ProviderSection(): React.JSX.Element {
-  const settings = useSettingsStore((s) => s.settings);
-  const updateProvider = useSettingsStore((s) => s.updateProvider);
+function KeyBlock(props: {
+  id: 'deepseek' | 'groq';
+  label: string;
+  hint: string;
+}): React.JSX.Element {
   const [keyInput, setKeyInput] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [hasKey, setHasKey] = useState(false);
   const [keyMsg, setKeyMsg] = useState<string | null>(null);
   const [savedJustNow, setSavedJustNow] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<'idle' | 'ok' | 'bad'>('idle');
-  const [testMsg, setTestMsg] = useState<string | null>(null);
-  const [models, setModels] = useState<Array<{ id: string }>>([]);
-  const [modelsLoaded, setModelsLoaded] = useState(false);
-  const flash = settings.provider.flashModel;
-  const pro = settings.provider.proModel;
 
   useEffect(() => {
-    void window.quatra?.credentials.has().then(setHasKey);
-  }, []);
+    void window.quatra?.credentials.has(props.id).then(setHasKey);
+  }, [props.id]);
 
   const saveKey = async (): Promise<void> => {
     setKeyMsg(null);
     setSavedJustNow(false);
     try {
-      const res = await window.quatra?.credentials.set(keyInput);
+      const res = await window.quatra?.credentials.set(props.id, keyInput);
       if (!res) {
-        setKeyMsg('Kaydetme köprüsüne ulaşılamadı (uygulama Electron dışında mı çalışıyor?).');
+        setKeyMsg('Kaydetme köprüsüne ulaşılamadı.');
         return;
       }
       if (res.ok) {
         setHasKey(true);
         setSavedJustNow(true);
-        setKeyInput(''); // güvenlik: alan temizlenir; anahtar kasada
-        setKeyMsg(null);
+        setKeyInput('');
       } else {
         setKeyMsg(res.error ?? strings.connectFailed);
       }
@@ -173,19 +167,70 @@ function ProviderSection(): React.JSX.Element {
   };
 
   const clearKey = async (): Promise<void> => {
-    await window.quatra?.credentials.clear();
+    await window.quatra?.credentials.clear(props.id);
     setHasKey(false);
     setSavedJustNow(false);
-    setTestResult('idle');
     setKeyMsg(strings.apiKeyMissing);
   };
+
+  return (
+    <div className="field">
+      <label>{props.label}</label>
+      <div className="row">
+        <input
+          className="input"
+          type={showKey ? 'text' : 'password'}
+          placeholder={hasKey && !keyInput ? strings.apiKeyPlaceholderSaved : strings.apiKeyPlaceholder}
+          value={keyInput}
+          onChange={(e) => setKeyInput(e.target.value)}
+          autoComplete="off"
+          spellCheck={false}
+        />
+        <Button size="small" onClick={() => setShowKey(!showKey)}>
+          {showKey ? strings.hide : strings.show}
+        </Button>
+        <Button variant="primary" onClick={() => void saveKey()} disabled={!keyInput.trim()}>
+          {strings.saveKey}
+        </Button>
+        {hasKey && (
+          <Button variant="danger" onClick={() => void clearKey()} title="Kayıtlı anahtarı kasasından sil">
+            {strings.clearKey}
+          </Button>
+        )}
+      </div>
+      <div className="row" style={{ marginTop: 6 }}>
+        {savedJustNow && <StatusPill kind="ok" text={strings.apiKeySavedNow} />}
+        {!savedJustNow && hasKey && <StatusPill kind="ok" text={strings.apiKeySet} />}
+        {!savedJustNow && !hasKey && <StatusPill kind="warn" text={strings.apiKeyMissing} />}
+      </div>
+      <div className="hint">{props.hint}</div>
+      {savedJustNow && <div className="hint">{strings.apiKeyClearedNote}</div>}
+      {keyMsg && <div className="statusHint">{keyMsg}</div>}
+    </div>
+  );
+}
+
+function ProviderSection(): React.JSX.Element {
+  const settings = useSettingsStore((s) => s.settings);
+  const updateProvider = useSettingsStore((s) => s.updateProvider);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<'idle' | 'ok' | 'bad'>('idle');
+  const [testMsg, setTestMsg] = useState<string | null>(null);
+  const [models, setModels] = useState<Array<{ id: string }>>([]);
+  const [modelsLoaded, setModelsLoaded] = useState(false);
+  const [hasDeepseek, setHasDeepseek] = useState(false);
+  const flash = settings.provider.flashModel;
+  const pro = settings.provider.proModel;
+
+  useEffect(() => {
+    void window.quatra?.credentials.has('deepseek').then(setHasDeepseek);
+  }, []);
 
   const runTest = async (): Promise<void> => {
     setTesting(true);
     setTestResult('idle');
     setTestMsg(null);
-    const model = flash.trim();
-    const res = await window.quatra?.provider.test(model);
+    const res = await window.quatra?.provider.test(flash.trim());
     setTesting(false);
     if (res?.ok) {
       setTestResult('ok');
@@ -221,39 +266,7 @@ function ProviderSection(): React.JSX.Element {
           options={[{ value: 'deepseek', label: 'DeepSeek' }]}
         />
       </div>
-      <div className="field">
-        <label>{strings.apiKey}</label>
-        <div className="row">
-          <input
-            className="input"
-            type={showKey ? 'text' : 'password'}
-            placeholder={hasKey && !keyInput ? strings.apiKeyPlaceholderSaved : strings.apiKeyPlaceholder}
-            value={keyInput}
-            onChange={(e) => setKeyInput(e.target.value)}
-            autoComplete="off"
-            spellCheck={false}
-          />
-          <Button size="small" onClick={() => setShowKey(!showKey)}>
-            {showKey ? strings.hide : strings.show}
-          </Button>
-          <Button variant="primary" onClick={() => void saveKey()} disabled={!keyInput.trim()}>
-            {strings.saveKey}
-          </Button>
-          {hasKey && (
-            <Button variant="danger" onClick={() => void clearKey()} title="Kayıtlı anahtarı kasasından sil">
-              {strings.clearKey}
-            </Button>
-          )}
-        </div>
-        <div className="row" style={{ marginTop: 6 }}>
-          {savedJustNow && <StatusPill kind="ok" text={strings.apiKeySavedNow} />}
-          {!savedJustNow && hasKey && <StatusPill kind="ok" text={strings.apiKeySet} />}
-          {!savedJustNow && !hasKey && <StatusPill kind="warn" text={strings.apiKeyMissing} />}
-        </div>
-        <div className="hint">{strings.apiKeyHint}</div>
-        {savedJustNow && <div className="hint">{strings.apiKeyClearedNote}</div>}
-        {keyMsg && <div className="statusHint">{keyMsg}</div>}
-      </div>
+      <KeyBlock id="deepseek" label={strings.apiKey} hint={strings.apiKeyHint} />
       <div className="field">
         <label>{strings.flashModel}</label>
         <Select value={flash} onChange={(v) => void updateProvider({ flashModel: v })} options={modelOptions(flash)} />
@@ -295,16 +308,19 @@ function ProviderSection(): React.JSX.Element {
         />
       </div>
       <div className="field row">
-        <Button variant="primary" onClick={() => void runTest()} disabled={testing || !hasKey}>
+        <Button variant="primary" onClick={() => void runTest()} disabled={testing || !hasDeepseek}>
           {testing ? strings.testing : strings.testConnection}
         </Button>
-        <Button onClick={() => void loadModels()} disabled={!hasKey || modelsLoaded}>
+        <Button onClick={() => void loadModels()} disabled={!hasDeepseek || modelsLoaded}>
           {modelsLoaded ? `${models.length} model` : 'Modelleri getir'}
         </Button>
         {testResult === 'ok' && <StatusPill kind="ok" text={testMsg ?? strings.connected} />}
         {testResult === 'bad' && <StatusPill kind="bad" text={testMsg ?? strings.connectFailed} />}
-        {!hasKey && <StatusPill kind="warn" text={strings.noKeyFirst} />}
+        {!hasDeepseek && <StatusPill kind="warn" text={strings.noKeyFirst} />}
       </div>
+
+      <h3 style={{ marginTop: 26 }}>Ses Tanıma</h3>
+      <KeyBlock id="groq" label={strings.groqKey} hint={strings.groqKeyHint} />
     </>
   );
 }
@@ -314,18 +330,35 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
   const update = useSettingsStore((s) => s.update);
   const [voices, setVoices] = useState<Array<{ name: string; lang: string }>>([]);
 
+  const loadVoices = (): void => setVoices(props.controller.audioService.availableVoices());
+
   useEffect(() => {
-    const load = () => setVoices(props.controller.audioService.availableVoices());
-    load();
+    loadVoices();
     if ('speechSynthesis' in window) {
-      window.speechSynthesis.addEventListener('voiceschanged', load);
-      return () => window.speechSynthesis.removeEventListener('voiceschanged', load);
+      window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
+      return () => window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.controller]);
 
   return (
     <>
       <h3>{strings.voiceAudio}</h3>
+      <div className="field">
+        <label>{strings.sttEngine}</label>
+        <Select
+          value={settings.voice.sttEngine}
+          onChange={(v) =>
+            void update({ voice: { ...settings.voice, sttEngine: v as typeof settings.voice.sttEngine } })
+          }
+          options={[
+            { value: 'auto', label: strings.sttAuto },
+            { value: 'groq', label: strings.sttGroq },
+            { value: 'off', label: strings.sttOff },
+          ]}
+        />
+        <div className="hint">{strings.groqKeyHint}</div>
+      </div>
       <div className="field row between">
         <label style={{ margin: 0 }}>{strings.autoSpeak}</label>
         <Switch
@@ -344,16 +377,36 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
         />
       </div>
       <div className="field">
-        <label>{strings.voice}</label>
-        <Select
-          value={settings.voice.voiceName}
-          onChange={(v) => void update({ voice: { ...settings.voice, voiceName: v } })}
-          options={[
-            { value: '', label: 'Sistem (otomatik)' },
-            ...voices.map((v) => ({ value: v.name, label: `${v.name} (${v.lang})` })),
-          ]}
+        <label>Ses perdesi</label>
+        <Slider
+          value={settings.voice.pitch}
+          min={0.5}
+          max={1.5}
+          onChange={(v) => void update({ voice: { ...settings.voice, pitch: v } })}
+          format={(v) => v.toFixed(2)}
         />
-        {voices.length === 0 && <div className="hint">Ses listesi bu cihazda henüz yüklenmedi — test butonu çalışır.</div>}
+      </div>
+      <div className="field">
+        <label>
+          {strings.voice} ({voices.length})
+        </label>
+        <div className="row">
+          <Select
+            value={settings.voice.voiceName}
+            onChange={(v) => void update({ voice: { ...settings.voice, voiceName: v } })}
+            options={[
+              { value: '', label: 'Sistem (otomatik)' },
+              ...voices.map((v) => ({ value: v.name, label: `${v.name} (${v.lang})` })),
+            ]}
+          />
+          <Button size="small" onClick={loadVoices}>
+            {strings.refresh}
+          </Button>
+        </div>
+        <div className="hint">{strings.voicesHint}</div>
+        {voices.length === 0 && (
+          <div className="statusHint">Ses listesi henüz yüklenmedi — Yenile’ye bas.</div>
+        )}
       </div>
       <div className="field row">
         <Button onClick={() => props.controller.testVoice('Merhaba, ben Quatra. Ses sistemim çalışıyor.')}>
@@ -376,26 +429,42 @@ function ActivationSection(): React.JSX.Element {
         <label>{strings.activationMode}</label>
         <Select
           value={settings.activation.mode}
-          onChange={(v) => void update({ activation: { ...settings.activation, mode: v as typeof settings.activation.mode } })}
+          onChange={(v) =>
+            void update({ activation: { ...settings.activation, mode: v as typeof settings.activation.mode } })
+          }
           options={[
             { value: 'manual', label: strings.modeManual },
             { value: 'push_to_talk', label: strings.modePtt },
-            { value: 'wake_word', label: strings.modeWake, disabled: true },
+            { value: 'wake_word', label: 'Uyandırma kelimesi («Quatra»)' },
           ]}
         />
-        <div className="hint">{strings.wakeUnavailable}</div>
       </div>
       {settings.activation.mode === 'push_to_talk' && (
         <div className="field">
           <label>{strings.pttKey}</label>
           <input
             className="input"
-            style={{ width: 220 }}
+            style={{ width: 240 }}
             value={settings.activation.pushToTalkKey}
             onChange={(e) =>
               void update({ activation: { ...settings.activation, pushToTalkKey: e.target.value } })
             }
           />
+          <div className="hint">{strings.pttGlobalNote}</div>
+        </div>
+      )}
+      {settings.activation.mode === 'wake_word' && (
+        <div className="field">
+          <label>{strings.wakeWord}</label>
+          <input
+            className="input"
+            style={{ width: 240 }}
+            value={settings.activation.wakeWord}
+            onChange={(e) =>
+              void update({ activation: { ...settings.activation, wakeWord: e.target.value } })
+            }
+          />
+          <div className="hint">{strings.wakeWordHint}</div>
         </div>
       )}
     </>

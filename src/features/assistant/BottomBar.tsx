@@ -1,12 +1,13 @@
 /**
  * Alt çubuk — iki pill (OpenCode tarzı):
- * 1) Model pill: tıkla → gerçek model listesinden seç (aktif modun modeli güncellenir).
+ * 1) Model pill: tıkla → seviyeler (Düşük/Varsayılan/Yüksek/Max/Ultra Max) + gerçek model listesi.
  * 2) Mod pill: tıkla → Hızlı (flash) / Düşünceli (pro) seç.
  * Popup'lar yukarı açılır; dışına tıkla veya Esc ile kapanır.
  */
 import { useEffect, useRef, useState } from 'react';
 import { useAssistantStore } from '../../state/assistant-store';
 import { useSettingsStore } from '../../state/settings-store';
+import { applyTier, currentTierId, MODEL_TIERS } from './model-tiers';
 import { strings } from '../../renderer/strings';
 
 type Popup = 'none' | 'model' | 'mode';
@@ -24,6 +25,8 @@ export function BottomBar(): React.JSX.Element {
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
   const currentModel = mode === 'pro' ? settings.provider.proModel : settings.provider.flashModel;
+  const tierId = currentTierId(settings, mode);
+  const tier = MODEL_TIERS.find((t) => t.id === tierId) ?? null;
 
   // Dışına tıklama + Esc ile kapan.
   useEffect(() => {
@@ -49,12 +52,11 @@ export function BottomBar(): React.JSX.Element {
     }
     setPopup('model');
     setModelsError(null);
-    // Bilinen modeller + sağlayıcıdan gelen gerçek liste.
     const known = Array.from(new Set([settings.provider.flashModel, settings.provider.proModel]));
     let fetched: string[] = [];
     try {
       setModelsLoading(true);
-      const has = await window.quatra?.credentials.has();
+      const has = await window.quatra?.credentials.has('deepseek');
       if (has) {
         const res = await window.quatra?.provider.models();
         if (res?.ok && res.models) fetched = res.models.map((m) => m.id);
@@ -68,6 +70,15 @@ export function BottomBar(): React.JSX.Element {
       setModelsLoading(false);
     }
     setModels(Array.from(new Set([...known, ...fetched])));
+  };
+
+  const selectTier = async (id: string): Promise<void> => {
+    const patch = applyTier(settings, mode, id);
+    if (!patch) return;
+    await updateProvider(patch);
+    const t = MODEL_TIERS.find((x) => x.id === id);
+    setCaption(`${t?.label ?? id} · ${t?.model ?? ''}`);
+    setPopup('none');
   };
 
   const selectModel = async (id: string): Promise<void> => {
@@ -93,18 +104,36 @@ export function BottomBar(): React.JSX.Element {
       <div className="pillWrap">
         {popup === 'model' && (
           <div className="popup" role="menu" aria-label={strings.modelSelect}>
-            <div className="popupTitle">{settings.provider.id === 'deepseek' ? 'DeepSeek' : settings.provider.id} · {strings.modelSelect}</div>
+            <div className="popupTitle">DeepSeek · {strings.modelSelect}</div>
             {modelsLoading && <div className="popupHint">{strings.testing}</div>}
             {modelsError && <div className="popupHint warn">{modelsError}</div>}
+            {MODEL_TIERS.map((t) => (
+              <button
+                key={t.id}
+                className={`popupItem ${tierId === t.id ? 'active' : ''}`}
+                role="menuitemradio"
+                aria-checked={tierId === t.id}
+                onClick={() => void selectTier(t.id)}
+              >
+                <span className="check">{tierId === t.id ? '✓' : ''}</span>
+                {t.label}
+                <span className="popupSub">
+                  {t.model} · {t.desc}
+                </span>
+              </button>
+            ))}
+            <div className="popupTitle" style={{ marginTop: 4 }}>
+              {strings.rawModels}
+            </div>
             {models.map((m) => (
               <button
                 key={m}
-                className={`popupItem ${m === currentModel ? 'active' : ''}`}
+                className={`popupItem ${m === currentModel && !tierId ? 'active' : ''}`}
                 role="menuitemradio"
-                aria-checked={m === currentModel}
+                aria-checked={m === currentModel && !tierId}
                 onClick={() => void selectModel(m)}
               >
-                <span className="check">{m === currentModel ? '✓' : ''}</span>
+                <span className="check">{m === currentModel && !tierId ? '✓' : ''}</span>
                 {m}
               </button>
             ))}
@@ -113,7 +142,7 @@ export function BottomBar(): React.JSX.Element {
         )}
         <button className="pill" onClick={() => void openModelPopup()} title={strings.modelSelect}>
           <span className="pillDim">DeepSeek</span>
-          <span>{currentModel}</span>
+          <span>{tier ? tier.label : currentModel}</span>
         </button>
       </div>
 

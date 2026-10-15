@@ -191,7 +191,12 @@ Durum etiketleri: ✅ tamam | 🟡 kısmi | ⛔ blocked | ⬜ başlanmadı.
 3. ⬜ **[P1] Phase 4.1–4.4 — İzin sıkılaştırma + audit log + dosya backup/undo**
 
 ## 7. Aktif Adım Takibi
-- **Tamamlanan:** Phase 0 ✅ (0.1–0.6), Phase 1 ✅ (1.1–1.7 + 1.5b/c/d) — MVP kodu + 79 test + paket (NSIS kurulumu masaüstünde).
-- **Düzeltme (2026-10-16):** Boş ekran kök nedeni = Vite mutlak asset yolları → `base: './'` ile düzeltildi; mount kanıtı: main logu "renderer hazır — React mount edildi" (paketlenmiş uygulamada doğrulandı). İlk açılış **tam ekran** (`fullscreen: true`, F11 ile çıkış).
-- **MVP kanıt durumu:** Kod tam; gerçek DeepSeek anahtarıyla uçtan uca (sohbet, tool, TTS) doğrulama KULLANICIYA kaldı.
-- **Şu an:** Phase 2'ye geçilebilir (Next 3'teki sıra).
+- **Tamamlanan:** Phase 0 ✅, Phase 1 ✅ + kullanıcı geri bildirim turu ✅ (2026-10-16):
+  - Model seviyeleri (Düşük/Varsayılan/Yüksek/Max/Ultra Max) — gerçek model + parametre preset'leri (`model-tiers.ts`)
+  - Ses tanıma GERÇEK: Electron'da Web Speech çalışmadığı için MediaRecorder + VAD + **Groq Whisper** (main süreç, anahtar kasadan)
+  - Uyandırma kelimesi «Quatra» (VAD + Whisper + fuzzy eşleşme; Groq anahtarı gerekir) — `wake-word.ts`
+  - Global bas-konuş kısayolu (main `globalShortcut`; uygulama arkadayken de çalışır)
+  - Çoklu anahtar kasası: DeepSeek + Groq (v1→v2 migrasyonlu)
+  - Ses paneli: STT motoru seçimi, perde, gerçek ses listesi + yenile + Windows'a ses ekleme ipucu
+- **Kanıt:** 100 test ✅, E2E kasa testi (deepseek+groq set/has/clear) ✅, paketli uygulama smoke ✅
+- **Şu an:** Phase 2'ye geçilebilir.

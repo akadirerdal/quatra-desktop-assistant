@@ -50,7 +50,7 @@ export async function runAgent(
   emit({ type: 'start', requestId });
 
   try {
-    const hasKey = await getApiKey() !== '';
+    const hasKey = (await getApiKey('deepseek')) !== '';
     if (!hasKey) {
       emit({
         type: 'error',
@@ -62,7 +62,7 @@ export async function runAgent(
     }
 
     const client = new DeepSeekClient({
-      getApiKey: () => getApiKey(),
+      getApiKey: () => getApiKey('deepseek'),
       timeoutMs: 60_000,
     });
 

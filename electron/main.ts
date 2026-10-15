@@ -60,12 +60,15 @@ function createWindow(): void {
       void mainWindow?.webContents
         .executeJavaScript(
           `(async () => {
-            const setRes = await window.quatra.credentials.set('e2e-test-key-123');
-            const hasAfterSet = await window.quatra.credentials.has();
+            const setRes = await window.quatra.credentials.set('deepseek', 'e2e-test-key-123');
+            const hasAfterSet = await window.quatra.credentials.has('deepseek');
+            const groqRes = await window.quatra.credentials.set('groq', 'e2e-groq-456');
+            const groqHas = await window.quatra.credentials.has('groq');
             const avail = await window.quatra.credentials.available();
-            await window.quatra.credentials.clear();
-            const hasAfterClear = await window.quatra.credentials.has();
-            return JSON.stringify({ setRes, hasAfterSet, avail, hasAfterClear });
+            await window.quatra.credentials.clear('deepseek');
+            await window.quatra.credentials.clear('groq');
+            const hasAfterClear = await window.quatra.credentials.has('deepseek');
+            return JSON.stringify({ setRes, hasAfterSet, groqRes, groqHas, avail, hasAfterClear });
           })()`,
         )
         .then((result) => {

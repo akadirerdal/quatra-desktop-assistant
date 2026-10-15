@@ -1,11 +1,22 @@
 /**
- * Credentials vault — API anahtarı yalnızca burada yaşar.
+ * Credentials vault — API anahtarları yalnızca burada yaşar.
  * OS şifre kasası (Electron safeStorage: Windows DPAPI / macOS Keychain) ile şifrelenir.
  * Renderer'a asla açık metin gitmez; yalnızca "var/yok" bilgisi taşınır.
+ *
+ * Slotlar:
+ *  - deepseek : sohbet modeli anahtarı
+ *  - groq     : ses tanıma (Whisper) anahtarı
  */
 import { app, safeStorage } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
+
+export type CredentialId = 'deepseek' | 'groq';
+
+interface CredentialsFile {
+  version: 2;
+  keys: Partial<Record<CredentialId, string>>; // base64(encrypted)
+}
 
 function credentialsFile(): string {
   return path.join(app.getPath('userData'), 'credentials.json');
@@ -19,8 +30,9 @@ export function credentialsAvailable(): boolean {
   }
 }
 
-export async function hasApiKey(): Promise<boolean> {
-  return (await readStoredKey()) !== '';
+export async function hasApiKey(id: CredentialId): Promise<boolean> {
+  const keys = await readKeys();
+  return typeof keys[id] === 'string' && keys[id]!.length > 0;
 }
 
 export interface SetKeyResult {
@@ -28,11 +40,12 @@ export interface SetKeyResult {
   error?: string;
 }
 
-export async function setApiKey(key: string): Promise<SetKeyResult> {
+export async function setApiKey(id: CredentialId, key: string): Promise<SetKeyResult> {
   if (!credentialsAvailable()) {
     return {
       ok: false,
-      error: 'Bu sistemde güvenli anahtar kasası yok. Anahtar kaydedilmedi; oturum için elle girebilirsin.',
+      error:
+        'Bu sistemde güvenli anahtar kasası yok. Anahtar kaydedilmedi; oturum için elle girebilirsin.',
     };
   }
   const trimmed = key.trim();
@@ -40,8 +53,9 @@ export async function setApiKey(key: string): Promise<SetKeyResult> {
     return { ok: false, error: 'Anahtar boş olamaz.' };
   }
   try {
-    const enc = safeStorage.encryptString(trimmed).toString('base64');
-    await atomicWriteJson(credentialsFile(), { version: 1, keyEnc: enc });
+    const keys = await readKeys();
+    keys[id] = safeStorage.encryptString(trimmed).toString('base64');
+    await atomicWriteJson(credentialsFile(), { version: 2, keys } satisfies CredentialsFile);
     return { ok: true };
   } catch {
     return { ok: false, error: 'Anahtar kaydedilemedi.' };
@@ -49,8 +63,9 @@ export async function setApiKey(key: string): Promise<SetKeyResult> {
 }
 
 /** Anahtarın okunması yalnızca main süreçte yapılır; asla loglanmaz. */
-export async function getApiKey(): Promise<string> {
-  const stored = await readStoredKey();
+export async function getApiKey(id: CredentialId): Promise<string> {
+  const keys = await readKeys();
+  const stored = keys[id];
   if (!stored) return '';
   try {
     return safeStorage.decryptString(Buffer.from(stored, 'base64'));
@@ -59,21 +74,34 @@ export async function getApiKey(): Promise<string> {
   }
 }
 
-export async function clearApiKey(): Promise<void> {
+export async function clearApiKey(id: CredentialId): Promise<void> {
   try {
-    fs.rmSync(credentialsFile(), { force: true });
+    const keys = await readKeys();
+    delete keys[id];
+    if (Object.keys(keys).length === 0) {
+      fs.rmSync(credentialsFile(), { force: true });
+    } else {
+      await atomicWriteJson(credentialsFile(), { version: 2, keys } satisfies CredentialsFile);
+    }
   } catch {
     // yok say — temizlik amaçlı
   }
 }
 
-async function readStoredKey(): Promise<string> {
+/**
+ * Eski tek-anahtar formatını (v1: { keyEnc }) yeni formata taşır.
+ * Geriye dönük uyumluluk: kullanıcıların önceki DeepSeek anahtarı korunur.
+ */
+async function readKeys(): Promise<Partial<Record<CredentialId, string>>> {
   try {
     const raw = await fs.promises.readFile(credentialsFile(), 'utf8');
-    const data = JSON.parse(raw) as { keyEnc?: string };
-    return typeof data.keyEnc === 'string' ? data.keyEnc : '';
+    const data = JSON.parse(raw) as Partial<CredentialsFile> & { keyEnc?: string };
+    if (typeof data.keyEnc === 'string') {
+      return { deepseek: data.keyEnc };
+    }
+    return data.keys ?? {};
   } catch {
-    return '';
+    return {};
   }
 }
 

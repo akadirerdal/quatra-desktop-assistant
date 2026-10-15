@@ -4,23 +4,23 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { SettingsPanel } from '../../../src/features/settings/SettingsPanel';
 import { AssistantController } from '../../../src/features/assistant/assistant-controller';
 
-let savedKey = '';
-let hasKeyState = false;
+let savedBy: Record<string, string> = {};
+let hasState: Record<string, boolean> = {};
 
 function installBridge(): void {
   (window as unknown as { quatra: unknown }).quatra = {
     version: '0.1.0',
     settings: { load: async () => null, save: async () => ({ ok: true }) },
     credentials: {
-      has: async () => hasKeyState,
+      has: async (id: string) => !!hasState[id],
       available: async () => true,
-      set: async (k: string) => {
-        savedKey = k;
-        hasKeyState = true;
+      set: async (id: string, k: string) => {
+        savedBy[id] = k;
+        hasState[id] = true;
         return { ok: true };
       },
-      clear: async () => {
-        hasKeyState = false;
+      clear: async (id: string) => {
+        hasState[id] = false;
         return { ok: true };
       },
     },
@@ -28,6 +28,8 @@ function installBridge(): void {
       test: async () => ({ ok: true, latencyMs: 5 }),
       models: async () => ({ ok: true, models: [{ id: 'deepseek-chat' }, { id: 'deepseek-reasoner' }] }),
     },
+    stt: { transcribe: async () => ({ ok: true, text: 'test' }) },
+    shortcut: { register: async () => ({ ok: true }), onTrigger: () => () => undefined },
     agent: {
       run: async () => ({ started: true }),
       cancel: async () => ({ ok: true }),
@@ -40,8 +42,8 @@ function installBridge(): void {
 }
 
 beforeEach(() => {
-  savedKey = '';
-  hasKeyState = false;
+  savedBy = {};
+  hasState = {};
   installBridge();
 });
 
@@ -56,13 +58,13 @@ describe('SettingsPanel — API anahtarı akışı', () => {
     render(<SettingsPanel onClose={() => undefined} controller={controller} />);
     fireEvent.click(screen.getByText('AI Sağlayıcı'));
 
-    const input = screen.getByPlaceholderText('Anahtarı yapıştır') as HTMLInputElement;
+    const input = screen.getAllByPlaceholderText('Anahtarı yapıştır')[0] as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'test-abc-123' } });
-    fireEvent.click(screen.getByText('Kaydet'));
+    fireEvent.click(screen.getAllByText('Kaydet')[0]);
 
     expect(await screen.findByText('Anahtar kaydedildi ✓')).toBeTruthy();
     expect(input.value).toBe(''); // güvenlik: alan temizlenir
-    expect(savedKey).toBe('test-abc-123');
+    expect(savedBy['deepseek']).toBe('test-abc-123');
     // Kayıttan sonra Kaldır butonu görünür.
     expect(screen.getByText('Kaldır')).toBeTruthy();
     controller.dispose();
@@ -77,17 +79,17 @@ describe('SettingsPanel — API anahtarı akışı', () => {
     render(<SettingsPanel onClose={() => undefined} controller={controller} />);
     fireEvent.click(screen.getByText('AI Sağlayıcı'));
 
-    fireEvent.change(screen.getByPlaceholderText('Anahtarı yapıştır'), {
+    fireEvent.change(screen.getAllByPlaceholderText('Anahtarı yapıştır')[0]!, {
       target: { value: 'x' },
     });
-    fireEvent.click(screen.getByText('Kaydet'));
+    fireEvent.click(screen.getAllByText('Kaydet')[0]);
 
     expect(await screen.findByText('Sistem kasası yok')).toBeTruthy();
     controller.dispose();
   });
 
   it('anahtar varken "Anahtar kayıtlı" rozeti gösterir', async () => {
-    hasKeyState = true;
+    hasState = { deepseek: true };
     const controller = new AssistantController();
     render(<SettingsPanel onClose={() => undefined} controller={controller} />);
     fireEvent.click(screen.getByText('AI Sağlayıcı'));

@@ -18,14 +18,17 @@ const ProviderSchema = z.object({
 const VoiceSchema = z.object({
   autoSpeak: z.boolean().default(true),
   rate: z.number().min(0.5).max(2).default(1),
+  pitch: z.number().min(0.5).max(1.5).default(1),
   voiceName: z.string().default(''),
+  /** Ses tanıma motoru: auto = önce web, yoksa groq whisper. */
+  sttEngine: z.enum(['auto', 'groq', 'off']).default('auto'),
 });
 
 const ActivationSchema = z.object({
   mode: z.enum(['manual', 'push_to_talk', 'wake_word']).default('push_to_talk'),
   pushToTalkKey: z.string().min(1).default('Ctrl+Shift+Space'),
-  /** Deneysel — gerçek motor kurulana kadar UI'da "kullanılamaz" işaretli. */
-  wakeWordEnabled: z.boolean().default(false),
+  /** Uyandırma kelimesi (gerçek VAD + Whisper ile aranır). */
+  wakeWord: z.string().min(2).max(20).default('quatra'),
 });
 
 const AppearanceSchema = z.object({

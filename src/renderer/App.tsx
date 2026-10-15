@@ -37,21 +37,6 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { broken: boolean
   }
 }
 
-function keyCombo(e: KeyboardEvent, configured: string): boolean {
-  const parts = configured.split('+').map((p) => p.trim().toLowerCase());
-  const mods = {
-    ctrl: e.ctrlKey,
-    control: e.ctrlKey,
-    shift: e.shiftKey,
-    alt: e.altKey,
-    meta: e.metaKey,
-  };
-  const keys = parts.filter((p) => !(p in mods));
-  const keyOk = keys.length > 0 && keys.every((k) => e.key.toLowerCase() === k);
-  const modsOk = parts.filter((p) => p in mods).every((m) => mods[m as keyof typeof mods]);
-  return keyOk && modsOk;
-}
-
 export function App(): React.JSX.Element {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [firstRun, setFirstRun] = useState(false);
@@ -65,7 +50,7 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     if (window.quatra) setSettingsBackend(new IpcSettingsBackend());
     void loadSettings();
-    void window.quatra?.credentials.has().then((has) => {
+    void window.quatra?.credentials.has('deepseek').then((has) => {
       if (!has) setFirstRun(true);
     });
     // Mount sinyali: main süreç "renderer hazır" loglar (boş ekran teşhisi).
@@ -82,20 +67,19 @@ export function App(): React.JSX.Element {
           return;
         }
         controller.interrupt();
-        return;
-      }
-      const mode = useSettingsStore.getState().settings.activation.mode;
-      if (mode === 'push_to_talk') {
-        const key = useSettingsStore.getState().settings.activation.pushToTalkKey;
-        if (keyCombo(e, key) && !e.repeat) {
-          e.preventDefault();
-          controller.toggleListening();
-        }
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [controller, settingsOpen]);
+
+  // Etkinleştirme değişince global kısayol / uyandırma servisini uygula.
+  const loaded = useSettingsStore((s) => s.loaded);
+  const activation = useSettingsStore((s) => s.settings.activation);
+  useEffect(() => {
+    if (!loaded) return;
+    void controller.syncActivation();
+  }, [controller, loaded, activation.mode, activation.pushToTalkKey, activation.wakeWord]);
 
   const toggleMic = () => {
     if (mutedByUser) {

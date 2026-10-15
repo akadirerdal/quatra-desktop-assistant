@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { Visualizer } from './Visualizer';
 import { BottomBar } from './BottomBar';
 import { useAssistantStore } from '../../state/assistant-store';
+import { useSettingsStore } from '../../state/settings-store';
 import { strings } from '../../renderer/strings';
 
 export function MainScreen(props: {
@@ -17,6 +18,7 @@ export function MainScreen(props: {
   const tasks = useAssistantStore((s) => s.tasks);
   const mutedByUser = useAssistantStore((s) => s.mutedByUser);
   const connection = useAssistantStore((s) => s.connection);
+  const activation = useSettingsStore((s) => s.settings.activation);
   const [captionVisible, setCaptionVisible] = useState(false);
 
   // Caption 5 sn sonra solar.
@@ -56,7 +58,11 @@ export function MainScreen(props: {
 
       <div className="statusText">{statusText[status] ?? status}</div>
       <div className="statusHint">
-        {status === 'idle' ? strings.statusIdleHint : ''}
+        {status === 'idle'
+          ? activation.mode === 'wake_word'
+            ? `Uyandırmak için «${activation.wakeWord}» de`
+            : strings.statusIdleHint
+          : ''}
         {status === 'muted' ? strings.micOff : ''}
       </div>
 
