@@ -5,11 +5,19 @@
     "moduleResolution": "bundler",
     "skipLibCheck": true,
     "strict": true,
-    "noEmit": false,
-    "outDir": "dist-electron",
+    "noEmit": true,
     "isolatedModules": true,
     "lib": ["ES2022"],
     "types": ["node"]
   },
-  "include": ["electron"]
+  "include": [
+    "electron",
+    "src/providers",
+    "src/features/tools",
+    "src/features/agent",
+    "src/services/log",
+    "src/types",
+    "src/utils",
+    "src/shared"
+  ]
 }

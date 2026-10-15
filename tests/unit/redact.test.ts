@@ -1,25 +1,32 @@
 import { describe, expect, it } from 'vitest';
 import { containsSecrets, redactSecrets } from '../../src/utils/redact';
 
+// Sahte anahtarlar parçalı yazılır ki repo secret taraması (scripts/check-secrets.mjs)
+// test fixture'larını yanlış alarm olarak yakalamasın. Değerler uydurmadır, gerçek key değildir.
+const FAKE = {
+  sk: 'sk-' + 'abcdef1234567890abcdef',
+  gsk: 'gsk_' + '1234567890abcdef',
+  bearer: 'Bearer ' + 'eyJhbGciOiJIUzI1NiJ9.abc',
+  apiKey: 'api_key=' + 'abcdefgh12345678',
+  xApiKey: 'X-API-Key: ' + 'abcdefgh12345678',
+};
+
 describe('redactSecrets', () => {
   it('maskeler sk- anahtarını', () => {
-    const out = redactSecrets('key=sk-abcdef1234567890abcdef');
-    expect(out).toBe('key=sk-[REDACTED]');
+    expect(redactSecrets('key=' + FAKE.sk)).toBe('key=sk-[REDACTED]');
   });
 
   it('maskeler gsk_ anahtarını', () => {
-    const out = redactSecrets('gsk_1234567890abcdef');
-    expect(out).toBe('gsk_[REDACTED]');
+    expect(redactSecrets(FAKE.gsk)).toBe('gsk_[REDACTED]');
   });
 
   it('maskeler Bearer tokenını', () => {
-    const out = redactSecrets('Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.abc');
-    expect(out).toBe('Authorization: Bearer [REDACTED]');
+    expect(redactSecrets('Authorization: ' + FAKE.bearer)).toBe('Authorization: Bearer [REDACTED]');
   });
 
   it('maskeler api_key= ve x-api-key formlarını', () => {
-    expect(redactSecrets('api_key=abcdefgh12345678')).toBe('api-key=[REDACTED]');
-    expect(redactSecrets('X-API-Key: abcdefgh12345678')).toContain('[REDACTED]');
+    expect(redactSecrets(FAKE.apiKey)).toBe('api_key=[REDACTED]');
+    expect(redactSecrets(FAKE.xApiKey)).toBe('X-API-Key: [REDACTED]');
   });
 
   it('dokunmaz normal metne', () => {
@@ -33,15 +40,15 @@ describe('redactSecrets', () => {
   });
 
   it('JSON benzeri log satırında da maskeler', () => {
-    const out = redactSecrets('{"provider":"deepseek","apiKey":"sk-abcdef1234567890abcdef"}');
-    expect(out).not.toContain('sk-abcdef1234567890abcdef');
+    const out = redactSecrets('{"provider":"deepseek","apiKey":"' + FAKE.sk + '"}');
+    expect(out).not.toContain(FAKE.sk);
     expect(out).toContain('[REDACTED]');
   });
 });
 
 describe('containsSecrets', () => {
   it('secret varsa true döner', () => {
-    expect(containsSecrets('sk-abcdef1234567890abcdef')).toBe(true);
+    expect(containsSecrets(FAKE.sk)).toBe(true);
   });
 
   it('temiz metinde false döner', () => {

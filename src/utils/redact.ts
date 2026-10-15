@@ -4,21 +4,21 @@
  */
 
 interface SecretPattern {
-  /** Eşleşen desen (yakalama grubu gizli değildir). */
+  /** Eşleşen desen; `$1` ile korunacak ön-ek yakalanabilir. */
   re: RegExp;
-  /** Yerine yazılacak etiket. */
-  label: string;
+  /** Değiştirme şablonu (maskeli). */
+  replacement: string;
 }
 
 const SECRET_PATTERNS: SecretPattern[] = [
   // OpenAI/DeepSeek tarzı anahtarlar: sk-...
-  { re: /sk-[A-Za-z0-9_-]{8,}/g, label: 'sk-[REDACTED]' },
+  { re: /sk-[A-Za-z0-9_-]{8,}/g, replacement: 'sk-[REDACTED]' },
   // Groq anahtarları: gsk_...
-  { re: /gsk_[A-Za-z0-9_-]{8,}/g, label: 'gsk_[REDACTED]' },
+  { re: /gsk_[A-Za-z0-9_-]{8,}/g, replacement: 'gsk_[REDACTED]' },
   // Authorization: Bearer <token>
-  { re: /(bearer\s+)[A-Za-z0-9._-]{10,}/gi, label: 'Bearer [REDACTED]' },
+  { re: /(bearer\s+)[A-Za-z0-9._-]{10,}/gi, replacement: '$1[REDACTED]' },
   // api_key=... / api-key: "..." / x-api-key
-  { re: /(x?api[_-]?key["']?\s*[:=]\s*["']?)[A-Za-z0-9._-]{8,}/gi, label: 'api-key=[REDACTED]' },
+  { re: /(x?api[_-]?key["']?\s*[:=]\s*["']?)[A-Za-z0-9._-]{8,}/gi, replacement: '$1[REDACTED]' },
 ];
 
 /**
@@ -28,8 +28,8 @@ const SECRET_PATTERNS: SecretPattern[] = [
  */
 export function redactSecrets(input: string): string {
   let out = input;
-  for (const { re, label } of SECRET_PATTERNS) {
-    out = out.replace(re, (_match, prefix?: string) => (prefix ?? '') + label);
+  for (const { re, replacement } of SECRET_PATTERNS) {
+    out = out.replace(re, replacement);
   }
   return out;
 }

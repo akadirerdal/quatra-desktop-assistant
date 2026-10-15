@@ -1,0 +1,514 @@
+/* Quatra arayüz stili — koyu tema, sade, soluk aksanlar. */
+:root {
+  --bg: #08090d;
+  --panel: #0f1017;
+  --panel-2: #13141c;
+  --border: #23242e;
+  --text: #e9e9f0;
+  --muted: #76798a;
+  --accent: #9b87f5;
+  --accent-bright: #b9acf5;
+  --accent-dim: #6e5fc4;
+  --green: #3fd68f;
+  --red: #f06a6a;
+  --yellow: #e8b85c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  overflow: hidden;
+  user-select: none;
+}
+
+.app {
+  position: relative;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- ana ekran ---------- */
+.main {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.brand {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  letter-spacing: 6px;
+  color: var(--accent-dim);
+  font-weight: 600;
+}
+
+.statusText {
+  margin-top: 26px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.statusHint {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.caption {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted);
+  max-width: 480px;
+  text-align: center;
+  min-height: 18px;
+  transition: opacity 0.4s ease;
+}
+
+.gearBtn {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  opacity: 0.7;
+}
+.gearBtn:hover {
+  color: var(--text);
+  background: var(--panel);
+}
+
+.micPill {
+  position: absolute;
+  bottom: 14px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel);
+  font-size: 11px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.micPill:hover {
+  color: var(--text);
+}
+.micDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.micDot.on {
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+}
+.micDot.off {
+  background: var(--red);
+}
+
+.modelPill {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(155, 135, 245, 0.06);
+  font-size: 10.5px;
+  color: var(--accent-bright);
+  cursor: pointer;
+}
+.modelPill span.mode {
+  color: var(--muted);
+}
+
+/* ---------- görev balonları ---------- */
+.taskStack {
+  position: absolute;
+  right: 16px;
+  bottom: 14px;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+  max-width: 300px;
+}
+.taskBubble {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(15, 16, 23, 0.72);
+  backdrop-filter: blur(4px);
+  font-size: 12px;
+  animation: bubbleIn 0.25s ease;
+  transition: opacity 0.8s ease;
+}
+.taskBubble.fading {
+  opacity: 0.25;
+}
+.taskBubble .title {
+  color: var(--text);
+}
+.taskBubble .detail {
+  margin-top: 2px;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+.taskBubble.done .title::after {
+  content: ' ✓';
+  color: var(--green);
+}
+.taskBubble.error .title {
+  color: var(--red);
+}
+
+@keyframes bubbleIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---------- ayarlar ---------- */
+.settingsOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 5, 8, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+.settingsPanel {
+  width: min(860px, 92vw);
+  height: min(620px, 88vh);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  overflow: hidden;
+}
+.settingsNav {
+  width: 190px;
+  border-right: 1px solid var(--border);
+  padding: 18px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.settingsNav h2 {
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: var(--muted);
+  margin: 0 10px 12px;
+}
+.navItem {
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  text-align: left;
+  color: var(--muted);
+  font-size: 13px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.navItem:hover {
+  color: var(--text);
+  background: var(--panel-2);
+}
+.navItem.active {
+  color: var(--accent-bright);
+  background: rgba(155, 135, 245, 0.12);
+}
+.settingsContent {
+  flex: 1;
+  padding: 22px 26px;
+  overflow-y: auto;
+}
+.settingsContent h3 {
+  margin: 0 0 18px;
+  font-size: 16px;
+}
+.field {
+  margin-bottom: 16px;
+}
+.field label {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+.field .hint {
+  font-size: 10.5px;
+  color: var(--muted);
+  opacity: 0.8;
+  margin-top: 3px;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.row.between {
+  justify-content: space-between;
+}
+
+/* ---------- kontrol bileşenleri ---------- */
+.input,
+.select {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+  outline: none;
+}
+.input:focus,
+.select:focus {
+  border-color: var(--accent-dim);
+}
+textarea.input {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.btn {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.btn:hover {
+  border-color: var(--accent-dim);
+}
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0b0c10;
+  font-weight: 600;
+}
+.btn.primary:hover {
+  background: var(--accent-bright);
+}
+.btn.danger {
+  color: var(--red);
+  border-color: rgba(240, 106, 106, 0.4);
+}
+.btn.small {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.switch.on {
+  background: rgba(155, 135, 245, 0.35);
+  border-color: var(--accent-dim);
+}
+.switch .knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: all 0.2s ease;
+}
+.switch.on .knob {
+  left: 18px;
+  background: var(--accent-bright);
+}
+.switch.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.slider {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+.statusPill.ok {
+  color: var(--green);
+  border: 1px solid rgba(63, 214, 143, 0.4);
+}
+.statusPill.bad {
+  color: var(--red);
+  border: 1px solid rgba(240, 106, 106, 0.4);
+}
+.statusPill.warn {
+  color: var(--yellow);
+  border: 1px solid rgba(232, 184, 92, 0.4);
+}
+.statusPill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.dialogBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 5, 8, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+}
+.dialog {
+  width: min(380px, 90vw);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 22px;
+}
+.dialog h4 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+.dialog p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0 0 16px;
+}
+.dialog .actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* first-run */
+.firstRun {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.firstRun .card {
+  width: min(420px, 90vw);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px;
+  text-align: center;
+}
+.firstRun h2 {
+  margin: 0 0 6px;
+  letter-spacing: 4px;
+  color: var(--accent-bright);
+}
+.firstRun p {
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+
+/* teşhis */
+.diagList {
+  font-size: 12px;
+  color: var(--muted);
+}
+.diagList .line {
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+}
+.diagList .error {
+  color: var(--red);
+}
+.diagList .warn {
+  color: var(--yellow);
+}
+
+/* visualizer önizleme (ayarlar) */
+.previewBox {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  height: 130px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* offline rozeti */
+.offlineBadge {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  font-size: 10.5px;
+  color: var(--yellow);
+  border: 1px solid rgba(232, 184, 92, 0.35);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

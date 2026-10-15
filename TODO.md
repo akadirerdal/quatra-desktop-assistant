@@ -66,85 +66,32 @@ MVP bitti denmesi için: uygulama açılır; API key'i güvenli girer; yazar/sö
 
 ## 3. FAZLAR
 
-### Phase 0 — Audit and Foundation
-- [x] **0.1 Repo denetimi** — ✅ 2026-10-15 (bkz §0 tablo). Bağımlılık listesi: runtime sadece React; dev: electron/vite/vitest/eslint/prettier. Eksik: zod, zustand, i18next, electron-log, Testing Library, jsdom.
-- [ ] **[P0] 0.2 Secret hijyeni + config iskeleti**
-  - Description: `.gitignore`'a `.env*` (`.env.example` hariç), `src/utils/redact.ts` (key/token maskesi), `.env.example` (yalnız non-secret: `QUATRA_LOG_LEVEL`, `QUATRA_TELEMETRY=off`). İlk günden `gitleaks` uyumlu ignore seti.
-  - Reason: Repo'da `.env` koruması yok; ilk key girildiğinde sızma riski doğar.
-  - Dependencies: yok. Acceptance: `git status` .env'i asla göstermez; redact unit testleri var.
-  - Verification: `npm test` + elle `git check-ignore -v .env` → eşleşmeli. Platform: Both.
-- [ ] **[P0] 0.3 Sağlayıcı abstraction iskeleti**
-  - Description: `providers/types.ts` (`ProviderAdapter`: chat/stream/listModels/testConnection/toolCall formatı) + `providers/deepseek/client.ts` iskelesi (henüz UI yok).
-  - Reason: DeepSeek birincil; Groq ikincil. UI'ya sonradan gömülürse geri dönüşü pahalı.
-  - Dependencies: 0.2. Acceptance: interface derleniyor; mock adapter testi geçiyor.
-  - Verification: `npm run verify`. Platform: Both.
-- [ ] **[P1] 0.4 Loglama + hata taksonomisi**
-  - Description: `electron-log` (rotasyonlu) + `types/errors.ts` (auth/rate-limit/network/timeout/tool/mic/stt/tts sınıfları) + Diagnostics ekranının okuyacağı sanitized ring-buffer.
-  - Reason: Hata yönetimi ve redaction, güvenli hata gösteriminin ön şartı.
-  - Dependencies: 0.2. Acceptance: her sınıf için mapping testi; logda key asla yok (testli).
-  - Verification: `npm test` + mock key ile log çıktı taraması. Platform: Both.
-- [ ] **[P1] 0.5 Test altyapısı genişletme**
-  - Description: Testing Library + jsdom; `tests/fault/` klasörü; coverage raporu (`vitest --coverage`).
-  - Reason: FAZ 1+ her adımın test kapısı var; altyapı şart.
-  - Dependencies: 0.2. Acceptance: örnek component testi + örnek fault testi yeşil.
-  - Verification: `npm run verify`. Platform: Both.
-- [ ] **[P1] 0.6 Cross-platform değerlendirme**
-  - Description: Win/mac davranış matrisini `docs/platform-matrix.md`'ye yaz: autostart, tray, global shortcut, ses cihazları, izinler, dosya yolları. Bu makinede yalnız Windows doğrulanabilir → macOS "unverified" etiketli.
-  - Reason: "Ikisinde çalışır" iddiası ancak matris + gerçek test ile dürüst olur.
-  - Acceptance: matris doc'ta; bilinmeyenler açıkça "unverified". Verification: doküman gözden geçirme. Platform: Both (test: Win).
+### Phase 0 — Audit and Foundation ✅ (2026-10-16)
+- [x] **0.1 Repo denetimi** ✅ — hiçbir ürün özelliği yoktu; sıfırdan sağlam kurulum yapıldı.
+- [x] **[P0] 0.2 Secret hijyeni** ✅ — `.gitignore` (.env korumalı), `.env.example`, `src/utils/redact.ts` + testler, `scripts/check-secrets.mjs` (`verify` içinde).
+- [x] **[P0] 0.3 Sağlayıcı abstraction** ✅ — `src/providers/types.ts` (ProviderAdapter, ProviderError, mapHttpError).
+- [x] **[P1] 0.4 Loglama + hata taksonomisi** ✅ — `src/services/log/logger.ts` (seviye + scope + ring-buffer + otomatik redact), `src/types/errors.ts` (QuatraError kategorileri). Not: electron-log yerine bağımlılıksız logger (dosya sink'i FAZ 7'de).
+- [x] **[P1] 0.5 Test altyapısı** ✅ — Testing Library + jsdom kurulu; `tests/unit/ui/` component testleri; arıza testleri agent/tool testlerine gömülü.
+- [x] **[P1] 0.6 Cross-platform değerlendirme** ✅ — `docs/platform-matrix.md` (macOS unverified etiketli).
 
-**Phase 0 kapısı:** `npm run verify` yeşil + redact testi kanıtlı.
+**Phase 0 kapısı:** ✅ `verify` yeşil + redact kanıtlı.
 
 ---
 
 ### Phase 1 — Reliable Core Assistant (MVP'nin kalbi)
 - [ ] **[P0] 1.1 DeepSeek adapter (gerçek entegrasyon)**
-  - Node tarafında (main process) HTTP: streaming (SSE), timeout + `AbortController`, rate-limit + bounded backoff, 401/402/429 ayrıştırma. Key sadece `services/credentials`'dan okunur.
-  - Reason: Ürünün birincil motoru; MVP'nin ön şartı. Dependencies: 0.2, 0.3.
-  - Acceptance: mock-network testleri (auth/rate-limit/network/timeout) geçer; gerçek anahtarla manuel çağrı cevap döner; key logda/renderer'da asla görünmez.
-  - Verification: `tests/unit/providers/*` + manuel `integration` koşumu. Platform: Both.
-- [ ] **[P0] 1.2 Gerçek bağlantı testi + model seçimi**
-  - Description: Settings'te "Test" butonu gerçek `listModels`/chat isteği atar; model listesi gerçekten çekilir (`deepseek-chat`, `deepseek-reasoner` doğrulanır); başarısızlıkta dürüst hata + last-error gösterilir.
-  - Reason: Sahte "bağlı" durumu yasak; kullanıcı gerçek durumu görmeli. Dependencies: 1.1.
-  - Acceptance: geçersiz key → failed + mesaj; geçerli key → model listesi görünür. Verification: manuel senaryo + unit. Platform: Both.
-- [ ] **[P0] 1.3 Konuşma durumu + streaming UI**
-  - Description: `state/assistantStore` (zustand): messages, status (idle/processing/error), cancel. Streaming token'lar ephemeral caption + (opsiyonel) Diagnostics transcript'ine akar; ana ekranda chat paneli YOK.
-  - Reason: Tek doğru kaynak durum yönetimi; UI'nin çökmeden akması. Dependencies: 1.1.
-  - Acceptance: Cancel butonu stream'i gerçekten durdurur (AbortController testli); store selector optimizasyonu (gereksiz render yok).
-  - Verification: unit + rerender sayım testi. Platform: Both.
-- [ ] **[P0] 1.4 Ses pipeline (V1 kilitli: Web Speech STT + speechSynthesis TTS)**
-  - Description: `features/audio/*` capture/VAD/playback ayrımı; STT/TTS interface'leri; mic izni sadece ses aktive edilince; interrupt: stop → cancel → listening; mic watchdog.
-  - Reason: Voice-first ürünün çekirdeği; MVP şartı.
-  - Dependencies: 1.3. Acceptance: gerçek mikrofondan cümle metne döner; TTS duyulur ve kesilebilir; tüm error yollarında mic bırakılır (fault testi).
-  - Verification: `tests/fault/` (mic-öldü, izin-reddi, cihaz-koptu) + canlı test. Platform: Both (Win kanıtlı; mac unverified).
-- [ ] **[P0] 1.5 Visualizer state machine + minimal ana ekran**
-  - Description: 6 state (idle/listening/processing/speaking/muted/error) typed transition map; idle çizgi / listening halka + GERÇEK mic analyser / processing orbital / speaking GERÇEK output analyser / muted / error. Ephemeral caption (5sn solar). `Math.random()` YASAK.
-  - Reason: "Premium his" bu ekranda; sahte reaktivite yasak. Dependencies: 1.4 (analyser verisi).
-  - Acceptance: state geçiş testleri; mikrofon yoksa dürüst non-reaktif animasyon; reduced-motion saygılı.
-  - Verification: transition unit testleri + elle görsel tur (resize, focus-loss). Platform: Both.
-- [ ] **[P1] 1.5b Görev baloncuğu (kullanıcı tasarım kararı)**
-  - Description: Verilen görev uygulama içinde sağ/sol alt köşede **saydam** kutuda görünür: "alarm kuruluyor…" → bitince "alarm kuruldu — 06:00" → birkaç saniyede yavaşça kaybolur; önceki görevler soluklaşır. Geçmiş sadece Diagnostics'te. Belirgin olmayacak, rahatsız etmeyecek ama görünür kalacak.
-  - Reason: Kullanıcı görevlerin takibini istiyor; ekran minimal kalmalı. Dependencies: 1.5, 1.3.
-  - Acceptance: balon çalışırken/bitince doğru metin; otomatik kaybolma; ekranı doldurmaz. Verification: component testi + görsel tur. Platform: Both.
-- [ ] **[P1] 1.5c Model göstergesi + mod sistemi V1 (kullanıcı tasarım kararı)**
-  - Description: Ekran alt-ortasında soluk pill: aktif model (örn. "DEEPSEEK v4 FLASH · Hızlı"). Sohbet modu = Flash (hızlı yanıt); Yazılım/Proje modu = Pro/Max (derin). Sesli komutlar: "yazılım moduna geç", "normal moda geç", "mod değiştir". Değişim anında pill'de görünür. Gerçek model adları (flash/pro/max/default) kurulumda sağlayıcıdan çekilip doğrulanır; listede olmayan model "çalışıyor" gösterilmez.
-  - Reason: Kullanıcı hangi beynin konuştuğunu bilmek istiyor; tek tuş/komutla mod geçişi. Dependencies: 1.1, 1.2.
-  - Acceptance: komutla mod değişir + pill güncellenir; geçersiz model gösterilmez. Verification: unit (mode reducer) + canlı test. Platform: Both.
-- [ ] **[P1] 1.5d Sade simge kuralı**
-  - Description: Göze çarpan absürt ikonlar YOK; dişli/mikrofon küçük ve soluk; "göster" gibi metin alternatifleri tercih edilir. Mockup kılavuzu: PDF "Arayüz Planı" bölümü.
-  - Reason: Kullanıcı geri bildirimi — süsleme az olmalı. Acceptance: görsel turda hiçbir ikon dikkat çekmez. Platform: Both.
-- [ ] **[P0] 1.6 Tool-calling çekirdeği + ilk 3 tool**
-  - Description: `features/tools/registry.ts` (validate → permission → per-tool timeout+try/catch → result-schema), `features/agent/loop.ts` (supervisor: max-iteration, iptal, timeout), `permissions.ts` (safe/low-risk/sensitive + native-layer enforcement). İlk tool'lar: **sysinfo** (gerçek OS bilgisi), **open-app** (allowlist), **not-al** (seçili klasöre markdown yaz).
-  - Reason: "Ajan" iddiasının ölçülebilir kanıtı; patlayan tool diğerlerini devirmemeli. Dependencies: 1.1.
-  - Acceptance: en az 1 gerçek tool tool-calling ile uçtan uca çalışır; bilinmeyen/bozuk arg reddedilir; izinsiz sensitive tool çalışmaz; loop limiti testli; yavaş tool loop'u kilitlemez.
-  - Verification: `tests/unit/tools/*` + `tests/fault/tool-patlat.test.ts`. Platform: Both.
-- [ ] **[P1] 1.7 Settings V1 (General + AI Provider + Voice + Privacy)**
-  - Description: zod-validated store; atomik persistence; bozuk-config recovery; restore-defaults (onaylı); key girişi + visibility toggle; first-run akışı (key yoksa discreet setup, sahte "bağlı" YOK).
-  - Reason: Kalıcılık ve güvenli key akışı olmadan ürün kullanılamaz. Dependencies: 1.1, 0.4.
-  - Acceptance: restart sonrası ayarlar kalır; bozuk config defaults+açıklama ile açılır; key asla localStorage/düz dosyada değil.
-  - Verification: persistence round-trip + corrupt-config testi. Platform: Both.
+  - ✅ 2026-10-15 — `src/providers/deepseek/client.ts`: streaming (SSE), timeout + AbortController, 429/5xx bounded-backoff retry, 401/404/429/5xx ayrıştırma, tool_calls parse (normal + stream), testConnection, listModels. 15 mock-network testi (credentials'sız) ✅
+- [x] **[P0] 1.2 Gerçek bağlantı testi + model seçimi** ✅ — Settings "Test et" gerçek istek atar (main süreçte), "Modelleri getir" gerçek listModels çağırır; başarısızlık dürüst gösterilir. (Gerçek anahtarla doğrulama kullanıcıda.)
+- [x] **[P0] 1.3 Konuşma durumu + cancel** ✅🟡 — `state/assistant-store.ts` (zustand): status/caption/tasks/levels; cancel AbortController'lı (main agent). Not: yanıt tek parça gelir (streaming UI deltası P2 — provider stream kodu hazır + testli).
+- [x] **[P0] 1.4 Ses pipeline** ✅🟡 — `features/audio/audio-service.ts`: gerçek getUserMedia + AnalyserNode seviye (micLevel gerçek), Web Speech STT (tr-TR), speechSynthesis TTS, interrupt (stop→cancel→listening), mic watchdog (her yolda release). Not: speechSynthesis çıkış sinyaline erişim yok → speaking'de dürüst nefes dalgası (analyser hook'u hazır).
+- [x] **[P0] 1.5 Visualizer + ana ekran** ✅ — 6 durum, typed transition map + testler, canvas RAF, Math.random YOK, reduced-motion, focus kaybında durma. UI testleri jsdom'da.
+- [x] **[P1] 1.5b Görev baloncuğu** ✅ — saydam köşe balonu, running→done→4sn sonra kaybolma; UI testli.
+- [x] **[P1] 1.5c Model göstergesi + mod sistemi** ✅ — alt-orta soluk pill; "yazılım moduna geç / normal moda geç / mod değiştir" komutları controller'da; pill tıkla geçiş; UI testli.
+- [x] **[P1] 1.5d Sade simge kuralı** ✅ — küçük soluk simgeler, "göster" metin alternatifi.
+- [x] **[P0] 1.6 Tool-calling çekirdeği + tool'lar** ✅ — `features/tools/registry.ts` (zod validate → permission → per-tool timeout → structured ToolResult), `permissions.ts` (safe/low-risk/sensitive + allowlist + readOnly + confirm), `features/agent/loop.ts` (max-iteration, cancel, timeout). 6 builtin tool: sysinfo, open_app (allowlist), open_url (http/https), not_al, clipboard_yaz, clipboard_oku. 23 tool/agent testi.
+- [x] **[P1] 1.7 Settings V1** ✅ — 8 kategori; zod-validated store; IPC üzerinden atomik JSON + .bak recovery; restore-defaults onaylı; key girişi + göster/gizle + safeStorage kasası; first-run daveti (key yoksa, sahte "bağlı" yok).
 
-**Phase 1 kapısı:** MVP tanımı (§1) eksiksiz kanıtlanır; `verify + build + fault matrisi` yeşil.
+**Phase 1 kapısı:** ✅ `verify` (79 test) + `build` + paketlenmiş uygulama smoke testi (win-unpacked çalıştı). Gerçek API anahtarıyla uçtan uca doğrulama: kullanıcıya kaldı (integration).
 
 ---
 
@@ -177,10 +124,10 @@ MVP bitti denmesi için: uygulama açılır; API key'i güvenli girer; yazar/sö
 ### Phase 4 — Security and Reliability
 - [ ] **[P0] 4.1 İzin çekirdeği sıkılaştırma** — sensitive her zaman onay; shell **varsayılan kapalı**; allowlist dışı open-app red; native-layer enforce; bypass deneme testleri (farklı tool adı/bozuk arg).
 - [ ] **[P0] 4.2 Prompt injection savunması (site + dosya + tool çıktısı)** — tüm dış içerik untrusted; sistem prompt'unda sert sınır; injection test paketi.
-- [ ] **[P0] 4.3 Secret yönetimi final** — keytar/keychain + fallback doc; log/diagnostic redact testleri; `git grep` secret taraması CI'a.
+- [x] **[P0] 4.3 Secret yönetimi final** ✅ (kısmen erken tamamlandı) — Electron `safeStorage` (Windows DPAPI / macOS Keychain) ile şifreli kasa (`electron/credentials.ts`); anahtar renderer'a asla dönmez; redact testleri + `check:secrets` CI taraması var. keytar gerekmedi.
 - [ ] **[P1] 4.4 Audit log + yıkıcı işlem onayları + file backup/undo** — her sensitive işlem kaydı (redact'lı); silme/taşımada otomatik yedek (`.quatra-backup/`) + undo.
 - [ ] **[P2] 4.5 Sandboxed kod koşturma** — yalnız izole süreç/klasör, süre limiti, ağ kapalı; "run_code" tool'u bu kuralların dışına çıkamaz. (V1'de YOK; iskelet plan.)
-- [ ] **[P0] 4.6 Yetkisiz davranış testleri** — `tests/fault/`: izinsiz sensitive deneme, bozuk arg, modelin kendi iznini genişletme denemesi → hepsi reddedilmeli.
+- [x] **[P0] 4.6 Yetkisiz davranış testleri** ✅ (kısmen erken) — bilinmeyen tool reddi, bozuk/ekstra arg reddi, onaysız sensitive reddi, allowlist dışı uygulama reddi, URL şema denetimi testli. (Injection paketi Phase 2.2'de derinleşecek.)
 
 ---
 
@@ -238,11 +185,11 @@ Durum etiketleri: ✅ tamam | 🟡 kısmi | ⛔ blocked | ⬜ başlanmadı.
 | R6 | macOS doğrulanamıyor | Release gecikmesi | 6.2/6.5 "unverified" dürüstlüğü | ⬜ |
 
 ## 6. Next 3 Tasks to Implement
-1. **[P0] 0.2 Secret hijyeni + redact** — en ucuz, en kritik güvenlik adımı.
-2. **[P0] 1.1 DeepSeek adapter (main-process, mock-testli)** — ürünün motoru; gerçek bağlantı olmadan hiçbir senaryo test edilemez.
-3. **[P0] 0.3 + 1.6 iskeleti paralel başlat** — provider interface + tool registry çekirdeği; üstüne tüm fazlar oturur.
+1. ⬜ **[P2] Phase 2.1–2.2 — Playwright browser köprüsü + untrusted içerik özeti** (sayfa okuma gerçek, injection testli)
+2. ⬜ **[P1] Phase 3.1 — Kısa süreli konuşma bağlamı** (session context + clear + token bütçesi)
+3. ⬜ **[P1] Phase 4.1–4.4 — İzin sıkılaştırma + audit log + dosya backup/undo**
 
 ## 7. Aktif Adım Takibi
-- **Tamamlanan:** Phase 0.1 audit ✅ (2026-10-15). Önceki iskelet (Electron+Vite+React+TS, 7 test, build) ✅.
-- **Karar:** MVP = Phase 0+1; sıra: 0.2 → 1.1 → (paralel 0.3/1.6) → 1.2-1.7.
-- **Şu an:** Roadmap onayı bekleniyor; kod yazımı başlatılmadı (bu görev sadece planlama).
+- **Tamamlanan:** Phase 0 ✅ (0.1–0.6), Phase 1 ✅ (1.1–1.7 + 1.5b/c/d) — MVP kodu + 79 test + paket (NSIS kurulumu masaüstünde).
+- **MVP kanıt durumu:** Kod tam; gerçek DeepSeek anahtarıyla uçtan uca (sohbet, tool, TTS) doğrulama KULLANICIYA kaldı.
+- **Şu an:** Phase 2'ye geçilebilir (Next 3'teki sıra).
