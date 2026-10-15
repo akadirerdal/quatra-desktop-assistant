@@ -44,6 +44,7 @@ const quatra = {
 
   app: {
     version: (): Promise<string> => ipcRenderer.invoke('app:version'),
+    rendererReady: (): void => ipcRenderer.send('app:renderer-ready'),
   },
 };
 

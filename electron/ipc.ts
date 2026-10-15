@@ -9,6 +9,7 @@ import { createNativeBridge } from './native';
 import { DeepSeekClient } from '../src/providers/deepseek/client';
 import { ProviderError } from '../src/providers/types';
 import { cancelActiveAgent, runAgent } from './agent-service';
+import { appLogger } from '../src/services/log/logger';
 import type { AgentRunRequest } from './agent-service';
 
 export function registerIpc(win: BrowserWindow): void {
@@ -63,6 +64,9 @@ export function registerIpc(win: BrowserWindow): void {
   // ---------------------------------------------------------------- native yardımcılar
   ipcMain.handle('tools:pickDirectory', async () => createNativeBridge(win).pickDirectory());
   ipcMain.handle('app:version', async () => app.getVersion());
+  ipcMain.on('app:renderer-ready', () => {
+    appLogger.scoped('main').info('renderer hazır — React mount edildi');
+  });
   ipcMain.handle('app:openExternal', async (_e, url: string) => {
     if (/^https?:\/\//i.test(String(url))) {
       await createNativeBridge(win).openUrl(String(url));

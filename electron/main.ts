@@ -22,6 +22,8 @@ function createWindow(): void {
     minHeight: 480,
     backgroundColor: '#08090D',
     show: false,
+    // İlk açılışta tam ekran (F11 ile çıkılabilir/girilebilir).
+    fullscreen: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -31,6 +33,24 @@ function createWindow(): void {
   });
 
   mainWindow.once('ready-to-show', () => mainWindow?.show());
+
+  // F11: tam ekran aç/kapat.
+  mainWindow.webContents.on('before-input-event', (_e, input) => {
+    if (input.type === 'keyDown' && input.key === 'F11') {
+      mainWindow?.setFullScreen(!mainWindow.isFullScreen());
+    }
+  });
+
+  // Renderer hatalarını ve yüklenme durumunu logla (boş ekran teşhisi).
+  mainWindow.webContents.on('did-fail-load', (_e, code, desc, url) => {
+    log.error(`sayfa yüklenemedi: ${code} ${desc} ${url}`);
+  });
+  mainWindow.webContents.on('console-message', (_e, level, message) => {
+    if (level >= 2) log.warn(`renderer: ${message}`);
+  });
+  mainWindow.webContents.on('did-finish-load', () => {
+    log.info('renderer yüklendi');
+  });
 
   // Renderer çökerse uygulama yaşar: pencere yeniden yüklenir.
   mainWindow.webContents.on('render-process-gone', (_e, details) => {

@@ -40,6 +40,8 @@ npm run build         # üretim derlemesi (dist + dist-electron)
 npm run package:win   # Windows NSIS kurulumu (release/)
 ```
 
+Uygulama ilk açılışta **tam ekran** başlar; **F11** ile tam ekrandan çıkılıp tekrar girilebilir.
+
 ## DeepSeek yapılandırması
 
 1. Uygulamayı aç → "Quatra'yı kur" → Ayarlar → **AI Sağlayıcı**.

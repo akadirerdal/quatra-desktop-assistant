@@ -67,6 +67,8 @@ export function App(): React.JSX.Element {
     void window.quatra?.credentials.has().then((has) => {
       if (!has) setFirstRun(true);
     });
+    // Mount sinyali: main süreç "renderer hazır" loglar (boş ekran teşhisi).
+    window.quatra?.app.rendererReady();
     return () => controller.dispose();
   }, [controller, loadSettings]);
 

@@ -31,6 +31,7 @@ export interface QuatraBridge {
   };
   app: {
     version(): Promise<string>;
+    rendererReady(): void;
   };
 }
 

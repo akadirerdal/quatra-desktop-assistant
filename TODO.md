@@ -191,5 +191,6 @@ Durum etiketleri: ✅ tamam | 🟡 kısmi | ⛔ blocked | ⬜ başlanmadı.
 
 ## 7. Aktif Adım Takibi
 - **Tamamlanan:** Phase 0 ✅ (0.1–0.6), Phase 1 ✅ (1.1–1.7 + 1.5b/c/d) — MVP kodu + 79 test + paket (NSIS kurulumu masaüstünde).
+- **Düzeltme (2026-10-16):** Boş ekran kök nedeni = Vite mutlak asset yolları → `base: './'` ile düzeltildi; mount kanıtı: main logu "renderer hazır — React mount edildi" (paketlenmiş uygulamada doğrulandı). İlk açılış **tam ekran** (`fullscreen: true`, F11 ile çıkış).
 - **MVP kanıt durumu:** Kod tam; gerçek DeepSeek anahtarıyla uçtan uca (sohbet, tool, TTS) doğrulama KULLANICIYA kaldı.
 - **Şu an:** Phase 2'ye geçilebilir (Next 3'teki sıra).
