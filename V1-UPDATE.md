@@ -4,7 +4,7 @@
 > **👤 kullanıcı bildirimleri (Tur 7)** + **🔧 geliştirici tespitleri (v1 öncelik analizi)**.
 > Durum: ⬜ başlanmadı · 🟡 devam ediyor · ✅ bitti. Bir madde bitince `EKSIKLER.md`’nin ✅ bölümüne de işlenir.
 > **Son güncelleme:** 16.10.2026 (Tur 9)
-> **Durum:** Kullanıcı E paketinden başladı — V1-15 tema sistemi 🟡 denemede (7 tema), V1-16 konseptleri hazır. Önerilen sonraki: A paketi (mikrofon) → V1-10 (konuşma bağlamı).
+> **Durum:** E paketi sürüyor — V1-15 tema sistemi 🟡 (7 tema denemede; favori/eleme kullanıcıda), V1-16 ✅ kapandı. Önerilen sonraki: A paketi (mikrofon) → V1-10 (konuşma bağlamı).
 
 ---
 
@@ -32,7 +32,7 @@
 
 ## E. Görsel & Kişiselleştirme *(karar birlikte)*
 - 🟡 **V1-15 · Tema sistemi** — 7 hazır tema uygulandı (Gece Moru, Okyanus, Zümrüt, Gün Batımı, Gül, Grafit, Şafak); Ayarlar → Görünüm'den canlı deneniyor. Kalan: senin turun + ince ayar (favoriler kalır, istemediklerin çıkar). 👤
-- 🟡 **V1-16 · Mikrofon kapatma simgesi yenilenmeli** — kullanıcı **C · Ekolayzır** konseptini seçti; düğme yenilendi ve beğenildi. Ayrıca asıl rahatsızlık olan ortadaki **kırmızı çapraz çizgi** (muted görseli) kaldırıldı — yerine sakin, kesikli çizgi geldi. Beğeni turunda ince ayar sürüyor. 👤
+- ✅ **V1-16 · Mikrofon kapatma simgesi yenilendi** — “Ekolayzır” (C) düğmesi: 4 çubuk gerçek mikrofon seviyesiyle oynar; muted görselindeki kırmızı çapraz çizgi kaldırıldı (sakin, kesikli çizgi). Kullanıcı kabul etti (“idare eder”, 16.10). 👤
 
 ## F. Güvenlik & Güven
 - ⬜ **V1-17 · İşlem günlüğü (audit)** — Quatra’nın yaptığı işlerin kalıcı ve görüntülenebilir kaydı. 🔧
