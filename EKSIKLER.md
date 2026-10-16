@@ -78,6 +78,7 @@ _Bu sıralama §9’daki kullanıcı maddeleriyle birleştirilip **`V1-UPDATE.md
 1. ✅ **KRİTİK — uygulamada mikrofon “ölü”: ses hiç alınmıyordu** — bildirim (16.10): “Windows’ta ses temiz, uygulamada ses yok; test ettim, bazen alıyor ama çoğu zaman hiç almıyor.”
    **Kök sebep:** gürültü kapısı (kullanıcıda “düşük” açık) seviyeyi kazanç düğümünden **sonra** ölçüyordu; kapı kapandığı anda seviye ~0 okunuyor ve kapı bir daha açılamıyordu (kendini kilitliyordu) → tüm kayıtlar sonsuza dek “sessizlik”. Log kanıtı: art arda `kayıt sonu: sessizlik`.
    **Düzeltme (Tur 10 ek):** analyser ham kaynağa taşındı (kazançtan önce → kapı ham seviyeyle karar verir, kilitlenemez); askıya düşen AudioContext kendiliğinden resume ediliyor; kopan cihaz akışı (çıkarılan mikrofon) otomatik yeniden açılıyor. Regresyon testleri: kapı kararı (+4), zincir bağlantısı (+3). **Gerçek mikrofonla son doğrulama: kullanıcıda.**
+2. ✅ **Mikrofon kalibrasyonu (ölçümle, 16.10):** “Kendin ses vererek test edip botun en rahat anlayacağı ayarları yap” istemiyle: `scripts/mic-tanilama.cjs` hoparlörden test cümlesi çalınırken gerçek Chromium hattıyla ölçtü (3 profil × 40 sn). Bulgular: **oto kazanç bu makinede kritik** (konuşma tepesi 0.45 ↔ kapalıyken 0.05), **gürültü bastırma yararlı** (ortam sıçramaları 0.135→0.101), ortam tabanı çok sakin (~0.017-0.019). Uygulanan: hassasiyet 6→**8**, gürültü kapısı “düşük”→**kapalı**; NS/AEC/AGC açık kaldı. Ek yazılım (NVIDIA Broadcast) şu an gereksiz — veri temiz.
 
 _(Yeni bildirim geldikçe buraya eklenir.)_
 
