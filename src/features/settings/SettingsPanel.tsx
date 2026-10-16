@@ -354,13 +354,11 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
       window.speechSynthesis.addEventListener('voiceschanged', loadSysVoices);
       return () => window.speechSynthesis.removeEventListener('voiceschanged', loadSysVoices);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.controller]);
 
   useEffect(() => {
     if (engine === 'edge' && edgeVoices.length === 0) void loadEdgeVoices();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [engine]);
+  }, [engine, edgeVoices.length]);
 
   const voiceOptions =
     engine === 'edge'
