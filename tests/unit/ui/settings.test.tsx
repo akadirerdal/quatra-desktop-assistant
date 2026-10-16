@@ -29,6 +29,7 @@ function installBridge(): void {
       models: async () => ({ ok: true, models: [{ id: 'deepseek-chat' }, { id: 'deepseek-reasoner' }] }),
     },
     stt: { transcribe: async () => ({ ok: true, text: 'test' }) },
+    tts: { voices: async () => ({ ok: false, message: 'test köprüsü' }) },
     shortcut: { register: async () => ({ ok: true }), onTrigger: () => () => undefined },
     agent: {
       run: async () => ({ started: true }),
@@ -94,6 +95,21 @@ describe('SettingsPanel — API anahtarı akışı', () => {
     render(<SettingsPanel onClose={() => undefined} controller={controller} />);
     fireEvent.click(screen.getByText('AI Sağlayıcı'));
     expect(await screen.findByText('Anahtar kayıtlı')).toBeTruthy();
+    controller.dispose();
+  });
+});
+
+describe('SettingsPanel — mikrofon testi ve kademeli ayarlar', () => {
+  it('ses bölümünde yeni kontroller görünür', () => {
+    const controller = new AssistantController();
+    render(<SettingsPanel onClose={() => undefined} controller={controller} />);
+    fireEvent.click(screen.getByText('Ses ve Giriş'));
+    expect(screen.getByText('Mikrofonu test et')).toBeTruthy();
+    expect(screen.getByText('Ek kazanç')).toBeTruthy();
+    expect(screen.getByText('Gürültü kapısı')).toBeTruthy();
+    expect(screen.getByText('Uyku süresi (sessizlik)')).toBeTruthy();
+    expect(screen.getByText('Testi başlat')).toBeTruthy();
+    expect(screen.getByText('Mikrofon cihazı')).toBeTruthy();
     controller.dispose();
   });
 });

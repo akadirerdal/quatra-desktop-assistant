@@ -14,6 +14,10 @@ describe('mikrofon filtreleri ve VAD', () => {
     expect(s.voice.micAutoGain).toBe(true);
     expect(s.voice.vadSensitivity).toBe(5);
     expect(s.voice.bargeIn).toBe(true);
+    expect(s.voice.micGainLevel).toBe('off');
+    expect(s.voice.micGateLevel).toBe('off');
+    expect(s.voice.inputDeviceId).toBe('');
+    expect(s.voice.sleepAfterSec).toBe(5);
     expect(s.memory.enabled).toBe(true);
   });
 
@@ -27,6 +31,12 @@ describe('mikrofon filtreleri ve VAD', () => {
     expect(c.echoCancellation).toBe(true);
     expect(c.autoGainControl).toBe(false);
     expect(c.channelCount).toBe(1);
+  });
+
+  it('seçili cihaz kısıta exact olarak girer; seçim yoksa cihaz kısıtı olmaz', () => {
+    const base = { micNoiseSuppression: true, micEchoCancellation: true, micAutoGain: true };
+    expect(buildMicConstraints(base, 'mic-123').deviceId).toEqual({ exact: 'mic-123' });
+    expect(buildMicConstraints(base).deviceId).toBeUndefined();
   });
 
   it('hassasiyet arttıkça VAD eşiği düşer (daha kolay tetiklenir)', () => {

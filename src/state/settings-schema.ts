@@ -34,6 +34,14 @@ const VoiceSchema = z.object({
   micAutoGain: z.boolean().default(true),
   /** Mikrofon hassasiyeti 1(en hassas)..10(az hassas). */
   vadSensitivity: z.number().int().min(1).max(10).default(5),
+  /** Ek yazılım kazancı: off|low|mid|high (tarayıcı AGC'den ayrı, kayda uygulanır). */
+  micGainLevel: z.enum(['off', 'low', 'mid', 'high']).default('off'),
+  /** Yazılım gürültü kapısı: bu seviyenin altındaki anlar kayıtta kısılır. */
+  micGateLevel: z.enum(['off', 'low', 'mid', 'high']).default('off'),
+  /** Mikrofon cihazı ('' = sistem varsayılanı). */
+  inputDeviceId: z.string().default(''),
+  /** Sohbette bu süre sessiz kalırsan beklemeye (uyku) geçilir (sn). */
+  sleepAfterSec: z.number().int().min(2).max(30).default(5),
 });
 
 const MemorySchema = z.object({

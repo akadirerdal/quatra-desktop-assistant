@@ -12,6 +12,7 @@
  */
 import { useAssistantStore } from '../../state/assistant-store';
 import { useSettingsStore } from '../../state/settings-store';
+import { gainValueOf, gateThresholdOf } from './mic-levels';
 
 export interface RecordedCommand {
   audio: Blob;
@@ -28,6 +29,8 @@ export interface RecordOptions {
   waitStartMs?: number;
   /** Seviye eşiği (0..1). */
   threshold?: number;
+  /** Sabit süre kayıt (mikrofon testi): sessizlik/konuşma kurallarını atlar, bu süre sonunda durur. */
+  fixedMs?: number;
 }
 
 export type RecordOutcome =
@@ -37,17 +40,22 @@ export type RecordOutcome =
   | { kind: 'error'; message: string };
 
 /** Hassasiyet (1..10) → VAD eşiği (düşük değer = daha hassas). */
-export function buildMicConstraints(voice: {
-  micNoiseSuppression: boolean;
-  micEchoCancellation: boolean;
-  micAutoGain: boolean;
-}): MediaTrackConstraints {
-  return {
+export function buildMicConstraints(
+  voice: {
+    micNoiseSuppression: boolean;
+    micEchoCancellation: boolean;
+    micAutoGain: boolean;
+  },
+  deviceId = '',
+): MediaTrackConstraints {
+  const constraints: MediaTrackConstraints = {
     echoCancellation: voice.micEchoCancellation,
     noiseSuppression: voice.micNoiseSuppression,
     autoGainControl: voice.micAutoGain,
     channelCount: 1,
   };
+  if (deviceId) constraints.deviceId = { exact: deviceId };
+  return constraints;
 }
 
 /** Hassasiyet (1..10) → VAD eşiği (düşük değer = daha hassas). */
@@ -75,6 +83,9 @@ export class AudioService {
   private stream: MediaStream | null = null;
   private audioCtx: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
+  private gainNode: GainNode | null = null;
+  private processedStream: MediaStream | null = null;
+  private gateOpenUntil = 0;
   private raf = 0;
   private currentLevel = 0;
   private recording = false;
@@ -114,10 +125,23 @@ export class AudioService {
         this.onError('Mikrofon bulunamadı.');
         return false;
       }
-      const constraints = buildMicConstraints(useSettingsStore.getState().settings.voice);
-      this.stream = await navigator.mediaDevices.getUserMedia({ audio: constraints });
+      const voice = useSettingsStore.getState().settings.voice;
+      const constraints = buildMicConstraints(voice, voice.inputDeviceId);
+      try {
+        this.stream = await navigator.mediaDevices.getUserMedia({ audio: constraints });
+      } catch (e) {
+        // Seçili cihaz artık yoksa varsayılana düş — dürüst günlükle.
+        if (e instanceof DOMException && e.name === 'OverconstrainedError' && voice.inputDeviceId) {
+          this.logEvent('seçili mikrofon bulunamadı — varsayılan cihaza düşüldü');
+          this.stream = await navigator.mediaDevices.getUserMedia({
+            audio: buildMicConstraints(voice),
+          });
+        } else {
+          throw e;
+        }
+      }
       this.logEvent(
-        `mic açıldı — gürültü:${constraints.noiseSuppression ? 'A' : 'K'} yankı:${constraints.echoCancellation ? 'A' : 'K'} kazanç:${constraints.autoGainControl ? 'A' : 'K'}`,
+        `mic açıldı — gürültü:${constraints.noiseSuppression ? 'A' : 'K'} yankı:${constraints.echoCancellation ? 'A' : 'K'} kazanç:${constraints.autoGainControl ? 'A' : 'K'} cihaz:${voice.inputDeviceId ? 'seçili' : 'varsayılan'}`,
       );
     } catch (e) {
       const denied =
@@ -135,7 +159,15 @@ export class AudioService {
       const source = this.audioCtx.createMediaStreamSource(this.stream);
       this.analyser = this.audioCtx.createAnalyser();
       this.analyser.fftSize = 512;
-      source.connect(this.analyser);
+      // Yazılım katmanı: kaynak → kazanç → (ölçüm + kayıt çıkışı).
+      // Analyser HAM sinyali ölçer; gürültü kapısı kararı ham seviyeye göre verilir
+      // (kapı kendi çıkışını ölçerse kendini kilitleyebilirdi).
+      this.gainNode = this.audioCtx.createGain();
+      const dest = this.audioCtx.createMediaStreamDestination();
+      source.connect(this.gainNode);
+      this.gainNode.connect(this.analyser);
+      this.gainNode.connect(dest);
+      this.processedStream = dest.stream;
       this.startLevelLoop();
     } catch {
       // Analyser kurulamazsa seviye 0 kalır — görsel dürüst nefes animasyonuna düşer.
@@ -155,6 +187,18 @@ export class AudioService {
           sum += v * v;
         }
         this.currentLevel = Math.sqrt(sum / data.length) * 3;
+
+        // ---- Yazılım katmanı: kademeli ek kazanç + gürültü kapısı ----
+        if (this.gainNode && this.audioCtx) {
+          const voice = useSettingsStore.getState().settings.voice;
+          const gain = gainValueOf(voice.micGainLevel);
+          const gate = gateThresholdOf(voice.micGateLevel);
+          if (gate > 0 && this.currentLevel >= gate) {
+            this.gateOpenUntil = performance.now() + 400; // kısa tutuş — hece araları kapanmasın
+          }
+          const open = gate === 0 || performance.now() < this.gateOpenUntil;
+          this.gainNode.gain.setTargetAtTime(open ? gain : 0, this.audioCtx.currentTime, 0.04);
+        }
 
         // ---- Barge-in tespiti (söz kesme) ----
         // Bu döngü her karede çalıştığı için React durumundan bağımsız, kaçırılamaz.
@@ -206,6 +250,7 @@ export class AudioService {
     const maxMs = options.maxMs ?? 15_000;
     const silenceMs = options.silenceMs ?? 1100;
     const waitStartMs = options.waitStartMs ?? 6000;
+    const fixedMs = options.fixedMs;
 
     if (this.recording) return { kind: 'busy' };
     if (!(await this.ensureMic())) return { kind: 'error', message: 'Mikrofon açılamadı.' };
@@ -216,7 +261,11 @@ export class AudioService {
     const mime = pickRecorderMime();
     let recorder: MediaRecorder;
     try {
-      recorder = new MediaRecorder(this.stream!, mime ? { mimeType: mime } : undefined);
+      // Kayıt İŞLENMİŞ akıştan alınır (ek kazanç + gürültü kapısı gerçekten uygulanır).
+      recorder = new MediaRecorder(
+        this.processedStream ?? this.stream!,
+        mime ? { mimeType: mime } : undefined,
+      );
     } catch {
       return { kind: 'error', message: 'Ses kaydı başlatılamadı.' };
     }
@@ -251,14 +300,17 @@ export class AudioService {
       };
 
       recorder.onstop = () => {
+        const fixed = fixedMs !== undefined;
+        const silent = !sawSpeech && !fixed;
+        const tooQuiet = !fixed && peak < minPeak;
         const effectiveOutcome = this.cancelRequested
           ? 'iptal'
-          : !sawSpeech
+          : silent
             ? 'sessizlik'
-            : peak < minPeak
+            : tooQuiet
               ? `çok-sessiz(tepe=${peak.toFixed(2)}<${minPeak.toFixed(2)})`
               : null;
-        if (this.cancelRequested || !sawSpeech || chunks.length === 0 || peak < minPeak) {
+        if (this.cancelRequested || chunks.length === 0 || silent || tooQuiet) {
           this.cancelRequested = false;
           this.logEvent(`kayıt sonu: ${effectiveOutcome ?? 'sessizlik'}`);
           settle({ kind: 'silence' });
@@ -293,6 +345,11 @@ export class AudioService {
           }
         };
         if (this.cancelRequested) {
+          stopRecorder();
+          return;
+        }
+        // Sabit süreli kayıt (mikrofon testi): süre dolunca koşulsuz dur — VAD kuralları devre dışı.
+        if (fixedMs !== undefined && now - started > fixedMs) {
           stopRecorder();
           return;
         }
@@ -525,6 +582,10 @@ export class AudioService {
     this.stream = null;
     this.analyser?.disconnect();
     this.analyser = null;
+    this.gainNode?.disconnect();
+    this.gainNode = null;
+    this.processedStream = null;
+    this.gateOpenUntil = 0;
     void this.audioCtx?.close().catch(() => undefined);
     this.audioCtx = null;
     this.recording = false;
@@ -533,5 +594,11 @@ export class AudioService {
 
   isMicOpen(): boolean {
     return this.stream !== null;
+  }
+
+  /** Aktif mikrofonun etiketi (izin sonrası gerçek ad; yoksa dürüst genel ad). */
+  activeMicLabel(): string {
+    const track = this.stream?.getAudioTracks()[0];
+    return track?.label || 'Varsayılan mikrofon';
   }
 }

@@ -19,6 +19,13 @@ export function isDetailRequest(text: string): boolean {
   return /detaylı|ayrıntılı|uzun uzun|uzun anlat|daha kapsamlı|açıkla|detaya gir/i.test(text);
 }
 
+/** Uyku komutu — sohbet biter, «Quatra» beklemeye dönülür (mikrofon açık KALIR). */
+export function detectSleepCommand(text: string): boolean {
+  return /^(uyu|uykuya (dön|geç)|bekleme moduna geç|beklemeye geç|dinlemeyi bırak|artık dinleme|dinlemeyi kes)(\s|$)/i.test(
+    text.trim(),
+  );
+}
+
 /** "benim adım X" / "hatırla: Y" kalıplarını tanır (sorular hariç). */
 export function parseMemoryIntent(text: string): MemoryIntent {
   const t = text.trim();

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   detectModeCommand,
+  detectSleepCommand,
   isDetailRequest,
   isNameQuestion,
   parseMemoryIntent,
@@ -73,5 +74,19 @@ describe('detectModeCommand', () => {
     expect(detectModeCommand('normal moda geç')).toBe('flash');
     expect(detectModeCommand('mod değiştir')).toBe('toggle');
     expect(detectModeCommand('saat kaç')).toBeNull();
+  });
+});
+
+describe('detectSleepCommand', () => {
+  it('uyku komutlarını tanır', () => {
+    expect(detectSleepCommand('uyu')).toBe(true);
+    expect(detectSleepCommand('Uykuya dön lütfen')).toBe(true);
+    expect(detectSleepCommand('dinlemeyi bırak')).toBe(true);
+    expect(detectSleepCommand('bekleme moduna geç')).toBe(true);
+  });
+
+  it('normal cümleyi uyku sanmaz', () => {
+    expect(detectSleepCommand('saat kaç')).toBe(false);
+    expect(detectSleepCommand('bugün hava nasıl')).toBe(false);
   });
 });

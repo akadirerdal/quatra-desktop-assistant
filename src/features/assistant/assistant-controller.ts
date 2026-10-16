@@ -5,9 +5,15 @@
  */
 import { useAssistantStore, TASK_DONE_LINGER_MS } from '../../state/assistant-store';
 import { useSettingsStore, activeModel } from '../../state/settings-store';
-import { AudioService } from '../audio/audio-service';
+import { AudioService, type RecordOutcome } from '../audio/audio-service';
 import { WakeWordService, matchesWakeWord, extractCommandAfterWake } from '../audio/wake-word';
-import { parseMemoryIntent, detectModeCommand, isNameQuestion, isDetailRequest } from './commands';
+import {
+  parseMemoryIntent,
+  detectModeCommand,
+  isNameQuestion,
+  isDetailRequest,
+  detectSleepCommand,
+} from './commands';
 import { strings } from '../../renderer/strings';
 import type { AgentEvent } from '../../renderer/global';
 
@@ -23,6 +29,7 @@ export class AssistantController {
   private followToken = 0;
   private conversationActive = false;
   private pendingWakeCapture = false;
+  private pendingSleep = false;
   private greetingIndex = 0;
 
   constructor() {
@@ -195,7 +202,11 @@ export class AssistantController {
         maxMs: 15_000,
         silenceMs: source === 'followup' || source === 'barge' ? 1000 : 1100,
         waitStartMs:
-          source === 'wake' ? 8000 : source === 'followup' || source === 'barge' ? 5000 : 6000,
+          source === 'wake'
+            ? 8000
+            : source === 'followup' || source === 'barge'
+              ? useSettingsStore.getState().settings.voice.sleepAfterSec * 1000
+              : 6000,
       });
       if (outcome.kind === 'busy') {
         st.setStatus('idle');
@@ -269,6 +280,22 @@ export class AssistantController {
     }, 500);
   }
 
+  /** Sohbeti bitir ve «Quatra» bekleyişine dön — mikrofon açık kalır (V1-04). */
+  private goToSleep(): void {
+    this.conversationActive = false;
+    this.followToken += 1; // bekleyen takip dinlemesini iptal et
+    const settings = useSettingsStore.getState().settings;
+    const st = useAssistantStore.getState();
+    if (settings.voice.autoSpeak) {
+      this.pendingSleep = true;
+      this.sayLocal(strings.sleepAck);
+    } else {
+      st.setCaption(strings.sleepAck);
+      st.setStatus('idle');
+      if (this.wake?.isRunning()) this.wake.resume();
+    }
+  }
+
   /** Kullanıcı "dinle" dedi (buton). */
   toggleListening(): void {
     const st = useAssistantStore.getState();
@@ -338,6 +365,12 @@ export class AssistantController {
     }
     if (/neler? hatırlıyorsun|hafızada ne var|hafızanı göster/.test(lower)) {
       void this.readMemory();
+      return;
+    }
+
+    // Uyku komutu: sohbeti bitir, «Quatra» beklemeye dön (mikrofon açık kalır).
+    if (detectSleepCommand(text)) {
+      this.goToSleep();
       return;
     }
 
@@ -509,6 +542,11 @@ export class AssistantController {
     // Sohbet hâlâ sürüyorsa uyandırma servisi BEKLEMEDE kalır (mikrofonu sohbete bırakır).
     // Yalnızca sohbet bittiğinde "Quatra" beklemeye döner.
     if (this.wake?.isRunning() && !this.conversationActive) this.wake.resume();
+    // Uyku onayı okundu → takip dinlemesi başlatma (V1-04).
+    if (this.pendingSleep) {
+      this.pendingSleep = false;
+      return;
+    }
     // Sürekli sohbet: cevap okunduktan sonra kendiliğinden dinlemeye dön.
     this.scheduleFollowUp();
   }
@@ -530,6 +568,36 @@ export class AssistantController {
     this.followToken += 1;
     this.audio.stopSpeaking();
     useAssistantStore.getState().setStatus('idle');
+    if (this.wake?.isRunning()) this.wake.resume();
+  }
+
+  // ---------------------------------------------------------------- mikrofon testi (Ayarlar)
+
+  /** Test oturumu: uyandırma döngüsünü duraklat, mikrofonu GÜNCEL ayarlarla yeniden aç. */
+  async startMicTest(): Promise<{ ok: boolean; message?: string; deviceLabel?: string }> {
+    if (this.listening) {
+      return { ok: false, message: 'Şu anda dinleme sürüyor — bir saniye sonra dene.' };
+    }
+    this.wake?.pause();
+    if (this.audio.isRecording()) {
+      this.audio.cancelRecording();
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    this.audio.stopAll(); // cihaz/kazanç/kapı değişiklikleri bir sonraki açılışta uygulanır
+    const ok = await this.audio.ensureMic();
+    if (!ok) return { ok: false, message: strings.micTestFailed };
+    return { ok: true, deviceLabel: this.audio.activeMicLabel() };
+  }
+
+  /** Test kaydı — sabit süre, VAD kuralları devre dışı. */
+  recordMicTest(ms = 3000): Promise<RecordOutcome> {
+    return this.audio.recordCommand({ fixedMs: ms, maxMs: ms + 1500 });
+  }
+
+  /** Test bitti — kaynakları bırak, uyandırma bekleyişine dön. */
+  endMicTest(): void {
+    this.audio.cancelRecording();
+    this.audio.stopAll();
     if (this.wake?.isRunning()) this.wake.resume();
   }
 

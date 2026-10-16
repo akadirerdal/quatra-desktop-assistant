@@ -251,4 +251,5 @@ Durum etiketleri: ✅ tamam | 🟡 kısmi | ⛔ blocked | ⬜ başlanmadı.
 - **Hafıza kurtarma:** 16.10'da sessizce boşaltılan hafıza geri yüklendi (6 kayıt: kişisel kayıtlar (ayrıntılar yalnızca cihazdaki hafızada) · "efendim").
 - **Hafıza silme koruması:** silme öncesi otomatik `memory.json.bak` + silme olaylarının log'a düşmesi (MemoryStore.backup + IPC logları).
 - **Not (`not_al`) klasör dayanıklılığı:** modelin uydurduğu var olmayan klasör yok sayılır → hatırlanan klasör → kullanıcı seçimi (seçim `notes-dir.txt`'te hatırlanır). "Hedef klasör mevcut değil." hatası bitti.
-- **Kanıt:** 171 test ✅ (memory-store +1, tools +2), `verify` yeşil, secret taraması temiz.
+- **A paketi — mikrofon & ses girişi (V1-01…V1-05) ✅:** mikrofon testi paneli (canlı seviye + sabit süreli test kaydı + dinleme + aktif cihaz adı); cihaz seçimi (enumerateDevices, devicechange yenileme, kayıp cihazda varsayılana düşme); kademeli yazılım katmanı (ek kazanç + gürültü kapısı, kayıt zinciri MediaStreamDestination üzerinden); "uyu" sesli komutu (pendingSleep) + `sleepAfterSec` ayarı (varsayılan 5 sn).
+- **Kanıt:** 177 test ✅ (memory-store +1, tools +2, mic-levels +2, kısıt +1, sleep komutu +2, UI +1), `verify` yeşil, secret taraması temiz.

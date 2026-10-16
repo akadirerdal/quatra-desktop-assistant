@@ -30,7 +30,6 @@ _Bu sıralama §9’daki kullanıcı maddeleriyle birleştirilip **`V1-UPDATE.md
 - ⬜ **“Sus / kes sesini” komutu yok** — Quatra ancak üstüne konuşunca susar (barge-in); açık bir durdurma komutu eklenebilir.
 - ⬜ **Sistem ses seviyesi / medya kontrolü yok** — “sesi kıs”, “şarkı değiştir” desteklenmiyor.
 - ⬜ **Yalnızca Türkçe** — başka dilde konuşma/arayüz yok.
-- ⬜ **Mikrofon cihazı seçimi yok** — sistemde birden fazla mikrofon olsa da uygulama varsayılanı kullanıyor (geliştirici önerisi, 16.10).
 
 ## 2. Konuşma anlayışı
 - ⬜ **Kısa süreli bağlam yok** — her komut bağımsız değerlendirilir; “peki ya yarın?”, “bunu biraz kısalt” gibi takip cümleleri anlaşılmaz. (Phase 3)
@@ -78,10 +77,10 @@ _Bu sıralama §9’daki kullanıcı maddeleriyle birleştirilip **`V1-UPDATE.md
 
 ### Tur 7 — 16.10.2026 (kullanıcı bildirimleri — “şimdilik sadece not et”)
 
-1. ⬜ **Mikrofon ayarları artırılsın + mikrofon testi gelsin** — “konuş, seviyeyi gör, ayarla” akışı: canlı seviye göstergesi ve test kaydıyla kullanıcı kendine göre ayar yapabilsin.
-2. ⬜ **Kademeli ayarlar** — kazanç ve gürültü engelleme gibi seçenekler yalnız açık/kapalı değil, seviyeli olsun (ör. zayıf/orta/güçlü). *Teknik not:* tarayıcı filtreleri temelde açık/kapalı; kademe, yazılım katmanıyla (kazanç düğümü + eşikli gürültü kapısı) sağlanabilir.
-3. ⬜ **Mikrofon davranışı** — mikrofon fiziksel olarak hep açık kalsın (konuşsak da konuşmasak da); Quatra yalnız “Quatra” kelimesine tepki versin; mikrofon açık diye uykuya geçmeyi reddetmesin.
-4. ⬜ **Uyku süresi ayarı** — kullanıcıdan X saniye ses gelmezse uykuya dönülsün (**varsayılan 5 sn**); bu süre Ayarlar’dan her kullanıcı kendine göre değiştirebilsin.
+1. ✅ **Mikrofon testi ekranı** — canlı seviye + 3 sn test kaydı + dinleme + aktif cihaz adı; Ayarlar → Ses ve Giriş’te. (Tur 10 → V1-01)
+2. ✅ **Kademeli ayarlar** — yazılım katmanı: ek kazanç (kapalı/zayıf/orta/güçlü) + eşikli gürültü kapısı; gerçek kayda uygulanır. (Tur 10 → V1-02)
+3. ✅ **Mikrofon davranışı** — mikrofon açık kalır; “uyu” komutuyla sohbet biter, «Quatra» bekleyişine dönülür; “mikrofon açık” diye uykuya dönmeme kalmadı. (Tur 10 → V1-04)
+4. ✅ **Uyku süresi ayarı** — Ayarlar → Ses ve Giriş’te 2–30 sn kaydırıcı (varsayılan 5 sn); sohbet içi sessizlik süresini belirler. (Tur 10 → V1-05)
 5. 🟡 **Daha fazla tema** — hazır renk temaları/paletler. _(Tur 9: tema motoru yazıldı; 7 hazır tema Ayarlar → Görünüm'den canlı deneniyor; ince ayar sende → V1-15)_
 6. ✅ **Mikrofon kapatma simgesi yenilendi** — C · Ekolayzır düğmesi uygulandı; ortadaki kırmızı çapraz çizgi (muted görseli) kaldırıldı; kullanıcı kabul etti (“idare eder”). → çözülenlere taşındı
 7. ⬜ **Windows açılışında otomatik başlatma** — bilgisayar kapanıp açıldığında Quatra kendiliğinden başlasın; Ayarlar’dan aç/kapat edilebilsin.
@@ -94,3 +93,4 @@ _(Yeni bildirim geldikçe buraya eklenir.)_
 - ✅ **(Tur 9, 16.10) Mikrofon düğmesi yenilendi (V1-16)** — eski MIC rozeti yerine “Ekolayzır” (C) düğmesi: 4 çubuk dinlerken gerçek mikrofon seviyesiyle oynar; muted görselindeki kırmızı çapraz çizgi kaldırıldı (sakin, kesikli çizgi). Kullanıcı kabul etti.
 - ✅ **(Tur 10, 16.10) Hafıza silme koruması** — `remove`/`clear` artık dosyayı silmeden önce `memory.json.bak` yedeği bırakıyor; silme olayları log’a düşüyor (sessiz veri kaybı bitti). Ayrıca 16.10’da sessizce boşaltılan hafıza geri yüklendi (6 kayıt).
 - ✅ **(Tur 10, 16.10) Not (`not_al`) klasör dayanıklılığı** — modelin uydurduğu var olmayan klasör yok sayılır; hatırlanan klasör (notes-dir.txt) otomatik kullanılır; yoksa kullanıcıya seçtirilir ve seçim hatırlanır. “Hedef klasör mevcut değil.” hatası bitti.
+- ✅ **(Tur 10, 16.10) A paketi — mikrofon & ses girişi (V1-01…V1-05)** — mikrofon testi (canlı seviye + test kaydı + dinleme + aktif cihaz adı), cihaz seçimi (devicechange ile yenileme; kayıp cihazda varsayılana düşme), kademeli yazılım katmanı (ek kazanç + gürültü kapısı — gerçek kayda uygulanır), “uyu” sesli komutu + yapılandırılabilir uyku süresi (varsayılan 5 sn).

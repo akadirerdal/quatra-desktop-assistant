@@ -334,9 +334,23 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
   const [sysVoices, setSysVoices] = useState<Array<{ name: string; lang: string }>>([]);
   const [edgeVoices, setEdgeVoices] = useState<Array<{ shortName: string; locale: string; gender: string }>>([]);
   const [edgeErr, setEdgeErr] = useState<string | null>(null);
+  const [devices, setDevices] = useState<Array<{ id: string; label: string }>>([]);
   const engine = settings.voice.ttsEngine;
 
   const loadSysVoices = (): void => setSysVoices(props.controller.audioService.availableVoices());
+  const loadDevices = async (): Promise<void> => {
+    if (!navigator.mediaDevices?.enumerateDevices) return;
+    try {
+      const list = await navigator.mediaDevices.enumerateDevices();
+      setDevices(
+        list
+          .filter((d) => d.kind === 'audioinput')
+          .map((d, i) => ({ id: d.deviceId, label: d.label || `Mikrofon ${i + 1}` })),
+      );
+    } catch {
+      setDevices([]);
+    }
+  };
   const loadEdgeVoices = async (): Promise<void> => {
     setEdgeErr(null);
     const res = await window.quatra?.tts.voices();
@@ -358,6 +372,14 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
   }, [props.controller]);
 
   useEffect(() => {
+    void loadDevices();
+    const md = navigator.mediaDevices;
+    if (!md?.addEventListener) return;
+    md.addEventListener('devicechange', loadDevices);
+    return () => md.removeEventListener('devicechange', loadDevices);
+  }, []);
+
+  useEffect(() => {
     if (engine === 'edge' && edgeVoices.length === 0) void loadEdgeVoices();
   }, [engine, edgeVoices.length]);
 
@@ -374,6 +396,19 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
           { value: '', label: 'Sistem (otomatik)' },
           ...sysVoices.map((v) => ({ value: v.name, label: `${v.name} (${v.lang})` })),
         ];
+
+  const levelOptions = [
+    { value: 'off', label: strings.levelOff },
+    { value: 'low', label: strings.levelLow },
+    { value: 'mid', label: strings.levelMid },
+    { value: 'high', label: strings.levelHigh },
+  ];
+  const deviceOptions = [
+    { value: '', label: strings.micDeviceDefault },
+    ...devices
+      .filter((d) => d.id !== '' && d.id !== 'default' && d.id !== 'communications')
+      .map((d) => ({ value: d.id, label: d.label })),
+  ];
 
   return (
     <>
@@ -417,6 +452,21 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
       </div>
 
       <div className="field">
+        <label>{strings.micDevice}</label>
+        <div className="row">
+          <Select
+            value={settings.voice.inputDeviceId}
+            onChange={(v) => void update({ voice: { ...settings.voice, inputDeviceId: v } })}
+            options={deviceOptions}
+          />
+          <Button size="small" onClick={() => void loadDevices()}>
+            {strings.refresh}
+          </Button>
+        </div>
+        <div className="hint">{strings.micDeviceHint}</div>
+      </div>
+
+      <div className="field">
         <label>{strings.micFilters}</label>
         <div className="hint" style={{ marginBottom: 8 }}>
           {strings.micFiltersHint}
@@ -456,6 +506,52 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
         />
         <div className="hint">{strings.vadSensitiveHint}</div>
       </div>
+
+      <div className="field">
+        <label>{strings.micSoftwareLabel}</label>
+        <div className="hint" style={{ marginBottom: 8 }}>
+          {strings.micSoftwareHint}
+        </div>
+        <div className="row between" style={{ padding: '4px 0' }}>
+          <label style={{ margin: 0 }}>{strings.micGainLevel}</label>
+          <Select
+            value={settings.voice.micGainLevel}
+            onChange={(v) =>
+              void update({
+                voice: { ...settings.voice, micGainLevel: v as typeof settings.voice.micGainLevel },
+              })
+            }
+            options={levelOptions}
+          />
+        </div>
+        <div className="row between" style={{ padding: '4px 0' }}>
+          <label style={{ margin: 0 }}>{strings.micGateLevel}</label>
+          <Select
+            value={settings.voice.micGateLevel}
+            onChange={(v) =>
+              void update({
+                voice: { ...settings.voice, micGateLevel: v as typeof settings.voice.micGateLevel },
+              })
+            }
+            options={levelOptions}
+          />
+        </div>
+      </div>
+
+      <div className="field">
+        <label>{strings.sleepAfter}</label>
+        <Slider
+          value={settings.voice.sleepAfterSec}
+          min={2}
+          max={30}
+          step={1}
+          onChange={(v) => void update({ voice: { ...settings.voice, sleepAfterSec: v } })}
+          format={(v) => `${v} sn`}
+        />
+        <div className="hint">{strings.sleepAfterHint}</div>
+      </div>
+
+      <MicTestPanel controller={props.controller} />
 
       <div className="field row between">
         <label style={{ margin: 0 }}>{strings.autoSpeak}</label>
@@ -525,6 +621,129 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
         <Button onClick={() => props.controller.stopSpeaking()}>{strings.stopSpeaking}</Button>
       </div>
     </>
+  );
+}
+
+function MicTestPanel(props: { controller: AssistantController }): React.JSX.Element {
+  const micLevel = useAssistantStore((s) => s.micLevel);
+  const [state, setState] = useState<'off' | 'live' | 'recording' | 'ready' | 'error'>('off');
+  const [message, setMessage] = useState('');
+  const [deviceLabel, setDeviceLabel] = useState('');
+  const [clipUrl, setClipUrl] = useState<string | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const urlRef = useRef<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const setClip = (url: string | null): void => {
+    if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+    urlRef.current = url;
+    setClipUrl(url);
+  };
+
+  useEffect(
+    () => () => {
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+      audioRef.current?.pause();
+      props.controller.endMicTest();
+    },
+    [props.controller],
+  );
+
+  const start = async (): Promise<void> => {
+    setMessage('');
+    const res = await props.controller.startMicTest();
+    if (!res.ok) {
+      setState('error');
+      setMessage(res.message ?? strings.micTestFailed);
+      return;
+    }
+    setDeviceLabel(res.deviceLabel ?? '');
+    setState('live');
+  };
+
+  const record = async (): Promise<void> => {
+    setState('recording');
+    setMessage('');
+    const outcome = await props.controller.recordMicTest(3000);
+    if (outcome.kind === 'ok') {
+      setClip(URL.createObjectURL(outcome.result.audio));
+      setMessage(`${strings.micTestReady} (${(outcome.result.durationMs / 1000).toFixed(1)} sn)`);
+      setState('ready');
+    } else if (outcome.kind === 'busy') {
+      setState('live');
+      setMessage(strings.micTestBusy);
+    } else if (outcome.kind === 'silence') {
+      setState('live');
+      setMessage(strings.micTestSilence);
+    } else {
+      setState('error');
+      setMessage(outcome.message);
+    }
+  };
+
+  const play = (): void => {
+    if (!clipUrl) return;
+    audioRef.current?.pause();
+    const a = new Audio(clipUrl);
+    audioRef.current = a;
+    setPlaying(true);
+    a.onended = () => {
+      setPlaying(false);
+      audioRef.current = null;
+    };
+    a.onerror = () => {
+      setPlaying(false);
+      setMessage(strings.micTestPlayFailed);
+    };
+    void a.play().catch(() => setMessage(strings.micTestPlayFailed));
+  };
+
+  const stop = (): void => {
+    audioRef.current?.pause();
+    audioRef.current = null;
+    setPlaying(false);
+    setState('off');
+    setDeviceLabel('');
+    setMessage('');
+    props.controller.endMicTest();
+  };
+
+  return (
+    <div className="field">
+      <label>{strings.micTestTitle}</label>
+      <div className="hint" style={{ marginBottom: 8 }}>
+        {strings.micTestHint}
+      </div>
+      {state === 'off' ? (
+        <div className="row">
+          <Button onClick={() => void start()}>{strings.micTestStart}</Button>
+        </div>
+      ) : (
+        <div className="micTestBox">
+          <div className="micTestMeter" aria-hidden="true">
+            <div
+              className="micTestMeterFill"
+              style={{ width: `${Math.min(100, Math.round(micLevel * 130))}%` }}
+            />
+          </div>
+          <div className="hint">
+            {deviceLabel ? `${strings.micTestActive}: ${deviceLabel}` : strings.micTestNoDevice}
+          </div>
+          <div className="row">
+            <Button size="small" onClick={() => void record()} disabled={state === 'recording'}>
+              {state === 'recording' ? strings.micTestRecording : strings.micTestRecord}
+            </Button>
+            <Button size="small" onClick={play} disabled={!clipUrl || playing}>
+              {strings.micTestPlay}
+            </Button>
+            <Button size="small" onClick={stop}>
+              {strings.micTestStop}
+            </Button>
+          </div>
+          {message && <div className="statusHint">{message}</div>}
+        </div>
+      )}
+    </div>
   );
 }
 

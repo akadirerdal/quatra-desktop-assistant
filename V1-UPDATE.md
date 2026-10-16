@@ -3,17 +3,17 @@
 > v1 sürümüne kadar yapılacak tüm işlerin tek listesi. İki kaynaktan birleştirildi:
 > **👤 kullanıcı bildirimleri (Tur 7)** + **🔧 geliştirici tespitleri (v1 öncelik analizi)**.
 > Durum: ⬜ başlanmadı · 🟡 devam ediyor · ✅ bitti. Bir madde bitince `EKSIKLER.md`’nin ✅ bölümüne de işlenir.
-> **Son güncelleme:** 16.10.2026 (Tur 9)
-> **Durum:** E paketi sürüyor — V1-15 tema sistemi 🟡 (7 tema denemede; favori/eleme kullanıcıda), V1-16 ✅ kapandı. Önerilen sonraki: A paketi (mikrofon) → V1-10 (konuşma bağlamı).
+> **Son güncelleme:** 16.10.2026 (Tur 10)
+> **Durum:** A paketi ✅ kapandı (V1-01…V1-05). E paketinden V1-15 tema 🟡 (ince ayar kullanıcıda), V1-16 ✅. Önerilen sonraki: B paketi (V1-06 streaming, V1-07 “sus”).
 
 ---
 
 ## A. Mikrofon & Ses Girişi Paketi
-- ⬜ **V1-01 · Mikrofon testi ekranı** — “konuş, seviyeyi gör, ayarla”: canlı seviye çubuğu + test kaydı + kaydı dinleme; Ayarlar → Ses ve Giriş içinde. 👤
-- ⬜ **V1-02 · Kademeli ayarlar** — kazanç ve gürültü engelleme yalnız açık/kapalı değil, seviyeli olsun (zayıf/orta/güçlü…). *Teknik:* tarayıcı filtreleri temelde aç/kapa kalır; kademeler bizim yazılım katmanımızda (kazanç kademesi + eşikli gürültü kapısı) uygulanır. 👤
-- ⬜ **V1-03 · Mikrofon cihazı seçimi** — sistemde birden fazla mikrofon varsa seçim listesi (şu an her zaman varsayılan cihaz). 🔧
-- ⬜ **V1-04 · Sürekli açık mikrofon davranışı** — mikrofon fiziksel olarak hep açık kalır (konuşsak da konuşmasak da); Quatra yalnız “Quatra” deyince tetiklenir; “mikrofon açık” diye uykuya dönmeyi reddetmez. *Not:* MIC ile susturma hakkı korunur; dinleme durumu görünür kalmalı. 👤
-- ⬜ **V1-05 · Uyku süresi ayarı** — kullanıcıdan ses gelmezse uykuya dönme süresi; **varsayılan 5 sn**, Ayarlar’dan her kullanıcı kendine göre değiştirebilir. 👤
+- ✅ **V1-01 · Mikrofon testi ekranı** — Ayarlar → Ses ve Giriş: canlı seviye çubuğu + 3 sn test kaydı + dinleme + aktif cihaz adı; test mevcut ayarlarla (cihaz+kazanç+kapı) çalışır, “Testi bitir” uyandırma bekleyişine döner. 👤 → (Tur 10)
+- ✅ **V1-02 · Kademeli ayarlar** — yazılım katmanı: ek kazanç (kapalı/zayıf/orta/güçlü) + eşikli gürültü kapısı (400 ms tutuşlu); GERÇEK kayda uygulanır (MediaStreamDestination). Tarayıcı filtreleri aç/kapa kaldı. 👤 → (Tur 10)
+- ✅ **V1-03 · Mikrofon cihazı seçimi** — Ayarlar → Ses ve Giriş’te cihaz listesi (enumerateDevices + devicechange yenileme); seçili cihaz kayıt zincirinde exact kısıt; cihaz kaybolursa dürüst log + varsayılana düşme. 🔧 → (Tur 10)
+- ✅ **V1-04 · Sürekli açık mikrofon davranışı** — wake modunda mikrofon açık; “uyu / dinlemeyi bırak / bekleme moduna geç” sesli komutu sohbeti bitirip «Quatra» bekleyişine döndürür (mikrofon açık kalır); MIC ile susturma korunur. 👤 → (Tur 10)
+- ✅ **V1-05 · Uyku süresi ayarı** — yeni ayar `sleepAfterSec` (2–30 sn, varsayılan 5 sn); sohbet içi sessizlikte bu süre sonunda uyku; Ayarlar → Ses ve Giriş’te kaydırıcı. 👤 → (Tur 10)
 
 ## B. Sesli Deneyim Çekirdeği
 - ⬜ **V1-06 · Yanıt akışı (streaming)** — cevap cümle cümle seslendirilir; uzun yanıtta ilk ses gecikmesi büyük ölçüde düşer. 🔧
