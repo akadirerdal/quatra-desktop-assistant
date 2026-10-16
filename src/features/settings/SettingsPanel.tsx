@@ -9,7 +9,7 @@ import { useAssistantStore } from '../../state/assistant-store';
 import { strings } from '../../renderer/strings';
 import type { AssistantController } from '../assistant/assistant-controller';
 
-type Category = 'general' | 'provider' | 'voice' | 'activation' | 'appearance' | 'privacy' | 'diagnostics';
+type Category = 'general' | 'provider' | 'voice' | 'activation' | 'appearance' | 'memory' | 'privacy' | 'diagnostics';
 
 const CATEGORIES: Array<{ id: Category; label: string }> = [
   { id: 'general', label: strings.general },
@@ -17,6 +17,7 @@ const CATEGORIES: Array<{ id: Category; label: string }> = [
   { id: 'voice', label: strings.voiceAudio },
   { id: 'activation', label: strings.activation },
   { id: 'appearance', label: strings.appearance },
+  { id: 'memory', label: strings.memory },
   { id: 'privacy', label: strings.privacy },
   { id: 'diagnostics', label: strings.diagnostics },
 ];
@@ -54,6 +55,7 @@ export function SettingsPanel(props: {
           {category === 'voice' && <VoiceSection controller={props.controller} />}
           {category === 'activation' && <ActivationSection />}
           {category === 'appearance' && <AppearanceSection />}
+          {category === 'memory' && <MemorySection />}
           {category === 'privacy' && <PrivacySection />}
           {category === 'diagnostics' && <DiagnosticsSection />}        </div>
       </div>
@@ -405,6 +407,58 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
       </div>
 
       <div className="field row between">
+        <div>
+          <label style={{ margin: 0 }}>{strings.bargeInLabel}</label>
+          <div className="hint">{strings.bargeInHint}</div>
+        </div>
+        <Switch
+          on={settings.voice.bargeIn}
+          onChange={(v) => void update({ voice: { ...settings.voice, bargeIn: v } })}
+        />
+      </div>
+
+      <div className="field">
+        <label>{strings.micFilters}</label>
+        <div className="hint" style={{ marginBottom: 8 }}>
+          {strings.micFiltersHint}
+        </div>
+        <div className="row between" style={{ padding: '4px 0' }}>
+          <label style={{ margin: 0 }}>{strings.micNoise}</label>
+          <Switch
+            on={settings.voice.micNoiseSuppression}
+            onChange={(v) => void update({ voice: { ...settings.voice, micNoiseSuppression: v } })}
+          />
+        </div>
+        <div className="row between" style={{ padding: '4px 0' }}>
+          <label style={{ margin: 0 }}>{strings.micEcho}</label>
+          <Switch
+            on={settings.voice.micEchoCancellation}
+            onChange={(v) => void update({ voice: { ...settings.voice, micEchoCancellation: v } })}
+          />
+        </div>
+        <div className="row between" style={{ padding: '4px 0' }}>
+          <label style={{ margin: 0 }}>{strings.micGain}</label>
+          <Switch
+            on={settings.voice.micAutoGain}
+            onChange={(v) => void update({ voice: { ...settings.voice, micAutoGain: v } })}
+          />
+        </div>
+      </div>
+
+      <div className="field">
+        <label>{strings.vadSensitivity}</label>
+        <Slider
+          value={settings.voice.vadSensitivity}
+          min={1}
+          max={10}
+          step={1}
+          onChange={(v) => void update({ voice: { ...settings.voice, vadSensitivity: v } })}
+          format={(v) => `${v}/10`}
+        />
+        <div className="hint">{strings.vadSensitiveHint}</div>
+      </div>
+
+      <div className="field row between">
         <label style={{ margin: 0 }}>{strings.autoSpeak}</label>
         <Switch
           on={settings.voice.autoSpeak}
@@ -582,6 +636,102 @@ function AppearanceSection(): React.JSX.Element {
           <span className="statusHint">Değişiklikler ana ekranda anında uygulanır</span>
         </div>
       </div>
+    </>
+  );
+}
+
+function MemorySection(): React.JSX.Element {
+  const settings = useSettingsStore((s) => s.settings);
+  const update = useSettingsStore((s) => s.update);
+  const [entries, setEntries] = useState<Array<{ id: string; text: string; createdAt: string; source: string }>>([]);
+  const [newText, setNewText] = useState('');
+  const [confirming, setConfirming] = useState(false);
+
+  const reload = async (): Promise<void> => {
+    const list = await window.quatra?.memory.list();
+    setEntries(list ?? []);
+  };
+
+  useEffect(() => {
+    void reload();
+  }, []);
+
+  const addEntry = async (): Promise<void> => {
+    if (!newText.trim()) return;
+    const res = await window.quatra?.memory.add(newText.trim(), 'user');
+    if (res?.ok) {
+      setNewText('');
+      void reload();
+    }
+  };
+
+  const removeEntry = async (id: string): Promise<void> => {
+    await window.quatra?.memory.remove(id);
+    void reload();
+  };
+
+  const clearAll = async (): Promise<void> => {
+    await window.quatra?.memory.clear();
+    setConfirming(false);
+    void reload();
+  };
+
+  return (
+    <>
+      <h3>{strings.memory}</h3>
+      <div className="field row between">
+        <label style={{ margin: 0 }}>{strings.memoryEnabled}</label>
+        <Switch
+          on={settings.memory.enabled}
+          onChange={(v) => void update({ memory: { enabled: v } })}
+        />
+      </div>
+      <div className="field">
+        <div className="row">
+          <input
+            className="input"
+            placeholder={strings.memoryAddPlaceholder}
+            value={newText}
+            onChange={(e) => setNewText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void addEntry();
+            }}
+          />
+          <Button variant="primary" onClick={() => void addEntry()} disabled={!newText.trim()}>
+            {strings.memoryAdd}
+          </Button>
+        </div>
+        <div className="hint">{strings.memoryHint}</div>
+      </div>
+      <div className="diagList">
+        {entries.length === 0 && <div className="statusHint">{strings.memoryEmpty}</div>}
+        {entries.map((e) => (
+          <div key={e.id} className="row between" style={{ padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+            <span style={{ fontSize: 12.5 }}>{e.text}</span>
+            <Button size="small" variant="danger" onClick={() => void removeEntry(e.id)}>
+              ✕
+            </Button>
+          </div>
+        ))}
+      </div>
+      {entries.length > 0 && (
+        <div className="field" style={{ marginTop: 12 }}>
+          <Button variant="danger" onClick={() => setConfirming(true)}>
+            {strings.memoryClear}
+          </Button>
+        </div>
+      )}
+      {confirming && (
+        <Dialog
+          title={strings.memoryClear}
+          body={strings.memoryClearConfirm}
+          confirmLabel={strings.yes}
+          cancelLabel={strings.no}
+          danger
+          onConfirm={() => void clearAll()}
+          onCancel={() => setConfirming(false)}
+        />
+      )}
     </>
   );
 }

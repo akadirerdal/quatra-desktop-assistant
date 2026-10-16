@@ -192,10 +192,10 @@ Durum etiketleri: ✅ tamam | 🟡 kısmi | ⛔ blocked | ⬜ başlanmadı.
 
 ## 7. Aktif Adım Takibi
 - **Tamamlanan:** Phase 0 ✅, Phase 1 ✅ + geri bildirim turları ✅ (2026-10-16):
-  - Model seviyeleri (Düşük…Ultra Max), gerçek STT (Groq Whisper), uyandırma kelimesi, global PTT
-  - **Sürekli sohbet:** cevap bitince kendiliğinden dinlemeye dönme (varsayılan açık; sessizlikte beklemeye döner)
-  - **Edge Neural TTS:** ücretsiz doğal Türkçe sesler (Emel/Ahmet) + GERÇEK çıkış analyser'ı (speakLevel artık gerçek sinyal); çevrimdışıysa sistem sesine düşer. Kanıt: E2E `{ok:true, 23616 byte}` paketli app içinden
-  - **Kalıcı veri yolu:** `%APPDATA%\Quatra` sabit + eski konumlardan göç; NSIS `deleteAppDataOnUninstall:false` → güncellemede anahtar/ayar KORUNUR
-  - **Kritik düzeltme:** main bundle ESM→CJS (msedge-tts `require('util')` çakışması giderildi)
-- **Kanıt:** 103 test ✅, E2E cred+tts ✅, paketli smoke ✅, kurulum masaüstünde
-- **Not:** Kurulumu kullanıcı kendisi yapacak.
+  - Model seviyeleri, Groq Whisper STT, uyandırma kelimesi, global PTT, sürekli sohbet, Edge Neural TTS, kalıcı veri yolu
+  - **Hafıza (yeni):** "hatırla: …" komutu + Ayarlar → Hafıza paneli (liste/sil/temizle/etkinleştirme). Kayıtlar yalnız yerel `memory.json`; ilgili olanlar prompt bağlamına eklenir. 7 test.
+  - **Mikrofon filtreleri (yeni):** gerçek getUserMedia kısıtları — gürültü azaltma/yankı önleme/otomatik kazanç + VAD hassasiyeti 1-10. Ayarlar → Ses ve Giriş.
+  - **Barge-in (yeni):** Quatra konuşurken sözünü kesersen çalma durur, hemen dinler (GPT voice tarzı). Ayarlardan kapatılabilir.
+  - **Log düzeltmeleri:** open_app Türkçe ad eşlemesi (not defteri, hesap makinesi, görev yöneticisi…), tool HATA detayları loglanır, agent model/süre logu, ses hattı olay logları (mic açılış filtreleri, kayıt sonu, STT sonucu, TTS motoru + fallback, barge olayları), renderer → main log köprüsü (info/warn/error).
+- **Kanıt:** 126 test ✅, paketli smoke ✅ (log: filtreler A/A/A + uyandırma döngüsü kayıtlı), kurulum masaüstünde
+- **Şu an:** Phase 2'ye geçilebilir.

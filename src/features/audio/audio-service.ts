@@ -36,7 +36,25 @@ export type RecordOutcome =
   | { kind: 'busy' } // başka bir kayıt sürüyor (hata değil; caller bekler/atlar)
   | { kind: 'error'; message: string };
 
-const DEFAULT_THRESHOLD = 0.05;
+/** Hassasiyet (1..10) → VAD eşiği (düşük değer = daha hassas). */
+export function buildMicConstraints(voice: {
+  micNoiseSuppression: boolean;
+  micEchoCancellation: boolean;
+  micAutoGain: boolean;
+}): MediaTrackConstraints {
+  return {
+    echoCancellation: voice.micEchoCancellation,
+    noiseSuppression: voice.micNoiseSuppression,
+    autoGainControl: voice.micAutoGain,
+    channelCount: 1,
+  };
+}
+
+/** Hassasiyet (1..10) → VAD eşiği (düşük değer = daha hassas). */
+export function vadThresholdOf(sensitivity: number): number {
+  const s = Math.min(10, Math.max(1, sensitivity));
+  return 0.03 + (10 - s) * 0.008; // 1 → 0.102 · 5 → 0.07 · 10 → 0.03
+}
 
 export function pickRecorderMime(): string {
   if (typeof MediaRecorder === 'undefined') return '';
@@ -62,7 +80,12 @@ export class AudioService {
   constructor(
     private readonly onError: (message: string) => void,
     private readonly onTtsEnd: () => void,
+    private readonly onLog?: (message: string) => void,
   ) {}
+
+  private logEvent(message: string): void {
+    this.onLog?.(message);
+  }
 
   /** Mikrofon erişimi — gerekirse açar; izin reddi dürüst hatayla bildirilir. */
   async ensureMic(): Promise<boolean> {
@@ -72,10 +95,15 @@ export class AudioService {
         this.onError('Mikrofon bulunamadı.');
         return false;
       }
-      this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const constraints = buildMicConstraints(useSettingsStore.getState().settings.voice);
+      this.stream = await navigator.mediaDevices.getUserMedia({ audio: constraints });
+      this.logEvent(
+        `mic açıldı — gürültü:${constraints.noiseSuppression ? 'A' : 'K'} yankı:${constraints.echoCancellation ? 'A' : 'K'} kazanç:${constraints.autoGainControl ? 'A' : 'K'}`,
+      );
     } catch (e) {
       const denied =
         e instanceof DOMException && (e.name === 'NotAllowedError' || e.name === 'SecurityError');
+      this.logEvent(`mic HATA: ${denied ? 'izin reddedildi' : String(e)}`);
       this.onError(
         denied
           ? 'Mikrofon izni reddedildi. Windows Ayarlar → Gizlilik → Mikrofon’dan izin ver.'
@@ -122,7 +150,8 @@ export class AudioService {
     const maxMs = options.maxMs ?? 15_000;
     const silenceMs = options.silenceMs ?? 1100;
     const waitStartMs = options.waitStartMs ?? 6000;
-    const threshold = options.threshold ?? DEFAULT_THRESHOLD;
+    const threshold =
+      options.threshold ?? vadThresholdOf(useSettingsStore.getState().settings.voice.vadSensitivity);
 
     if (this.recording) return { kind: 'busy' };
     if (!(await this.ensureMic())) return { kind: 'error', message: 'Mikrofon açılamadı.' };
@@ -165,13 +194,16 @@ export class AudioService {
       recorder.onstop = () => {
         if (this.cancelRequested || !sawSpeech || chunks.length === 0) {
           this.cancelRequested = false;
+          this.logEvent(`kayıt sonu: ${this.cancelRequested ? 'iptal' : sawSpeech ? 'boş' : 'sessizlik'}`);
           settle({ kind: 'silence' });
           return;
         }
         const blob = new Blob(chunks, { type: mime || 'audio/webm' });
+        const durationMs = performance.now() - started;
+        this.logEvent(`kayıt tamam: ${Math.round(durationMs)}ms, tepe=${peak.toFixed(2)}`);
         settle({
           kind: 'ok',
-          result: { audio: blob, durationMs: performance.now() - started, peakLevel: peak },
+          result: { audio: blob, durationMs, peakLevel: peak },
         });
       };
 
@@ -234,11 +266,17 @@ export class AudioService {
       return { ok: false, message: 'Ses tanıma yalnızca masaüstü uygulamasında çalışır.' };
     }
     try {
+      const started = Date.now();
       const buffer = await audio.arrayBuffer();
       const res = await window.quatra.stt.transcribe(buffer, audio.type || 'audio/webm', 'tr');
-      if (res.ok && res.text) return { ok: true, text: res.text };
+      if (res.ok && res.text) {
+        this.logEvent(`STT ok (${Date.now() - started}ms)`);
+        return { ok: true, text: res.text };
+      }
+      this.logEvent(`STT HATA: ${res.message ?? 'boş sonuç'}`);
       return { ok: false, message: res.message ?? 'Sesin anlaşılamadı.' };
     } catch {
+      this.logEvent('STT HATA: istisna');
       return { ok: false, message: 'Ses tanıma başarısız oldu.' };
     }
   }
@@ -260,8 +298,10 @@ export class AudioService {
    * Hata durumunda oturum akışı ölmez: sistem TTS'ine düşer.
    */
   private async speakEdge(text: string, rate: number, pitch: number, voiceName: string): Promise<void> {
+    this.logEvent(`TTS: Edge (${voiceName || 'otomatik'})`);
     const res = await window.quatra?.tts.synthesize(text, voiceName, rate, pitch);
     if (!res || !res.ok || !res.audio) {
+      this.logEvent(`TTS Edge HATA: ${res?.message ?? 'boş'} → sistem sesine düşüldü`);
       this.onError(
         res?.message
           ? `${res.message} — sistem sesine geçildi.`

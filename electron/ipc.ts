@@ -13,6 +13,7 @@ import { ProviderError } from '../src/providers/types';
 import { cancelActiveAgent, runAgent } from './agent-service';
 import { listEdgeVoices, synthesizeEdge } from './tts-service';
 import { logDir, logFilePath, openLogsFolder } from './log-file';
+import { registerMemoryIpc } from './memory';
 import { appLogger } from '../src/services/log/logger';
 import type { AgentRunRequest } from './agent-service';
 
@@ -149,12 +150,17 @@ export function registerIpc(win: BrowserWindow): void {
   // ---------------------------------------------------------------- günlükler
   ipcMain.handle('log:open', async () => openLogsFolder());
   ipcMain.handle('log:path', async () => ({ ok: true, path: logFilePath(), dir: logDir() }));
-  ipcMain.on('log:renderer', (_e, level: unknown, message: unknown) => {
-    const logger = appLogger.scoped('renderer');
+  ipcMain.on('log:renderer', (_e, level: unknown, scope: unknown, message: unknown) => {
+    const logger = appLogger.scoped(String(scope ?? 'renderer'));
     const msg = String(message ?? '');
     if (level === 'error') logger.error(msg);
+    else if (level === 'info') logger.info(msg);
+    else if (level === 'debug') logger.debug(msg);
     else logger.warn(msg);
   });
+
+  // ---------------------------------------------------------------- hafıza
+  registerMemoryIpc();
 
   // ---------------------------------------------------------------- pencere kontrolleri (özel başlık çubuğu)
   ipcMain.on('window:minimize', (e) => BrowserWindow.fromWebContents(e.sender)?.minimize());

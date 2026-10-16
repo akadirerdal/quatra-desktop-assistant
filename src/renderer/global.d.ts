@@ -47,6 +47,7 @@ export interface QuatraBridge {
       temperature?: number;
       maxTokens?: number;
       personality?: string;
+      useMemory?: boolean;
     }): Promise<{ started: boolean }>;
     cancel(): Promise<{ ok: boolean }>;
     onEvent(handler: (event: AgentEvent) => void): () => void;
@@ -62,6 +63,16 @@ export interface QuatraBridge {
     openLogs(): Promise<{ ok: boolean; path?: string; message?: string }>;
     path(): Promise<{ ok: boolean; path?: string; dir?: string }>;
     rendererError(level: 'warn' | 'error', message: string): void;
+    info(scope: string, message: string): void;
+  };
+  memory: {
+    list(): Promise<Array<{ id: string; text: string; createdAt: string; source: string }>>;
+    add(
+      text: string,
+      source: 'user' | 'assistant',
+    ): Promise<{ ok: boolean; entry?: { id: string; text: string; createdAt: string; source: string } }>;
+    remove(id: string): Promise<{ ok: boolean }>;
+    clear(): Promise<{ ok: boolean }>;
   };
   window: {
     minimize(): void;

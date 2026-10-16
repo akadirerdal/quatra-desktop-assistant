@@ -26,6 +26,19 @@ const VoiceSchema = z.object({
   ttsEngine: z.enum(['edge', 'system']).default('edge'),
   /** Cevap bitince mikrofon kendiliğinden dinlemeye döner (insan gibi sohbet). */
   continuous: z.boolean().default(true),
+  /** Quatra konuşurken sözünü kesince dinlemeye geçer (GPT voice tarzı). */
+  bargeIn: z.boolean().default(true),
+  // ---- Mikrofon filtreleri (gerçek getUserMedia kısıtları) ----
+  micNoiseSuppression: z.boolean().default(true),
+  micEchoCancellation: z.boolean().default(true),
+  micAutoGain: z.boolean().default(true),
+  /** Mikrofon hassasiyeti 1(en hassas)..10(az hassas). */
+  vadSensitivity: z.number().int().min(1).max(10).default(5),
+});
+
+const MemorySchema = z.object({
+  /** Hafızanın prompt'a eklenip eklenmeyeceği (kayıtlar hep yerel kalır). */
+  enabled: z.boolean().default(true),
 });
 
 const ActivationSchema = z.object({
@@ -63,6 +76,7 @@ export const SettingsSchema = z.object({
   appearance: AppearanceSchema.default(AppearanceSchema.parse({})),
   privacy: PrivacySchema.default(PrivacySchema.parse({})),
   tools: ToolsSchema.default(ToolsSchema.parse({})),
+  memory: MemorySchema.default(MemorySchema.parse({})),
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;

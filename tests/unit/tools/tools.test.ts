@@ -106,7 +106,7 @@ describe('ToolRegistry', () => {
 describe('builtin tools', () => {
   it('sysinfo gerçek native veriyi döner', async () => {
     const reg = new ToolRegistry();
-    for (const t of createBuiltinTools(new PermissionManager())) reg.register(t);
+    for (const t of createBuiltinTools()) reg.register(t);
     const r = await reg.execute('sysinfo', '{}', { native });
     expect(r.ok).toBe(true);
     expect(JSON.stringify(r.result)).toContain('win32');
@@ -114,16 +114,24 @@ describe('builtin tools', () => {
 
   it('open_app allowlist dışı uygulamayı reddeder', async () => {
     const reg = new ToolRegistry();
-    for (const t of createBuiltinTools(new PermissionManager())) reg.register(t);
+    for (const t of createBuiltinTools()) reg.register(t);
     const r = await reg.execute('open_app', '{"name":"kötücül.exe"}', { native });
     expect(r.ok).toBe(false);
     expect(r.error).toContain('izinli');
     expect(native.openApp).not.toHaveBeenCalled();
   });
 
-  it('open_app allowlist içi uygulamayı açar', async () => {
+  it('open_app Türkçe adları gerçek uygulamaya çevirir', async () => {
     const reg = new ToolRegistry();
-    for (const t of createBuiltinTools(new PermissionManager())) reg.register(t);
+    for (const t of createBuiltinTools()) reg.register(t);
+    const r = await reg.execute('open_app', '{"name":"not defterini aç"}', { native });
+    expect(r.ok).toBe(true);
+    expect(native.openApp).toHaveBeenCalledWith('notepad');
+  });
+
+  it('open_app izinli İngilizce adı açar', async () => {
+    const reg = new ToolRegistry();
+    for (const t of createBuiltinTools()) reg.register(t);
     const r = await reg.execute('open_app', '{"name":"notepad"}', { native });
     expect(r.ok).toBe(true);
     expect(native.openApp).toHaveBeenCalledWith('notepad');
@@ -131,7 +139,7 @@ describe('builtin tools', () => {
 
   it('open_url sadece http/https kabul eder', async () => {
     const reg = new ToolRegistry();
-    for (const t of createBuiltinTools(new PermissionManager())) reg.register(t);
+    for (const t of createBuiltinTools()) reg.register(t);
     const bad = await reg.execute('open_url', '{"url":"file:///etc/passwd"}', { native });
     expect(bad.ok).toBe(false);
     expect(native.openUrl).not.toHaveBeenCalled();
@@ -141,7 +149,7 @@ describe('builtin tools', () => {
 
   it('not_al dosya adını güvenli hale getirir', async () => {
     const reg = new ToolRegistry();
-    for (const t of createBuiltinTools(new PermissionManager())) reg.register(t);
+    for (const t of createBuiltinTools()) reg.register(t);
     const r = await reg.execute(
       'not_al',
       '{"title":"rapor: 2026/10","content":"içerik"}',

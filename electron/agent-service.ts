@@ -2,12 +2,14 @@
  * Agent servisi — renderer isteğini alır, main süreçte güvenle yürütür.
  * API anahtarı yalnızca burada okunur (renderer'a gitmez).
  */
-import { BrowserWindow, dialog } from 'electron';
+import { app, BrowserWindow, dialog } from 'electron';
+import path from 'node:path';
 import { DeepSeekClient } from '../src/providers/deepseek/client';
 import { ToolRegistry } from '../src/features/tools/registry';
 import { PermissionManager } from '../src/features/tools/permissions';
 import { createBuiltinTools } from '../src/features/tools/builtins';
 import { AgentLoop, DEFAULT_SYSTEM_PROMPT } from '../src/features/agent/loop';
+import { MemoryStore } from '../src/services/memory/memory-store';
 import { getApiKey } from './credentials';
 import { createNativeBridge } from './native';
 import { appLogger } from '../src/services/log/logger';
@@ -18,6 +20,8 @@ export interface AgentRunRequest {
   temperature?: number;
   maxTokens?: number;
   personality?: string;
+  /** Hafıza kayıtlarının prompt'a eklenmesi (ayarlardan). */
+  useMemory?: boolean;
 }
 
 export type AgentEvent =
@@ -48,6 +52,7 @@ export async function runAgent(
   };
 
   emit({ type: 'start', requestId });
+  const startedAt = Date.now();
 
   try {
     const hasKey = (await getApiKey('deepseek')) !== '';
@@ -82,11 +87,24 @@ export async function runAgent(
     });
 
     const registry = new ToolRegistry({ timeoutMs: 20_000 });
-    for (const tool of createBuiltinTools(permissions)) registry.register(tool);
+    for (const tool of createBuiltinTools()) registry.register(tool);
 
-    const systemPrompt = req.personality
-      ? `${DEFAULT_SYSTEM_PROMPT}\nKullanıcı tercihi: ${req.personality}`
-      : DEFAULT_SYSTEM_PROMPT;
+    // Hafıza: kullanıcı izin verdiyse ilgili kayıtlar prompt'a eklenir (yalnız yerel).
+    let memoryBlock = '';
+    if (req.useMemory) {
+      const memoryStore = new MemoryStore(path.join(app.getPath('userData'), 'memory.json'));
+      memoryBlock = await memoryStore.contextBlock(req.text, 1200);
+    }
+
+    const systemPrompt =
+      (memoryBlock ? `${memoryBlock}\n\n` : '') +
+      (req.personality
+        ? `${DEFAULT_SYSTEM_PROMPT}\nKullanıcı tercihi: ${req.personality}`
+        : DEFAULT_SYSTEM_PROMPT);
+
+    log.info(
+      `agent başladı — model=${req.model}, hafıza=${memoryBlock ? 'var' : 'yok'}, sıcaklık=${req.temperature ?? '-'}`,
+    );
 
     const loop = new AgentLoop({
       provider: client,
@@ -101,6 +119,9 @@ export async function runAgent(
     });
 
     const result = await loop.run(req.text);
+    log.info(
+      `agent bitti — iterasyon=${result.iterations}, tool=${result.toolCalls}, süre=${Date.now() - startedAt}ms`,
+    );
     emit({ type: 'caption', requestId, text: result.text });
     emit({
       type: 'done',

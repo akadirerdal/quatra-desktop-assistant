@@ -4,7 +4,7 @@
  */
 import { z } from 'zod';
 import type { ToolDef } from './types';
-import { PermissionManager } from './permissions';
+import { normalizeAppName } from './app-names';
 
 const SAFE_URL = /^https?:\/\//i;
 
@@ -13,7 +13,7 @@ function tool<A>(t: ToolDef<A>): ToolDef<A> {
   return t;
 }
 
-export function createBuiltinTools(permissions: PermissionManager): ToolDef[] {
+export function createBuiltinTools(): ToolDef[] {
   return [
     // ---------------------------------------------------------------- sysinfo (safe)
     tool({
@@ -30,10 +30,10 @@ export function createBuiltinTools(permissions: PermissionManager): ToolDef[] {
         };
       },
     }),
-    // ---------------------------------------------------------------- open-app (low-risk + allowlist)
+    // ---------------------------------------------------------------- open-app (low-risk + allowlist + TR eşleşme)
     tool<{ name: string }>({
       name: 'open_app',
-      description: 'İzinli listedeki bir uygulamayı açar (ör. notepad, calculator). Keyfi komut çalıştırmaz.',
+      description: 'İzinli listedeki bir uygulamayı açar (not defteri, hesap makinesi, dosya gezgini, komut istemi, powershell, paint, görev yöneticisi). Keyfi komut çalıştırmaz.',
       schema: z.object({ name: z.string().min(1).max(100) }),
       parameters: {
         type: 'object',
@@ -42,11 +42,12 @@ export function createBuiltinTools(permissions: PermissionManager): ToolDef[] {
       },
       permission: 'low-risk',
       async run(args, ctx) {
-        if (!permissions.isAppAllowed(args.name)) {
-          throw new Error(`"${args.name}" izinli uygulama listesinde değil.`);
+        const key = normalizeAppName(args.name);
+        if (!key) {
+          throw new Error(`"${args.name}" izinli uygulama listesinde değil (not defteri, hesap makinesi, dosya gezgini, komut istemi).`);
         }
-        await ctx.native.openApp(args.name);
-        return { opened: args.name };
+        await ctx.native.openApp(key);
+        return { opened: key };
       },
     }),
     // ---------------------------------------------------------------- open_url (low-risk, şema güvenli)

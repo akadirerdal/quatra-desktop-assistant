@@ -7,17 +7,7 @@ import os from 'node:os';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { NativeBridge } from '../src/features/tools/types';
-
-/** Bilinen uygulama adları → çalıştırılabilir (defense in depth; tool katmanı allowlist uygular). */
-const APP_MAP: Record<string, string> = {
-  notepad: 'notepad.exe',
-  calculator: 'calc.exe',
-  explorer: 'explorer.exe',
-  cmd: 'cmd.exe',
-  powershell: 'powershell.exe',
-  mspaint: 'mspaint.exe',
-  taskmgr: 'taskmgr.exe',
-};
+import { appExec } from '../src/features/tools/app-names';
 
 export function createNativeBridge(win: BrowserWindow | null): NativeBridge {
   return {
@@ -36,8 +26,7 @@ export function createNativeBridge(win: BrowserWindow | null): NativeBridge {
     },
 
     async openApp(name: string) {
-      const key = name.toLowerCase();
-      const exe = APP_MAP[key];
+      const exe = appExec(name);
       if (!exe) {
         throw new Error(`"${name}" için güvenli çalıştırma yolu tanımlı değil.`);
       }

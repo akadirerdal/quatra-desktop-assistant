@@ -87,7 +87,20 @@ const quatra = {
       ipcRenderer.invoke('log:open'),
     path: (): Promise<{ ok: boolean; path?: string; dir?: string }> => ipcRenderer.invoke('log:path'),
     rendererError: (level: 'warn' | 'error', message: string): void =>
-      ipcRenderer.send('log:renderer', level, message),
+      ipcRenderer.send('log:renderer', level, 'renderer', message),
+    info: (scope: string, message: string): void => ipcRenderer.send('log:renderer', 'info', scope, message),
+  },
+
+  memory: {
+    list: (): Promise<Array<{ id: string; text: string; createdAt: string; source: string }>> =>
+      ipcRenderer.invoke('memory:list'),
+    add: (
+      text: string,
+      source: 'user' | 'assistant',
+    ): Promise<{ ok: boolean; entry?: { id: string; text: string; createdAt: string; source: string } }> =>
+      ipcRenderer.invoke('memory:add', text, source),
+    remove: (id: string): Promise<{ ok: boolean }> => ipcRenderer.invoke('memory:remove', id),
+    clear: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('memory:clear'),
   },
 
   window: {

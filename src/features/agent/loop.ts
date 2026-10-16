@@ -87,7 +87,11 @@ export class AgentLoop {
           content: JSON.stringify(result),
           toolCallId: call.id,
         });
-        log.info(`tool "${call.name}" → ${result.ok ? 'ok' : 'hata'}`);
+        log.info(
+          result.ok
+            ? `tool "${call.name}" → ok`
+            : `tool "${call.name}" → HATA: ${result.error ?? 'bilinmiyor'}`,
+        );
       }
     }
 
