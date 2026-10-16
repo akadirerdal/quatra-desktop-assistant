@@ -76,6 +76,10 @@ function createWindow(): void {
   });
 
   mainWindow.once('ready-to-show', () => mainWindow?.show());
+  // Güvenlik ağı: ready-to-show herhangi bir nedenle tetiklenmezse ilk yüklemede yine göster.
+  mainWindow.webContents.once('did-finish-load', () => {
+    if (mainWindow && !mainWindow.isVisible()) mainWindow.show();
+  });
 
   // F11: tam ekran aç/kapat.
   mainWindow.webContents.on('before-input-event', (_e, input) => {
@@ -159,15 +163,24 @@ function createWindow(): void {
 }
 
 // CSP: yalnızca kendi kaynaklarımız; harici ağ yok (renderer'da).
+// Dev modda Vite'ın inline preamble/HMR script'leri için 'unsafe-inline' şart; üretimde katı kalır.
 void app.whenReady().then(() => {
   log.info(`Quatra başladı — v${app.getVersion()} · ${process.platform} · log: ${logFilePath()}`);
+  const isDev = Boolean(process.env['VITE_DEV_SERVER_URL']);
+  const csp = [
+    "default-src 'self'",
+    isDev ? "script-src 'self' 'unsafe-inline'" : "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data:",
+    "connect-src 'self' ws://localhost:*",
+    "media-src 'self' blob:",
+    "font-src 'self' data:",
+  ].join('; ');
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({
       responseHeaders: {
         ...details.responseHeaders,
-        'Content-Security-Policy': [
-          "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ws://localhost:*; media-src 'self' blob:; font-src 'self' data:",
-        ],
+        'Content-Security-Policy': [csp],
       },
     });
   });
