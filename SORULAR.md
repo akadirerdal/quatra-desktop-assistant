@@ -26,3 +26,12 @@
 10. **İzin istekleri (V1-09)** — sözlü onay "evet/hayır" ile çalışıyor; **20 sn** cevap gelmezse işlem yapılmaz (güvenli varsayılan). İki kez anlaşılmayan yanıtta da güvenli ret. Süre sence uygun mu?
 
 > Not: Bu dosyaya geliştirme sırasında yeni sorular eklenir; **hiçbir soru geliştirmeyi durdurmaz** — makul varsayımla ilerlerim, varsayım burada listelenir.
+
+---
+
+## Tur 10 kapanışı (16.10.2026)
+
+- **V1-UPDATE listesi bitti:** A ✅ · B ✅ · C ✅ · D ✅ · E 🟡 (favori/eleme = senin turun) · F ✅ · ek paket ✅ (ayarları dışa/içe aktarma) · G 🟡 ("ürün bitince" kuralı — kurulum dosyasını **onayın gelince tek komutla** üretirim) · V1-08 yerel uyandırma paketleme aşamasına bırakıldı (#5).
+- **Senin kararını bekleyenler:** #2 tema favorileri · #5 yerel uyandırma · #6 kurulum dosyası üretilsin mi (+ güncelleme yolu) · #8 hatırlatıcı zili · #9 tepsi "kapalı sayıl" modu · #10 izin süresi (20 sn).
+- **Uygulamayı yeniden başlatmayı unutma:** Tepsi menüsü → **Çıkış** → masaüstü kısayolu. (Main süreç değişiklikleri — tepsi, işlem kaydı, token sayaçları — yeniden başlatınca etkin olur.)
+- **Dene:** pencereyi kapat → tepsiye iner · "10 dakika sonra çayı hatırlat" · konuşurken "sus" · hassas işte "evet/hayır" onayı · Ayarlar → **İşlem Kaydı** (audit + token sayaçları + not yedeği "Geri al") · Gizlilik'te gerçek butonlar + konuşma kaydı anahtarı · Genel'de ayar dışa/içe aktarma + "Windows açılışında başlat" (kaynak modda dürüstçe "desteklenmez" der).
