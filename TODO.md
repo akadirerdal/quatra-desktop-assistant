@@ -222,3 +222,8 @@ Durum etiketleri: ✅ tamam | 🟡 kısmi | ⛔ blocked | ⬜ başlanmadı.
 **Tur 6 (eksikler listesi):** kullanıcı talimatı: "not al — eksikleri not ediyorsun".
 - `EKSIKLER.md` oluşturuldu (repo kökü): sesli deneyim, konuşma anlayışı, araçlar, hafıza, arayüz, güvenlik, platform, altyapı başlıklarında bilinen tüm eksikler + "kullanıcı incelemesinden gelenler" bölümü + ✅ çözülenler bölümü.
 - Kural: kullanıcı inceleme sırasında eksik bildirdikçe buraya işlenir; çözülen madde ✅ bölümüne taşınır.
+
+**Tur 7 (inceleme bildirimleri — yalnız not):** kullanıcı "şimdilik sadece not et" dedi; bu turda kod değişikliği YOK.
+- Bildirimler (EKSIKLER.md §9'a işlendi): mikrofon ayarları artırılsın + mikrofon testi; kazanç/gürültü engelleme açık-kapalı yerine kademeli; mikrofon sürekli açık, yalnız "Quatra" tetiklesin, uykuya geçmeyi reddetmesin; sessizlikte uyku süresi ayarlanabilir olsun (varsayılan 5 sn); daha fazla tema (tartışma); mikrofon kapatma simgesi yenilenecek (tartışma); Windows açılışında otomatik başlatma (Ayarlar'dan aç/kapat); izin istekleri sözlü olsun — ekranda baloncuk çıkmasın.
+- Geliştirici v1 öncelik önerisi EKSIKLER.md başına eklendi: bağlam, hatırlatıcı, akış+sus, yerel uyandırma, yedek sağlayıcı, tepsi+otomatik başlatma, kurulum+güncelleme, audit+yedek, maliyet.
+- Doğrulanan mevcut durum: mikrofon cihazı seçimi yok (varsayılan cihaz); takip süreleri sabit kod içinde (ayarlanabilir değil).

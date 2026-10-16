@@ -6,12 +6,31 @@
 
 ---
 
+## İlk sürüm (v1) için öncelik önerisi — geliştirici görüşü (16.10.2026)
+
+Kullanıcının sorusu üzerine: bence v1’den önce çözülmesi gerekenler, önem sırasıyla:
+
+1. **Konuşma bağlamı** — takip soruları (“peki ya yarın?”) şu an anlaşılmıyor; asistanı “insan gibi” hissettiren en kritik parça. (Phase 3)
+2. **Hatırlatıcı / zamanlayıcı** — “10 dakika sonra hatırlat” yok; asistanın en çok beklenen yeteneği, yokluğu hemen fark ediliyor.
+3. **Yanıt akışı + “sus” komutu** — uzun cevapta ilk ses gecikmesi büyük; sesli durdurma komutu yok. Sesli deneyimde “kontrol” hissi için şart.
+4. **Uyandırma kelimesinin yerelleşmesi** — “Quatra” demek bile internet turu; internet yokken asistan tümüyle sağır. Yerel uyandırma modeli gecikmeyi ve bağımlılığı bitirir.
+5. **Yedek sağlayıcı + zarif hata** — DeepSeek kesintisinde Quatra sessiz kalıyor; “şu an bağlanamıyorum” diyebilmeli ve ikinci sağlayıcıya geçebilmeli.
+6. **Tepsi + arka plan + otomatik başlatma** — asistan “her an orada” olmalı; kullanıcı da otomatik başlatma istedi (bkz. §9).
+7. **Kurulum dosyası + otomatik güncelleme** — v1’in dağıtılabilir olması için; şu an yalnız kaynak koddan çalışıyor.
+8. **İşlem günlüğü + dosya yedeği/geri alma** — yaptığı işlerin kaydı ve yanlış yazımda geri dönüş; güven için.
+9. **Maliyet/token görünürlüğü** — küçük ama şeffaflık sağlar.
+
+_Bu sıralama §9’daki kullanıcı maddeleriyle birleşince v1 kapsamı netleşir; kesin sıra birlikte belirlenecek._
+
+---
+
 ## 1. Sesli deneyim
 - ⬜ **Uyandırma kelimesi buluta bağlı** — “Quatra” tespiti bile Groq Whisper’a gidip gelir; internet yokken uyandırma çalışmaz. (Çözüm yolu: yerel küçük uyandırma modeli.)
 - ⬜ **Yanıtlar canlı akıtılmıyor** — cevabın tamamı üretilmeden seslendirme başlamaz; uzun yanıtta ilk ses gecikmesi büyür. (Cümle cümle akış planlı.)
 - ⬜ **“Sus / kes sesini” komutu yok** — Quatra ancak üstüne konuşunca susar (barge-in); açık bir durdurma komutu eklenebilir.
 - ⬜ **Sistem ses seviyesi / medya kontrolü yok** — “sesi kıs”, “şarkı değiştir” desteklenmiyor.
 - ⬜ **Yalnızca Türkçe** — başka dilde konuşma/arayüz yok.
+- ⬜ **Mikrofon cihazı seçimi yok** — sistemde birden fazla mikrofon olsa da uygulama varsayılanı kullanıyor (geliştirici önerisi, 16.10).
 
 ## 2. Konuşma anlayışı
 - ⬜ **Kısa süreli bağlam yok** — her komut bağımsız değerlendirilir; “peki ya yarın?”, “bunu biraz kısalt” gibi takip cümleleri anlaşılmaz. (Phase 3)
@@ -54,9 +73,20 @@
 - ⬜ **Çevrimdışı mod yok** — sistem TTS dışında beyin ve ses tanıma internet ister.
 
 ## 9. Kullanıcı incelemesinden gelenler
-> İnceleme sırasında bildirdiğin eksikler buraya eklenir (tarihiyle).
+> İnceleme sırasında bildirdiğin eksikler buraya tarihiyle işlenir; çözülenler ✅ bölümüne taşınır.
 
-- _(henüz yeni bildirim yok — sen söyledikçe buraya işlenecek)_
+### Tur 7 — 16.10.2026 (kullanıcı bildirimleri — “şimdilik sadece not et”)
+
+1. ⬜ **Mikrofon ayarları artırılsın + mikrofon testi gelsin** — “konuş, seviyeyi gör, ayarla” akışı: canlı seviye göstergesi ve test kaydıyla kullanıcı kendine göre ayar yapabilsin.
+2. ⬜ **Kademeli ayarlar** — kazanç ve gürültü engelleme gibi seçenekler yalnız açık/kapalı değil, seviyeli olsun (ör. zayıf/orta/güçlü). *Teknik not:* tarayıcı filtreleri temelde açık/kapalı; kademe, yazılım katmanıyla (kazanç düğümü + eşikli gürültü kapısı) sağlanabilir.
+3. ⬜ **Mikrofon davranışı** — mikrofon fiziksel olarak hep açık kalsın (konuşsak da konuşmasak da); Quatra yalnız “Quatra” kelimesine tepki versin; mikrofon açık diye uykuya geçmeyi reddetmesin.
+4. ⬜ **Uyku süresi ayarı** — kullanıcıdan X saniye ses gelmezse uykuya dönülsün (**varsayılan 5 sn**); bu süre Ayarlar’dan her kullanıcı kendine göre değiştirebilsin.
+5. ⬜ **Daha fazla tema** — hazır renk temaları/paletler; *birlikte tartışılacak*.
+6. ⬜ **Mikrofon kapatma simgesi yenilenmeli** — mevcut MIC rozeti beğenilmedi; *tasarım birlikte tartışılacak*.
+7. ⬜ **Windows açılışında otomatik başlatma** — bilgisayar kapanıp açıldığında Quatra kendiliğinden başlasın; Ayarlar’dan aç/kapat edilebilsin.
+8. ⬜ **İzin istekleri sözlü olsun** — izin gerektiğinde ekranda baloncuk/görev kartı çıkmasın; Quatra sözlü sorsun (ör. “Not alayım mı?”) ve sesli “evet/hayır” ile onay alsın.
+
+_(Yeni bildirim geldikçe buraya eklenir.)_
 
 ## ✅ Çözülenler
 - _(henüz boş)_
