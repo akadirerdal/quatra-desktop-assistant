@@ -56,11 +56,16 @@ Mod geçişi: sesli "yazılım moduna geç" / "normal moda geç" / "mod değişt
 
 ## Mikrofon ve ses
 
-- **Ses tanıma (STT):** Electron'da Chromium'un Web Speech servisi çalışmadığı için sesin **Groq Whisper** ile yazıya çevrilir. Ayarlar → AI Sağlayıcı → **Groq API Anahtarı** alanına console.groq.com'dan aldığın anahtarı ekle (ücretsiz kota yeterli). Ses diske yazılmaz; yalnızca bellekte kaydedilip gönderilir.
-- **Uyandırma kelimesi:** Etkinleştirme → "Uyandırma kelimesi" seçilirse bağlamda mikrofon açık kalır; «Quatra» dediğinde komut dinlemeye geçer (telaffuz varyantları: kuatra, quatro, kotra…).
-- **Bas-konuş:** Kısayol (varsayılan Ctrl+Shift+Space) artık **globaldir** — uygulama arka planda olsa da çalışır.
-- **Konuşma (TTS):** Sistem `speechSynthesis`; liste cihazdaki gerçek seslerdir. Windows'ta daha fazla ses: Ayarlar → Saat ve Dil → Konuşma → Sesleri ekle.
-- Görsel (visualizer) mikrofon seviyesini **gerçek sinyalden** alır; konuşma çıkış animasyonu dürüst nefes dalgasıdır (analyser erişimi yok).
+- **Ses tanıma (STT):** Electron'da Chromium'un Web Speech servisi çalışmadığı için sesin **Groq Whisper** ile yazıya çevrilir. Ayarlar → AI Sağlayıcı → **Groq API Anahtarı** alanına console.groq.com'dan aldığın anahtarı ekle (ücretsiz kota yeterli). Ses diske yazılmaz.
+- **Sürekli sohbet (varsayılan açık):** Cevap bitince mikrofon kendiliğinden dinlemeye döner — insanla sohbet eder gibi. «Quatra» demene gerek kalmaz; sessiz kalırsan sohbet beklemeye geçer. Ayarlar → Ses ve Giriş'ten kapatılabilir.
+- **Konuşma (TTS):** Varsayılan **Edge Neural** — doğal Türkçe sesler (Emel/Ahmet), ücretsiz, internet ister. Çevrimdışıysa otomatik sistem sesine düşer. Konuşma sırasında visualizer dalgası **gerçek çıkış sinyaliyle** çizilir.
+- **Uyandırma kelimesi:** «Quatra» (kuatra/quatro/kotra varyantları tanınır). Bas-konuş kısayolu (Ctrl+Shift+Space) globaldir.
+- Windows'ta ek sesler gerekirse: Ayarlar → Saat ve Dil → Konuşma → Sesleri ekle.
+
+## Güncelleme ve veri kalıcılığı
+
+- Ayarlar ve API anahtarları `%APPDATA%\Quatra` altında tutulur (eski konumlardan otomatik göç eder).
+- Güncelleme/kurulum anahtarları **silmez** (`deleteAppDataOnUninstall: false`).
 
 ## Model seviyeleri
 

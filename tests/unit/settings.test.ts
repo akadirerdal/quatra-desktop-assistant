@@ -8,6 +8,8 @@ describe('settings schema', () => {
     const s = sanitizeSettings(null);
     expect(s.assistantName).toBe('Quatra');
     expect(s.provider.flashModel).toBe('deepseek-chat');
+    expect(s.voice.ttsEngine).toBe('edge');
+    expect(s.voice.continuous).toBe(true);
   });
 
   it('geçerli alanları korur', () => {

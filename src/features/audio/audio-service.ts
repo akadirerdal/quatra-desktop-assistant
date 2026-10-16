@@ -11,6 +11,7 @@
  * Watchdog: her hata/kesinti yolunda mikrofon serbest bırakılır.
  */
 import { useAssistantStore } from '../../state/assistant-store';
+import { useSettingsStore } from '../../state/settings-store';
 
 export interface RecordedCommand {
   audio: Blob;
@@ -52,6 +53,9 @@ export class AudioService {
   private raf = 0;
   private currentLevel = 0;
   private recording = false;
+  private playCtx: AudioContext | null = null;
+  private playingSource: AudioBufferSourceNode | null = null;
+  private speakRaf = 0;
 
   constructor(
     private readonly onError: (message: string) => void,
@@ -221,7 +225,79 @@ export class AudioService {
 
   // ---------------------------------------------------------------- TTS
 
+  /** Motor dağıtıcı: Edge Neural (önerilen) veya sistem TTS'i. */
   speak(text: string, rate: number, pitch: number, voiceName: string): void {
+    const engine = useSettingsStore.getState().settings.voice.ttsEngine;
+    if (engine === 'edge' && window.quatra) {
+      void this.speakEdge(text, rate, pitch, voiceName);
+      return;
+    }
+    this.speakSystem(text, rate, pitch, voiceName);
+  }
+
+  /**
+   * Edge Neural oynatma — GERÇEK çıkış analyser'ı ile (speakLevel gerçek sinyal olur).
+   * Hata durumunda oturum akışı ölmez: sistem TTS'ine düşer.
+   */
+  private async speakEdge(text: string, rate: number, pitch: number, voiceName: string): Promise<void> {
+    const res = await window.quatra?.tts.synthesize(text, voiceName, rate, pitch);
+    if (!res || !res.ok || !res.audio) {
+      this.onError(
+        res?.message
+          ? `${res.message} — sistem sesine geçildi.`
+          : 'Edge sesi alınamadı — sistem sesine geçildi.',
+      );
+      this.speakSystem(text, rate, pitch, voiceName);
+      return;
+    }
+    try {
+      const ctx = new AudioContext();
+      const buffer = await ctx.decodeAudioData(res.audio.slice(0));
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      const outAnalyser = ctx.createAnalyser();
+      outAnalyser.fftSize = 256;
+      source.connect(outAnalyser);
+      outAnalyser.connect(ctx.destination);
+      this.playCtx = ctx;
+      this.playingSource = source;
+
+      const data = new Uint8Array(outAnalyser.frequencyBinCount);
+      useAssistantStore.getState().setStatus('speaking');
+      const tick = () => {
+        outAnalyser.getByteTimeDomainData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) {
+          const v = (data[i]! - 128) / 128;
+          sum += v * v;
+        }
+        const rms = Math.min(1, Math.sqrt(sum / data.length) * 4);
+        const st = useAssistantStore.getState();
+        st.setLevels(st.micLevel, rms);
+        this.speakRaf = requestAnimationFrame(tick);
+      };
+      this.speakRaf = requestAnimationFrame(tick);
+
+      const finish = () => {
+        cancelAnimationFrame(this.speakRaf);
+        this.speakRaf = 0;
+        this.playingSource = null;
+        void ctx.close().catch(() => undefined);
+        this.playCtx = null;
+        const st = useAssistantStore.getState();
+        st.setLevels(st.micLevel, 0);
+        this.onTtsEnd();
+      };
+      source.onended = finish;
+      source.start();
+    } catch {
+      this.onError('Ses çözülemedi — sistem sesine geçildi.');
+      this.speakSystem(text, rate, pitch, voiceName);
+    }
+  }
+
+  /** Sistem TTS'i (çevrimdışı yedek). */
+  private speakSystem(text: string, rate: number, pitch: number, voiceName: string): void {
     if (!('speechSynthesis' in window)) {
       this.onError('Bu sistemde ses çıkışı (TTS) yok. Cevap yazılı olarak gösterildi.');
       return;
@@ -250,10 +326,25 @@ export class AudioService {
 
   stopSpeaking(): void {
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    try {
+      if (this.playingSource) {
+        this.playingSource.onended = null;
+        this.playingSource.stop();
+        this.playingSource = null;
+      }
+      cancelAnimationFrame(this.speakRaf);
+      this.speakRaf = 0;
+      void this.playCtx?.close().catch(() => undefined);
+      this.playCtx = null;
+    } catch {
+      // yok say
+    }
   }
 
   isSpeaking(): boolean {
-    return 'speechSynthesis' in window && window.speechSynthesis.speaking;
+    return (
+      ('speechSynthesis' in window && window.speechSynthesis.speaking) || this.playingSource !== null
+    );
   }
 
   /** Gerçek cihaz sesleri — uydurma ses listesi yok. */
@@ -266,6 +357,7 @@ export class AudioService {
   stopAll(): void {
     cancelAnimationFrame(this.raf);
     this.raf = 0;
+    this.stopSpeaking();
     for (const track of this.stream?.getTracks() ?? []) track.stop();
     this.stream = null;
     this.analyser?.disconnect();

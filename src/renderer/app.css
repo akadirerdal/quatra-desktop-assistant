@@ -520,6 +520,10 @@ textarea.input {
   background: currentColor;
 }
 
+.warnText {
+  color: var(--yellow);
+}
+
 .dialogBackdrop {
   position: fixed;
   inset: 0;

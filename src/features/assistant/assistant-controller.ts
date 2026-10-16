@@ -19,6 +19,7 @@ export class AssistantController {
   private listening = false;
   private lastPttAt = 0;
   private registeredCombo: string | null = null;
+  private followToken = 0;
 
   constructor() {
     this.audio = new AudioService(
@@ -108,27 +109,40 @@ export class AssistantController {
   }
 
   /** Kısayol/buton/uyandırma ile komut kaydını başlatır. */
-  async startCommandCapture(source: 'ptt' | 'button' | 'wake'): Promise<void> {
+  async startCommandCapture(source: 'ptt' | 'button' | 'wake' | 'followup'): Promise<void> {
     const st = useAssistantStore.getState();
     if (this.listening || st.mutedByUser) return;
     if (st.status === 'speaking') {
       this.interrupt();
     }
+    this.followToken += 1; // bekleyen takip zamanlayıcısını iptal et
     this.listening = true;
     this.wake?.pause();
     this.audio.stopSpeaking();
     st.setStatus('listening');
-    st.setCaption(source === 'wake' ? strings.wakeListening : strings.captionListening);
+    st.setCaption(
+      source === 'wake'
+        ? strings.wakeListening
+        : source === 'followup'
+          ? strings.followUpListening
+          : strings.captionListening,
+    );
 
     try {
       const outcome = await this.audio.recordCommand({
         maxMs: 15_000,
-        silenceMs: 1100,
-        waitStartMs: source === 'wake' ? 8000 : 6000,
+        silenceMs: source === 'followup' ? 1000 : 1100,
+        waitStartMs: source === 'wake' ? 8000 : source === 'followup' ? 5000 : 6000,
       });
       if (outcome.kind === 'silence') {
         st.setStatus('idle');
-        st.setCaption(source === 'wake' ? strings.wakeHeardNothing : strings.sttFailed);
+        st.setCaption(
+          source === 'followup'
+            ? ''
+            : source === 'wake'
+              ? strings.wakeHeardNothing
+              : strings.sttFailed,
+        );
         return;
       }
       if (outcome.kind === 'error') {
@@ -150,6 +164,22 @@ export class AssistantController {
     }
   }
 
+  /**
+   * Sürekli sohbet: cevap bittiğinde (TTS dahil) kendiliğinden tekrar dinlemeye geç.
+   * Kullanıcı sessiz kalırsa sohbet biter; "Quatra" demeye gerek kalmaz.
+   */
+  private scheduleFollowUp(): void {
+    const token = ++this.followToken;
+    setTimeout(() => {
+      if (token !== this.followToken) return;
+      const st = useAssistantStore.getState();
+      const settings = useSettingsStore.getState().settings;
+      if (!settings.voice.continuous) return;
+      if (st.mutedByUser || st.status !== 'idle') return;
+      void this.startCommandCapture('followup');
+    }, 500);
+  }
+
   /** Kullanıcı "dinle" dedi (buton). */
   toggleListening(): void {
     const st = useAssistantStore.getState();
@@ -165,6 +195,7 @@ export class AssistantController {
   }
 
   interrupt(): void {
+    this.followToken += 1; // takip döngüsünü durdur
     this.audio.stopSpeaking();
     void window.quatra?.agent.cancel();
     const st = useAssistantStore.getState();
@@ -175,6 +206,7 @@ export class AssistantController {
     const st = useAssistantStore.getState();
     st.setMuted(muted);
     if (muted) {
+      this.followToken += 1;
       this.wake?.pause();
       this.audio.stopAll();
       this.listening = false;
@@ -266,6 +298,8 @@ export class AssistantController {
         if (settings.voice.autoSpeak) {
           this.wake?.pause();
           this.audio.speak(event.text, settings.voice.rate, settings.voice.pitch, settings.voice.voiceName);
+        } else {
+          this.scheduleFollowUp();
         }
         break;
       }
@@ -301,6 +335,8 @@ export class AssistantController {
     const store = useAssistantStore.getState();
     if (store.status === 'speaking') store.setStatus('idle');
     if (this.wake?.isRunning()) this.wake.resume();
+    // Sürekli sohbet: cevap okunduktan sonra kendiliğinden dinlemeye dön.
+    this.scheduleFollowUp();
   }
 
   private sayLocal(text: string): void {
@@ -318,6 +354,7 @@ export class AssistantController {
   }
 
   stopSpeaking(): void {
+    this.followToken += 1;
     this.audio.stopSpeaking();
     useAssistantStore.getState().setStatus('idle');
     if (this.wake?.isRunning()) this.wake.resume();

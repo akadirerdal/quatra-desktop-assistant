@@ -4,13 +4,45 @@
  * Çökme koruması: main asla sessizce ölmez; renderer çökerse pencere yenilenir.
  */
 import { app, BrowserWindow, session, Menu } from 'electron';
+import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { registerIpc } from './ipc';
 import { appLogger } from '../src/services/log/logger';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// esbuild main'i CJS olarak üretir; __dirname doğrudan kullanılabilir.
 const log = appLogger.scoped('main');
+
+/**
+ * Kalıcı veri yolu — sürümden/güncellemeden bağımsız SABİT konum (%APPDATA%\Quatra).
+ * Eski konumlardan (quatra-desktop-assistant / Electron) bir kez göç ettirir.
+ * Böylece güncelleme/kurulumda anahtarlar ve ayarlar KORUNUR.
+ */
+function bootUserDataPath(): void {
+  try {
+    const appDataDir = app.getPath('appData');
+    const stable = path.join(appDataDir, 'Quatra');
+    const legacyDirs = ['quatra-desktop-assistant', 'Electron'].map((d) => path.join(appDataDir, d));
+    fs.mkdirSync(stable, { recursive: true });
+    for (const dir of legacyDirs) {
+      for (const file of ['credentials.json', 'settings.json']) {
+        try {
+          const src = path.join(dir, file);
+          const dst = path.join(stable, file);
+          if (fs.existsSync(src) && !fs.existsSync(dst)) {
+            fs.copyFileSync(src, dst);
+            log.info(`veri göçü: ${file} → ${stable}`);
+          }
+        } catch {
+          // dosya bazlı yok say
+        }
+      }
+    }
+    app.setPath('userData', stable);
+  } catch {
+    // yok say — varsayılan yol kullanılır
+  }
+}
+bootUserDataPath();
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -56,8 +88,7 @@ function createWindow(): void {
   mainWindow.webContents.on('did-finish-load', () => {
     log.info('renderer yüklendi');
     // E2E doğrulama kancası (yalnız QUATRA_E2E env ile; normal kullanımda çalışmaz).
-    if (process.env['QUATRA_E2E'] === 'credentials') {
-      void mainWindow?.webContents
+    if (process.env['QUATRA_E2E'] === 'credentials') {      void mainWindow?.webContents
         .executeJavaScript(
           `(async () => {
             const setRes = await window.quatra.credentials.set('deepseek', 'e2e-test-key-123');
@@ -77,6 +108,23 @@ function createWindow(): void {
         })
         .catch((e) => {
           log.error(`E2E credentials HATA: ${String(e)}`);
+          setTimeout(() => app.quit(), 300);
+        });
+    }
+    if (process.env['QUATRA_E2E'] === 'tts') {
+      void mainWindow?.webContents
+        .executeJavaScript(
+          `(async () => {
+            const res = await window.quatra.tts.synthesize('Merhaba, ben Quatra. Test.', '', 1.0, 1.0);
+            return JSON.stringify({ ok: res.ok, bytes: res.audio ? res.audio.byteLength : 0, message: res.message ?? null });
+          })()`,
+        )
+        .then((result) => {
+          log.info(`E2E tts → ${String(result)}`);
+          setTimeout(() => app.quit(), 300);
+        })
+        .catch((e) => {
+          log.error(`E2E tts HATA: ${String(e)}`);
           setTimeout(() => app.quit(), 300);
         });
     }

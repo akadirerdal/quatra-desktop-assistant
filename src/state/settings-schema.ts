@@ -22,6 +22,10 @@ const VoiceSchema = z.object({
   voiceName: z.string().default(''),
   /** Ses tanıma motoru: auto = önce web, yoksa groq whisper. */
   sttEngine: z.enum(['auto', 'groq', 'off']).default('auto'),
+  /** Konuşma motoru: edge = doğal neural sesler (internet), system = çevrimdışı SAPI. */
+  ttsEngine: z.enum(['edge', 'system']).default('edge'),
+  /** Cevap bitince mikrofon kendiliğinden dinlemeye döner (insan gibi sohbet). */
+  continuous: z.boolean().default(true),
 });
 
 const ActivationSchema = z.object({

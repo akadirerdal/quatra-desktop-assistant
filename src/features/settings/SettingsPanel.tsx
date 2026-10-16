@@ -328,18 +328,51 @@ function ProviderSection(): React.JSX.Element {
 function VoiceSection(props: { controller: AssistantController }): React.JSX.Element {
   const settings = useSettingsStore((s) => s.settings);
   const update = useSettingsStore((s) => s.update);
-  const [voices, setVoices] = useState<Array<{ name: string; lang: string }>>([]);
+  const [sysVoices, setSysVoices] = useState<Array<{ name: string; lang: string }>>([]);
+  const [edgeVoices, setEdgeVoices] = useState<Array<{ shortName: string; locale: string; gender: string }>>([]);
+  const [edgeErr, setEdgeErr] = useState<string | null>(null);
+  const engine = settings.voice.ttsEngine;
 
-  const loadVoices = (): void => setVoices(props.controller.audioService.availableVoices());
+  const loadSysVoices = (): void => setSysVoices(props.controller.audioService.availableVoices());
+  const loadEdgeVoices = async (): Promise<void> => {
+    setEdgeErr(null);
+    const res = await window.quatra?.tts.voices();
+    if (res?.ok && res.voices) {
+      const tr = res.voices.filter((v) => v.locale.startsWith('tr'));
+      const others = res.voices.filter((v) => !v.locale.startsWith('tr'));
+      setEdgeVoices([...tr, ...others]);
+    } else {
+      setEdgeErr(res?.message ?? 'Edge ses listesi alınamadı');
+    }
+  };
 
   useEffect(() => {
-    loadVoices();
+    loadSysVoices();
     if ('speechSynthesis' in window) {
-      window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
-      return () => window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
+      window.speechSynthesis.addEventListener('voiceschanged', loadSysVoices);
+      return () => window.speechSynthesis.removeEventListener('voiceschanged', loadSysVoices);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.controller]);
+
+  useEffect(() => {
+    if (engine === 'edge' && edgeVoices.length === 0) void loadEdgeVoices();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [engine]);
+
+  const voiceOptions =
+    engine === 'edge'
+      ? [
+          { value: '', label: strings.ttsVoiceAuto },
+          ...edgeVoices.map((v) => ({
+            value: v.shortName,
+            label: `${v.shortName.replace('Neural', '')} · ${v.gender === 'Female' ? 'Kadın' : 'Erkek'} (${v.locale})`,
+          })),
+        ]
+      : [
+          { value: '', label: 'Sistem (otomatik)' },
+          ...sysVoices.map((v) => ({ value: v.name, label: `${v.name} (${v.lang})` })),
+        ];
 
   return (
     <>
@@ -359,6 +392,18 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
         />
         <div className="hint">{strings.groqKeyHint}</div>
       </div>
+
+      <div className="field row between">
+        <div>
+          <label style={{ margin: 0 }}>{strings.continuousLabel}</label>
+          <div className="hint">{strings.continuousHint}</div>
+        </div>
+        <Switch
+          on={settings.voice.continuous}
+          onChange={(v) => void update({ voice: { ...settings.voice, continuous: v } })}
+        />
+      </div>
+
       <div className="field row between">
         <label style={{ margin: 0 }}>{strings.autoSpeak}</label>
         <Switch
@@ -366,6 +411,40 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
           onChange={(v) => void update({ voice: { ...settings.voice, autoSpeak: v } })}
         />
       </div>
+
+      <div className="field">
+        <label>{strings.ttsEngineLabel}</label>
+        <Select
+          value={engine}
+          onChange={(v) =>
+            void update({ voice: { ...settings.voice, ttsEngine: v as typeof settings.voice.ttsEngine, voiceName: '' } })
+          }
+          options={[
+            { value: 'edge', label: strings.ttsEdge },
+            { value: 'system', label: strings.ttsSystem },
+          ]}
+        />
+      </div>
+
+      <div className="field">
+        <label>
+          {strings.voice}
+          {engine === 'edge' ? ` (${edgeVoices.length})` : ` (${sysVoices.length})`}
+        </label>
+        <div className="row">
+          <Select
+            value={settings.voice.voiceName}
+            onChange={(v) => void update({ voice: { ...settings.voice, voiceName: v } })}
+            options={voiceOptions}
+          />
+          <Button size="small" onClick={() => (engine === 'edge' ? void loadEdgeVoices() : loadSysVoices())}>
+            {strings.refresh}
+          </Button>
+        </div>
+        <div className="hint">{engine === 'edge' ? strings.edgeVoiceHint : strings.voicesHint}</div>
+        {edgeErr && <div className="statusHint warnText">{edgeErr}</div>}
+      </div>
+
       <div className="field">
         <label>{strings.speechRate}</label>
         <Slider
@@ -385,28 +464,6 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
           onChange={(v) => void update({ voice: { ...settings.voice, pitch: v } })}
           format={(v) => v.toFixed(2)}
         />
-      </div>
-      <div className="field">
-        <label>
-          {strings.voice} ({voices.length})
-        </label>
-        <div className="row">
-          <Select
-            value={settings.voice.voiceName}
-            onChange={(v) => void update({ voice: { ...settings.voice, voiceName: v } })}
-            options={[
-              { value: '', label: 'Sistem (otomatik)' },
-              ...voices.map((v) => ({ value: v.name, label: `${v.name} (${v.lang})` })),
-            ]}
-          />
-          <Button size="small" onClick={loadVoices}>
-            {strings.refresh}
-          </Button>
-        </div>
-        <div className="hint">{strings.voicesHint}</div>
-        {voices.length === 0 && (
-          <div className="statusHint">Ses listesi henüz yüklenmedi — Yenile’ye bas.</div>
-        )}
       </div>
       <div className="field row">
         <Button onClick={() => props.controller.testVoice('Merhaba, ben Quatra. Ses sistemim çalışıyor.')}>

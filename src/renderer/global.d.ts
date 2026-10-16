@@ -18,6 +18,20 @@ export interface QuatraBridge {
       language?: string,
     ): Promise<{ ok: boolean; text?: string; code?: string; message?: string }>;
   };
+  tts: {
+    voices(): Promise<{
+      ok: boolean;
+      voices?: Array<{ shortName: string; locale: string; gender: string }>;
+      code?: string;
+      message?: string;
+    }>;
+    synthesize(
+      text: string,
+      voice: string,
+      rate: number,
+      pitch: number,
+    ): Promise<{ ok: boolean; audio?: ArrayBuffer; mime?: string; code?: string; message?: string }>;
+  };
   shortcut: {
     register(accelerator: string): Promise<{ ok: boolean; message?: string }>;
     onTrigger(handler: () => void): () => void;

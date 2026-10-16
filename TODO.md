@@ -191,12 +191,11 @@ Durum etiketleri: ✅ tamam | 🟡 kısmi | ⛔ blocked | ⬜ başlanmadı.
 3. ⬜ **[P1] Phase 4.1–4.4 — İzin sıkılaştırma + audit log + dosya backup/undo**
 
 ## 7. Aktif Adım Takibi
-- **Tamamlanan:** Phase 0 ✅, Phase 1 ✅ + kullanıcı geri bildirim turu ✅ (2026-10-16):
-  - Model seviyeleri (Düşük/Varsayılan/Yüksek/Max/Ultra Max) — gerçek model + parametre preset'leri (`model-tiers.ts`)
-  - Ses tanıma GERÇEK: Electron'da Web Speech çalışmadığı için MediaRecorder + VAD + **Groq Whisper** (main süreç, anahtar kasadan)
-  - Uyandırma kelimesi «Quatra» (VAD + Whisper + fuzzy eşleşme; Groq anahtarı gerekir) — `wake-word.ts`
-  - Global bas-konuş kısayolu (main `globalShortcut`; uygulama arkadayken de çalışır)
-  - Çoklu anahtar kasası: DeepSeek + Groq (v1→v2 migrasyonlu)
-  - Ses paneli: STT motoru seçimi, perde, gerçek ses listesi + yenile + Windows'a ses ekleme ipucu
-- **Kanıt:** 100 test ✅, E2E kasa testi (deepseek+groq set/has/clear) ✅, paketli uygulama smoke ✅
-- **Şu an:** Phase 2'ye geçilebilir.
+- **Tamamlanan:** Phase 0 ✅, Phase 1 ✅ + geri bildirim turları ✅ (2026-10-16):
+  - Model seviyeleri (Düşük…Ultra Max), gerçek STT (Groq Whisper), uyandırma kelimesi, global PTT
+  - **Sürekli sohbet:** cevap bitince kendiliğinden dinlemeye dönme (varsayılan açık; sessizlikte beklemeye döner)
+  - **Edge Neural TTS:** ücretsiz doğal Türkçe sesler (Emel/Ahmet) + GERÇEK çıkış analyser'ı (speakLevel artık gerçek sinyal); çevrimdışıysa sistem sesine düşer. Kanıt: E2E `{ok:true, 23616 byte}` paketli app içinden
+  - **Kalıcı veri yolu:** `%APPDATA%\Quatra` sabit + eski konumlardan göç; NSIS `deleteAppDataOnUninstall:false` → güncellemede anahtar/ayar KORUNUR
+  - **Kritik düzeltme:** main bundle ESM→CJS (msedge-tts `require('util')` çakışması giderildi)
+- **Kanıt:** 103 test ✅, E2E cred+tts ✅, paketli smoke ✅, kurulum masaüstünde
+- **Not:** Kurulumu kullanıcı kendisi yapacak.

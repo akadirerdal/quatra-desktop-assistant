@@ -11,6 +11,7 @@ import { DeepSeekClient } from '../src/providers/deepseek/client';
 import { transcribeAudio } from '../src/providers/groq/transcribe';
 import { ProviderError } from '../src/providers/types';
 import { cancelActiveAgent, runAgent } from './agent-service';
+import { listEdgeVoices, synthesizeEdge } from './tts-service';
 import { appLogger } from '../src/services/log/logger';
 import type { AgentRunRequest } from './agent-service';
 
@@ -80,6 +81,31 @@ export function registerIpc(win: BrowserWindow): void {
         return { ok: true, text: result.text };
       } catch (e) {
         const err = e instanceof ProviderError ? e : new ProviderError('unknown', 'Ses tanıma başarısız.');
+        return { ok: false, code: err.code, message: err.message };
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------- Edge Neural TTS (ücretsiz, doğal sesler)
+  ipcMain.handle('tts:voices', async () => {
+    try {
+      const voices = await listEdgeVoices();
+      return { ok: true, voices };
+    } catch (e) {
+      const err = e instanceof ProviderError ? e : new ProviderError('unknown', 'Ses listesi alınamadı.');
+      return { ok: false, code: err.code, message: err.message };
+    }
+  });
+  ipcMain.handle(
+    'tts:synthesize',
+    async (_e, text: string, voice: string, rate: number, pitch: number) => {
+      try {
+        const res = await synthesizeEdge(String(text), String(voice ?? ''), Number(rate) || 1, Number(pitch) || 1);
+        // Buffer → ArrayBuffer (IPC aktarımı)
+        const ab = res.audio.buffer.slice(res.audio.byteOffset, res.audio.byteOffset + res.audio.byteLength);
+        return { ok: true, audio: ab as ArrayBuffer, mime: res.mime };
+      } catch (e) {
+        const err = e instanceof ProviderError ? e : new ProviderError('unknown', 'Ses sentezi başarısız.');
         return { ok: false, code: err.code, message: err.message };
       }
     },

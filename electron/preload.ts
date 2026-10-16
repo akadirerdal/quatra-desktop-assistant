@@ -29,6 +29,22 @@ const quatra = {
       ipcRenderer.invoke('stt:transcribe', audio, mimeType, language),
   },
 
+  tts: {
+    voices: (): Promise<{
+      ok: boolean;
+      voices?: Array<{ shortName: string; locale: string; gender: string }>;
+      code?: string;
+      message?: string;
+    }> => ipcRenderer.invoke('tts:voices'),
+    synthesize: (
+      text: string,
+      voice: string,
+      rate: number,
+      pitch: number,
+    ): Promise<{ ok: boolean; audio?: ArrayBuffer; mime?: string; code?: string; message?: string }> =>
+      ipcRenderer.invoke('tts:synthesize', text, voice, rate, pitch),
+  },
+
   shortcut: {
     register: (accelerator: string): Promise<{ ok: boolean; message?: string }> =>
       ipcRenderer.invoke('shortcut:register', accelerator),
