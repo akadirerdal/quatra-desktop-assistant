@@ -401,3 +401,67 @@ describe('AgentLoop — kısa süreli bağlam (V1-10)', () => {
     expect(call.messages[3]!.content).toBe('peki ya sonraki gün?');
   });
 });
+
+describe('AgentLoop — kullanım sayaçları ve tool olayları (V1-17/19)', () => {
+  it('sağlayıcı usage dönerse turların toplamını verir; tool olayı yayılır', async () => {
+    const provider = scriptedProvider([
+      {
+        response: {
+          content: '',
+          finishReason: 'tool_calls',
+          usage: { promptTokens: 10, completionTokens: 2, totalTokens: 12 },
+          toolCalls: [{ id: 'c1', name: 'echo', arguments: '{"text":"a"}' }],
+        },
+      },
+      {
+        response: {
+          content: 'Bitti.',
+          finishReason: 'stop',
+          usage: { promptTokens: 20, completionTokens: 5, totalTokens: 25 },
+        },
+      },
+    ]);
+    const events: Array<{ tool: string; ok: boolean }> = [];
+    const loop = new AgentLoop({
+      provider,
+      registry: makeRegistry(),
+      permissions,
+      native,
+      model: 'x',
+      systemPrompt: 'sys',
+      onToolEvent: (e) => events.push({ tool: e.tool, ok: e.ok }),
+    });
+    const result = await loop.run('yankı yap');
+    expect(result.usage).toEqual({ promptTokens: 30, completionTokens: 7 });
+    expect(events).toEqual([{ tool: 'echo', ok: true }]);
+  });
+
+  it('usage yoksa alan boş kalır; tool olayı hata bilgisini taşır', async () => {
+    const provider = scriptedProvider([
+      {
+        response: {
+          content: '',
+          finishReason: 'tool_calls',
+          toolCalls: [{ id: 'c1', name: 'yok_böyle', arguments: '{}' }],
+        },
+      },
+      { response: { content: 'hata gördüm', finishReason: 'stop' } },
+    ]);
+    const events: Array<{ ok: boolean; error?: string; ms: number }> = [];
+    const loop = new AgentLoop({
+      provider,
+      registry: makeRegistry(),
+      permissions,
+      native,
+      model: 'x',
+      systemPrompt: 'sys',
+      onToolEvent: (e) => events.push({ ok: e.ok, error: e.error, ms: e.ms }),
+    });
+    const result = await loop.run('bir şey yap');
+    expect(result.usage).toBeUndefined();
+    expect(events).toHaveLength(1);
+    expect(events[0]!.ok).toBe(false);
+    expect(events[0]!.error).toBe('Bilinmeyen görev adı.');
+    expect(typeof events[0]!.ms).toBe('number');
+  });
+});

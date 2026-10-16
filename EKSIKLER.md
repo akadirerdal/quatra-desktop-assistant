@@ -17,8 +17,8 @@ Kullanıcının sorusu üzerine: bence v1’den önce çözülmesi gerekenler, �
 5. ✅ **Yedek sağlayıcı + zarif hata** — çözüldü (V1-12, Tur 10): geçici DeepSeek kesintisinde Groq'a yedek geçiş; hata net ve sesli.
 6. **Tepsi + arka plan + otomatik başlatma** — asistan “her an orada” olmalı; kullanıcı da otomatik başlatma istedi (bkz. §9).
 7. **Kurulum dosyası + otomatik güncelleme** — v1’in dağıtılabilir olması için; şu an yalnız kaynak koddan çalışıyor.
-8. **İşlem günlüğü + dosya yedeği/geri alma** — yaptığı işlerin kaydı ve yanlış yazımda geri dönüş; güven için.
-9. **Maliyet/token görünürlüğü** — küçük ama şeffaflık sağlar.
+8. ✅ **İşlem günlüğü + dosya yedeği/geri alma** — çözüldü (V1-17/18, Tur 10): işlem kaydı + not yedeği/geri alma gerçek çalışır.
+9. ✅ **Maliyet/token görünürlüğü** — çözüldü (V1-19, Tur 10): aylık + toplam token sayaçları İşlem Kaydı bölümünde.
 
 _Bu sıralama §9’daki kullanıcı maddeleriyle birleştirilip **`V1-UPDATE.md`** olarak ayrı listeye alındı — v1 kapsamının tek doğru kaynağı artık V1-UPDATE.md’dir._
 
@@ -50,8 +50,6 @@ _Bu sıralama §9’daki kullanıcı maddeleriyle birleştirilip **`V1-UPDATE.md
 - ⬜ **Yazıyla komut girişi yok** — bilinçli (ses öncelikli); klavye girişi alanı opsiyonel olarak eklenebilir.
 
 ## 6. Güvenlik ve veri
-- ⬜ **İşlem günlüğü (audit) yok** — yapılan işlerin kalıcı kaydı tutulmuyor; “dün ne yaptın?” sorusu geçmişten cevaplanamaz. (Phase 4)
-- ⬜ **Dosya yazmada yedek / geri al yok** — yanlış yazılan not geri alınamaz. (Phase 4)
 - ⬜ **Ayarları dışa/içe aktarma yok.**
 
 ## 7. Platform / kurulum
@@ -60,7 +58,6 @@ _Bu sıralama §9’daki kullanıcı maddeleriyle birleştirilip **`V1-UPDATE.md
 - ⬜ **Otomatik güncelleme yok.**
 
 ## 8. Altyapı
-- ⬜ **Maliyet/token sayaçları görünmüyor.**
 - ⬜ **Çevrimdışı mod yok** — sistem TTS dışında beyin ve ses tanıma internet ister.
 
 ## 9. Kullanıcı incelemesinden gelenler
@@ -94,3 +91,7 @@ _(Yeni bildirim geldikçe buraya eklenir.)_
 - ✅ **(Tur 10, 16.10) Yedek sağlayıcı + zarif hata (V1-12)** — DeepSeek geçici kesintisinde (ağ/zaman aşımı/sunucu/hız limiti/anahtar) Groq'a otomatik geçiş; ikisi de düşerse hata SESLİ bildirilir (sessiz kalmaz).
 - ✅ **(Tur 10, 16.10) Tepsi + arka planda yaşam (V1-13)** — pencere kapatılınca uygulama kapanmaz, tepsiye iner (ilk inişte bir kez bilgilendirme). Tepsi menüsü: Göster · Mikrofon Aç/Kapat · Ayarları Aç · Çıkış. Arka planda zamanlayıcılar kısılmaz (`backgroundThrottling:false`). Mikrofon durumu kullanıcıda kalır — tepsi kendiliğinden dinlemeye başlamaz.
 - ✅ **(Tur 10, 16.10) Windows açılışında otomatik başlatma (V1-14)** — Ayarlar → Genel'de anahtar; durum işletim sisteminden okunur; yalnız kurulu (paketlenmiş) sürümde etkin — kaynak modda dürüstçe “desteklenmez” der.
+- ✅ **(Tur 10, 16.10) İşlem günlüğü (V1-17)** — yapılan her tool işi kalıcı kayda düşer (yerel `audit.jsonl`, secret'lar redact, son 800); Ayarlar → İşlem Kaydı'ndan görüntülenir/temizlenir.
+- ✅ **(Tur 10, 16.10) Not yedeği / geri alma (V1-18)** — mevcut bir notun üzerine yazılmadan önce `.bak` kopyası alınır; İşlem Kaydı'ndan tek tıkla geri alınır (aynı klasör doğrulamasıyla).
+- ✅ **(Tur 10, 16.10) Token sayaçları (V1-19)** — sağlayıcı usage bildirdiğinde aylık + toplam giriş/çıkış tokenları ve istek sayısı İşlem Kaydı'nda görünür.
+- ✅ **(Tur 10, 16.10) Ölü kontroller gerçek yapıldı** — “Konuşma bağlamını temizle”, “Günlükleri temizle” ve “Konuşma metinlerini sakla” (opt-in, `transcripts.jsonl`) artık gerçekten çalışıyor; “Konuşma kayıtlarını sil” eklendi.

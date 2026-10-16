@@ -72,6 +72,20 @@ describe('DeepSeekClient.chat', () => {
     expect(res.toolCalls).toEqual([{ id: 'call_1', name: 'sysinfo', arguments: '{}' }]);
   });
 
+  it('usage alanını ayrıştırır (V1-19)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () =>
+      jsonResponse({
+        choices: [{ finish_reason: 'stop', message: { content: 'ok' } }],
+        usage: { prompt_tokens: 11, completion_tokens: 4, total_tokens: 15 },
+      }),
+    ));
+    const res = await makeClient().chat({
+      model: 'deepseek-chat',
+      messages: [{ role: 'user', content: 'x' }],
+    });
+    expect(res.usage).toEqual({ promptTokens: 11, completionTokens: 4, totalTokens: 15 });
+  });
+
   it('401 → auth hatası (mesaj secret içermez)', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ error: { message: 'bad key' } }, 401)));
     const err = await makeClient()

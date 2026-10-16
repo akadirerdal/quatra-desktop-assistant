@@ -34,6 +34,7 @@ function installBridge(): void {
     agent: {
       run: async () => ({ started: true }),
       cancel: async () => ({ ok: true }),
+      clearContext: async () => ({ ok: true }),
       onEvent: () => () => undefined,
     },
     tools: { pickDirectory: async () => null },
@@ -43,6 +44,30 @@ function installBridge(): void {
       getLaunchAtLogin: async () => ({ ok: true, supported: false, enabled: false }),
       setLaunchAtLogin: async () => ({ ok: false, supported: false }),
       onCommand: () => () => undefined,
+    },
+    audit: {
+      list: async () => ({ ok: true, entries: [] }),
+      clear: async () => ({ ok: true }),
+    },
+    usage: {
+      get: async () => ({
+        ok: true,
+        month: '2026-10',
+        monthUsage: { prompt: 0, completion: 0, requests: 0 },
+        total: { prompt: 0, completion: 0, requests: 0 },
+      }),
+    },
+    notes: {
+      lastBackup: async () => ({ ok: true, record: null }),
+      restore: async () => ({ ok: false, message: 'yok' }),
+    },
+    privacy: { clearTranscripts: async () => ({ ok: true }) },
+    log: {
+      openLogs: async () => ({ ok: true }),
+      path: async () => ({ ok: true }),
+      clear: async () => ({ ok: true }),
+      rendererError: () => undefined,
+      info: () => undefined,
     },
     window: { minimize: () => undefined, toggleMaximize: () => undefined, close: () => undefined },
   };

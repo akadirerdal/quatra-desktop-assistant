@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { NativeBridge } from '../src/features/tools/types';
 import { appExec } from '../src/features/tools/app-names';
+import { backupBeforeWrite } from './note-backups';
 
 export function createNativeBridge(win: BrowserWindow | null): NativeBridge {
   return {
@@ -48,6 +49,7 @@ export function createNativeBridge(win: BrowserWindow | null): NativeBridge {
         throw new Error('Hedef klasör mevcut değil.');
       }
       const target = path.join(dir, safeName);
+      backupBeforeWrite(target); // V1-18: üzerine yazmadan önce mevcut sürümün kopyası alınır
       await fs.promises.writeFile(target, text, 'utf8');
       return { path: target };
     },

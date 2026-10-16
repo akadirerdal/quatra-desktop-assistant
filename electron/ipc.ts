@@ -10,11 +10,16 @@ import { createNativeBridge } from './native';
 import { DeepSeekClient } from '../src/providers/deepseek/client';
 import { transcribeAudio } from '../src/providers/groq/transcribe';
 import { ProviderError } from '../src/providers/types';
-import { cancelActiveAgent, resolveAgentConfirm, runAgent } from './agent-service';
+import { cancelActiveAgent, clearAgentContext, resolveAgentConfirm, runAgent } from './agent-service';
 import { listEdgeVoices, synthesizeEdge } from './tts-service';
-import { logDir, logFilePath, openLogsFolder } from './log-file';
+import { clearLogFile, logDir, logFilePath, openLogsFolder } from './log-file';
 import { registerMemoryIpc } from './memory';
+import { listAudit, clearAudit } from './audit';
+import { getUsage } from './usage-store';
+import { lastNoteBackup, restoreLastNoteBackup } from './note-backups';
 import { appLogger } from '../src/services/log/logger';
+import fs from 'node:fs';
+import path from 'node:path';
 import type { AgentRunRequest } from './agent-service';
 
 let registeredShortcut: string | null = null;
@@ -145,6 +150,33 @@ export function registerIpc(win: BrowserWindow): void {
     }
     app.setLoginItemSettings({ openAtLogin: enabled === true });
     return { ok: true, supported: true, enabled: app.getLoginItemSettings().openAtLogin };
+  });
+
+  // ---------------------------------------------------------------- işlem günlüğü / sayaçlar (V1-17/19)
+  ipcMain.handle('audit:list', async () => ({ ok: true, entries: listAudit(50) }));
+  ipcMain.handle('audit:clear', async () => {
+    clearAudit();
+    return { ok: true };
+  });
+  ipcMain.handle('usage:get', async () => ({ ok: true, ...getUsage() }));
+  ipcMain.handle('notes:last-backup', async () => ({ ok: true, record: lastNoteBackup() }));
+  ipcMain.handle('notes:restore', async () => restoreLastNoteBackup());
+  ipcMain.handle('agent:clear-context', async () => {
+    clearAgentContext();
+    return { ok: true };
+  });
+  ipcMain.handle('log:clear', async () => {
+    appLogger.clear();
+    clearLogFile();
+    return { ok: true };
+  });
+  ipcMain.handle('privacy:clear-transcripts', async () => {
+    try {
+      fs.writeFileSync(path.join(app.getPath('userData'), 'transcripts.jsonl'), '', 'utf8');
+      return { ok: true };
+    } catch {
+      return { ok: false };
+    }
   });
 
   // ---------------------------------------------------------------- global bas-konuş

@@ -63,11 +63,12 @@ const quatra = {
   },
 
   agent: {
-    run: (req: { text: string; model: string; temperature?: number; maxTokens?: number; personality?: string }): Promise<{ started: boolean }> =>
+    run: (req: { text: string; model: string; temperature?: number; maxTokens?: number; personality?: string; useMemory?: boolean; memoryEngine?: 'local' | 'mem0'; autoLearn?: boolean; detailed?: boolean; retainTranscripts?: boolean }): Promise<{ started: boolean }> =>
       ipcRenderer.invoke('agent:run', req),
     cancel: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('agent:cancel'),
     confirm: (requestId: string, approved: boolean): Promise<{ ok: boolean; handled: boolean }> =>
       ipcRenderer.invoke('agent:confirm', requestId, approved),
+    clearContext: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('agent:clear-context'),
     onEvent: (handler: (event: unknown) => void): (() => void) => {
       const listener = (_e: unknown, payload: unknown) => handler(payload);
       ipcRenderer.on('agent:event', listener);
@@ -99,9 +100,39 @@ const quatra = {
     openLogs: (): Promise<{ ok: boolean; path?: string; message?: string }> =>
       ipcRenderer.invoke('log:open'),
     path: (): Promise<{ ok: boolean; path?: string; dir?: string }> => ipcRenderer.invoke('log:path'),
+    clear: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('log:clear'),
     rendererError: (level: 'warn' | 'error', message: string): void =>
       ipcRenderer.send('log:renderer', level, 'renderer', message),
     info: (scope: string, message: string): void => ipcRenderer.send('log:renderer', 'info', scope, message),
+  },
+
+  audit: {
+    list: (): Promise<{
+      ok: boolean;
+      entries: Array<{ ts: string; tool: string; ok: boolean; detail: string; ms: number }>;
+    }> => ipcRenderer.invoke('audit:list'),
+    clear: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('audit:clear'),
+  },
+
+  usage: {
+    get: (): Promise<{
+      ok: boolean;
+      month: string;
+      monthUsage: { prompt: number; completion: number; requests: number };
+      total: { prompt: number; completion: number; requests: number };
+    }> => ipcRenderer.invoke('usage:get'),
+  },
+
+  notes: {
+    lastBackup: (): Promise<{
+      ok: boolean;
+      record: { target: string; backup: string; ts: string } | null;
+    }> => ipcRenderer.invoke('notes:last-backup'),
+    restore: (): Promise<{ ok: boolean; message: string }> => ipcRenderer.invoke('notes:restore'),
+  },
+
+  privacy: {
+    clearTranscripts: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('privacy:clear-transcripts'),
   },
 
   memory: {

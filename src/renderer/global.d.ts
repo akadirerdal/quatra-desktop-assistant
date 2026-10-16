@@ -51,9 +51,11 @@ export interface QuatraBridge {
       detailed?: boolean;
       memoryEngine?: 'local' | 'mem0';
       autoLearn?: boolean;
+      retainTranscripts?: boolean;
     }): Promise<{ started: boolean }>;
     cancel(): Promise<{ ok: boolean }>;
     confirm(requestId: string, approved: boolean): Promise<{ ok: boolean; handled: boolean }>;
+    clearContext(): Promise<{ ok: boolean }>;
     onEvent(handler: (event: AgentEvent) => void): () => void;
   };
   tools: {
@@ -71,8 +73,31 @@ export interface QuatraBridge {
   log: {
     openLogs(): Promise<{ ok: boolean; path?: string; message?: string }>;
     path(): Promise<{ ok: boolean; path?: string; dir?: string }>;
+    clear(): Promise<{ ok: boolean }>;
     rendererError(level: 'warn' | 'error', message: string): void;
     info(scope: string, message: string): void;
+  };
+  audit: {
+    list(): Promise<{
+      ok: boolean;
+      entries: Array<{ ts: string; tool: string; ok: boolean; detail: string; ms: number }>;
+    }>;
+    clear(): Promise<{ ok: boolean }>;
+  };
+  usage: {
+    get(): Promise<{
+      ok: boolean;
+      month: string;
+      monthUsage: { prompt: number; completion: number; requests: number };
+      total: { prompt: number; completion: number; requests: number };
+    }>;
+  };
+  notes: {
+    lastBackup(): Promise<{ ok: boolean; record: { target: string; backup: string; ts: string } | null }>;
+    restore(): Promise<{ ok: boolean; message: string }>;
+  };
+  privacy: {
+    clearTranscripts(): Promise<{ ok: boolean }>;
   };
   memory: {
     list(): Promise<Array<{ id: string; text: string; createdAt: string; source: string }>>;

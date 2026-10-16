@@ -15,6 +15,7 @@ import type {
   ProviderAdapter,
   ProviderChatRequest,
   ProviderChatResponse,
+  TokenUsage,
   ToolCall,
 } from '../types';
 import { mapHttpError, ProviderError } from '../types';
@@ -51,6 +52,22 @@ interface DeepSeekChoice {
 
 interface DeepSeekResponse {
   choices?: DeepSeekChoice[];
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+}
+
+function toUsage(raw: DeepSeekResponse['usage']): TokenUsage | undefined {
+  if (!raw || typeof raw.prompt_tokens !== 'number' || typeof raw.completion_tokens !== 'number') {
+    return undefined;
+  }
+  return {
+    promptTokens: raw.prompt_tokens,
+    completionTokens: raw.completion_tokens,
+    totalTokens: raw.total_tokens ?? raw.prompt_tokens + raw.completion_tokens,
+  };
 }
 
 const DEFAULT_BASE_URL = 'https://api.deepseek.com';
@@ -194,6 +211,7 @@ export class DeepSeekClient implements ProviderAdapter {
         content: message?.content ?? '',
         toolCalls: toolCalls.length ? toolCalls : undefined,
         finishReason: toFinishReason(choice?.finish_reason ?? null),
+        usage: toUsage(data.usage),
       };
     } catch (e) {
       throw this.normalizeError(e, req.signal);
@@ -281,6 +299,7 @@ export class DeepSeekClient implements ProviderAdapter {
     let buffer = '';
     let content = '';
     let finishReason: FinishReason = 'unknown';
+    let usage: TokenUsage | undefined;
     const streamToolCalls = new Map<number, { id?: string; name?: string; args?: string }>();
 
     const handleLine = (line: string) => {
@@ -290,6 +309,8 @@ export class DeepSeekClient implements ProviderAdapter {
       if (payload === '[DONE]') return;
       try {
         const data = JSON.parse(payload) as DeepSeekResponse;
+        const maybeUsage = toUsage(data.usage);
+        if (maybeUsage) usage = maybeUsage;
         const choice = data.choices?.[0];
         if (!choice) return;
         if (choice.finish_reason) finishReason = toFinishReason(choice.finish_reason);
@@ -326,6 +347,6 @@ export class DeepSeekClient implements ProviderAdapter {
       .filter((t) => t.id && t.name)
       .map((t) => ({ id: t.id as string, name: t.name as string, arguments: t.args ?? '{}' }));
 
-    return { content, toolCalls: toolCalls.length ? toolCalls : undefined, finishReason };
+    return { content, toolCalls: toolCalls.length ? toolCalls : undefined, finishReason, usage };
   }
 }

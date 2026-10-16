@@ -30,3 +30,12 @@ export async function openLogsFolder(): Promise<{ ok: boolean; path?: string; me
     return { ok: false, message: 'Günlük klasörü açılamadı.' };
   }
 }
+
+/** Günlük dosyasını boşalt (Ayarlar → "Günlükleri temizle" gerçek çalışır). */
+export function clearLogFile(): void {
+  try {
+    fs.writeFileSync(logFilePath(), '', 'utf8');
+  } catch {
+    // dosya yoksa/erişilemezse sorun değil
+  }
+}

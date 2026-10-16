@@ -42,10 +42,18 @@ export interface ProviderChatRequest {
 
 export type FinishReason = 'stop' | 'length' | 'tool_calls' | 'content_filter' | 'unknown';
 
+/** Token kullanımı (V1-19) — sağlayıcı bildirdiyse dolar. */
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
 export interface ProviderChatResponse {
   content: string;
   toolCalls?: ToolCall[];
   finishReason: FinishReason;
+  usage?: TokenUsage;
 }
 
 export interface ModelInfo {

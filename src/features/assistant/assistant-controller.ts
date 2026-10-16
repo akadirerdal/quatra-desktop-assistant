@@ -547,6 +547,7 @@ export class AssistantController {
         memoryEngine: settings.memory.engine,
         autoLearn: settings.memory.autoLearn,
         detailed: isDetailRequest(text),
+        retainTranscripts: settings.privacy.retainTranscripts,
       })
       .catch(() => {
         assistant.updateTask(taskId, { state: 'error', detail: strings.taskFailed });

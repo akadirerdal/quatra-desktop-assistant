@@ -10,7 +10,16 @@ import { strings } from '../../renderer/strings';
 import { THEMES, getTheme } from '../../renderer/themes';
 import type { AssistantController } from '../assistant/assistant-controller';
 
-type Category = 'general' | 'provider' | 'voice' | 'activation' | 'appearance' | 'memory' | 'privacy' | 'diagnostics';
+type Category =
+  | 'general'
+  | 'provider'
+  | 'voice'
+  | 'activation'
+  | 'appearance'
+  | 'memory'
+  | 'privacy'
+  | 'records'
+  | 'diagnostics';
 
 const CATEGORIES: Array<{ id: Category; label: string }> = [
   { id: 'general', label: strings.general },
@@ -20,6 +29,7 @@ const CATEGORIES: Array<{ id: Category; label: string }> = [
   { id: 'appearance', label: strings.appearance },
   { id: 'memory', label: strings.memory },
   { id: 'privacy', label: strings.privacy },
+  { id: 'records', label: strings.records },
   { id: 'diagnostics', label: strings.diagnostics },
 ];
 
@@ -58,6 +68,7 @@ export function SettingsPanel(props: {
           {category === 'appearance' && <AppearanceSection />}
           {category === 'memory' && <MemorySection />}
           {category === 'privacy' && <PrivacySection />}
+          {category === 'records' && <RecordsSection />}
           {category === 'diagnostics' && <DiagnosticsSection />}        </div>
       </div>
     </div>
@@ -1046,6 +1057,7 @@ function PrivacySection(): React.JSX.Element {
           onChange={(v) => void update({ privacy: { ...settings.privacy, retainTranscripts: v } })}
         />
       </div>
+      <div className="hint">{strings.transcriptsHint}</div>
       <div className="field row between">
         <label style={{ margin: 0 }}>{strings.clipboardRead}</label>
         <Switch
@@ -1054,10 +1066,130 @@ function PrivacySection(): React.JSX.Element {
         />
       </div>
       <div className="field row">
-        <Button onClick={() => setCaption('')}>{strings.clearContext}</Button>
-        <Button onClick={() => setCaption('')}>{strings.clearLogs}</Button>
+        <Button
+          onClick={() => {
+            void window.quatra?.agent.clearContext().then(() => setCaption(strings.contextCleared));
+          }}
+        >
+          {strings.clearContext}
+        </Button>
+        <Button
+          onClick={() => {
+            void window.quatra?.log.clear().then(() => setCaption(strings.logsCleared));
+          }}
+        >
+          {strings.clearLogs}
+        </Button>
+        <Button
+          onClick={() => {
+            void window.quatra?.privacy.clearTranscripts().then(() => setCaption(strings.transcriptsCleared));
+          }}
+        >
+          {strings.clearTranscripts}
+        </Button>
       </div>
       <div className="statusHint">Ses kaydı tutulmaz; yalnızca anlık konuşma tanıma yapılır.</div>
+    </>
+  );
+}
+
+/** İşlem kaydı (V1-17/18/19) — audit listesi, token sayaçları, not yedeği geri alma. */
+function RecordsSection(): React.JSX.Element {
+  const setCaption = useAssistantStore((s) => s.setCaption);
+  const [audit, setAudit] = useState<
+    Array<{ ts: string; tool: string; ok: boolean; detail: string; ms: number }>
+  >([]);
+  const [usage, setUsage] = useState<{
+    monthUsage: { prompt: number; completion: number; requests: number };
+    total: { prompt: number; completion: number; requests: number };
+  } | null>(null);
+  const [backup, setBackup] = useState<{ target: string; ts: string } | null>(null);
+
+  const refresh = () => {
+    void window.quatra?.audit.list().then((r) => setAudit(r.entries));
+    void window.quatra?.usage.get().then((r) => setUsage({ monthUsage: r.monthUsage, total: r.total }));
+    void window.quatra?.notes.lastBackup().then((r) => setBackup(r.record));
+  };
+  const ranOnce = useRef(false);
+  useEffect(() => {
+    if (!ranOnce.current) {
+      ranOnce.current = true;
+      refresh();
+    }
+  }, []);
+
+  const fmt = (n: number) => n.toLocaleString('tr-TR');
+  const fmtTs = (ts: string) => {
+    try {
+      return new Date(ts).toLocaleString('tr-TR', {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return ts;
+    }
+  };
+
+  return (
+    <>
+      <h3>{strings.records}</h3>
+      <h4>{strings.auditTitle}</h4>
+      <div className="diagList">
+        {audit.length === 0 && <div className="statusHint">{strings.auditEmpty}</div>}
+        {audit.map((e, i) => (
+          <div key={i} className={`line ${e.ok ? '' : 'error'}`}>
+            {fmtTs(e.ts)} · {e.tool} · {e.ok ? `ok (${e.ms} ms)` : `HATA: ${e.detail}`}
+          </div>
+        ))}
+      </div>
+      <div className="field row">
+        <Button size="small" onClick={refresh}>
+          {strings.auditRefresh}
+        </Button>
+        <Button
+          size="small"
+          onClick={() => {
+            void window.quatra?.audit.clear().then(() => {
+              setAudit([]);
+              setCaption(strings.auditCleared);
+            });
+          }}
+        >
+          {strings.auditClear}
+        </Button>
+      </div>
+
+      <h4>{strings.usageTitle}</h4>
+      {usage ? (
+        <div className="statusHint">
+          {strings.usageMonth}: {fmt(usage.monthUsage.prompt)} giriş / {fmt(usage.monthUsage.completion)} çıkış (
+          {fmt(usage.monthUsage.requests)} {strings.usageRequests}) · {strings.usageTotal}:{' '}
+          {fmt(usage.total.prompt)} / {fmt(usage.total.completion)}
+        </div>
+      ) : (
+        <div className="statusHint">{strings.usageEmpty}</div>
+      )}
+
+      <h4>{strings.noteBackupTitle}</h4>
+      <div className="statusHint">
+        {backup ? `${strings.noteBackupLast}: ${backup.target} (${fmtTs(backup.ts)})` : strings.noteBackupNone}
+      </div>
+      {backup && (
+        <div className="field row">
+          <Button
+            size="small"
+            onClick={() => {
+              void window.quatra?.notes.restore().then((r) => {
+                setCaption(r.ok ? strings.noteRestored : `${strings.noteRestoreFailed} ${r.message}`);
+              });
+            }}
+          >
+            {strings.noteRestore}
+          </Button>
+        </div>
+      )}
     </>
   );
 }

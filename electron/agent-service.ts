@@ -3,6 +3,7 @@
  * API anahtarı yalnızca burada okunur (renderer'a gitmez).
  */
 import { app, BrowserWindow } from 'electron';
+import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
 import { DeepSeekClient } from '../src/providers/deepseek/client';
@@ -25,6 +26,9 @@ import {
 import { appLogger } from '../src/services/log/logger';
 import { ProviderError, isFallbackEligible } from '../src/providers/types';
 import { appendContextTurn, contextToMessages, type ContextTurn } from '../src/features/agent/context';
+import { appendAudit } from './audit';
+import { recordUsage } from './usage-store';
+import { redactSecrets } from '../src/utils/redact';
 
 export interface AgentRunRequest {
   text: string;
@@ -40,6 +44,8 @@ export interface AgentRunRequest {
   memoryEngine?: 'local' | 'mem0';
   /** Konuşmalardan otomatik öğrenme (ayarlardan; varsayılan açık). */
   autoLearn?: boolean;
+  /** Konuşma metinleri yerel dosyaya yazılsın mı (varsayılan kapalı — opt-in). */
+  retainTranscripts?: boolean;
 }
 
 export type AgentEvent =
@@ -64,6 +70,11 @@ const GROQ_FALLBACK_MODEL = 'llama-3.3-70b-versatile';
 
 /** V1-10 kısa süreli bağlam — YALNIZ bellekte tutulur, diske yazılmaz. */
 let contextHistory: ContextTurn[] = [];
+
+/** Bağlamı temizle (Ayarlar → Gizlilik → "Konuşma bağlamını temizle"). */
+export function clearAgentContext(): void {
+  contextHistory = [];
+}
 
 export function cancelActiveAgent(): void {
   activeAbort?.abort();
@@ -214,6 +225,15 @@ export async function runAgent(
         signal: abort.signal,
         context: contextToMessages(contextHistory),
         onSentence: (text) => emit({ type: 'sentence', requestId, text }),
+        onToolEvent: (info) => {
+          appendAudit({
+            ts: new Date().toISOString(),
+            tool: info.tool,
+            ok: info.ok,
+            detail: info.error ?? info.resultJson,
+            ms: info.ms,
+          });
+        },
       });
 
     let usedFallback = false;
@@ -246,6 +266,10 @@ export async function runAgent(
     );
     // Kısa süreli bağlam (V1-10): yalnız BAŞARILI tur eklenir.
     contextHistory = appendContextTurn(contextHistory, req.text, result.text);
+    // Token sayaçları (V1-19): sağlayıcı bildirdiyse kaydet.
+    if (result.usage) recordUsage(result.usage.promptTokens, result.usage.completionTokens);
+    // Konuşma kaydı (opt-in, varsayılan kapalı).
+    if (req.retainTranscripts) appendTranscript(req.text, result.text);
     emit({ type: 'caption', requestId, text: result.text });
     emit({
       type: 'done',
@@ -278,6 +302,24 @@ export async function runAgent(
 }
 
 // ---- Hafıza çıkarımı: yalnızca KALICI bilgiler, sessizce ----
+
+/** Konuşma kaydı (opt-in) — userData/transcripts.jsonl; secret'lar redact edilir. */
+function appendTranscript(userText: string, assistantText: string): void {
+  try {
+    const file = path.join(app.getPath('userData'), 'transcripts.jsonl');
+    fs.appendFileSync(
+      file,
+      JSON.stringify({
+        ts: new Date().toISOString(),
+        user: redactSecrets(userText),
+        assistant: redactSecrets(assistantText),
+      }) + '\n',
+      'utf8',
+    );
+  } catch {
+    // kayıt kritik değil — asistan akışını etkilemez
+  }
+}
 
 async function persistMemory(
   req: AgentRunRequest,
@@ -321,6 +363,7 @@ async function persistMemory(
       temperature: 0.1,
       maxTokens: 300,
     });
+    if (res.usage) recordUsage(res.usage.promptTokens, res.usage.completionTokens);
     const facts = parseExtractedFacts(res.content).filter((f) => !isGarbageEntry(f));
     let saved = 0;
     for (const fact of facts) {

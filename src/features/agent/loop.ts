@@ -27,6 +27,17 @@ export interface AgentOptions {
   onSentence?: (text: string) => void;
   /** Kısa süreli bağlam turları (V1-10) — system'den sonra, güncel mesajdan önce eklenir. */
   context?: Array<{ role: 'user' | 'assistant'; content: string }>;
+  /** Her tool çalıştırmasından sonra çağrılır (V1-17 işlem günlüğü). */
+  onToolEvent?: (info: AgentToolEvent) => void;
+}
+
+/** Tool çalıştırma olayı — audit günlüğü için (V1-17). */
+export interface AgentToolEvent {
+  tool: string;
+  ok: boolean;
+  error?: string;
+  resultJson: string;
+  ms: number;
 }
 
 export interface AgentRunResult {
@@ -34,6 +45,8 @@ export interface AgentRunResult {
   iterations: number;
   toolCalls: number;
   stoppedByLimit: boolean;
+  /** Token kullanımı (V1-19) — sağlayıcı bildirdiyse turların toplamı. */
+  usage?: { promptTokens: number; completionTokens: number };
 }
 
 export class AgentLoop {
@@ -54,6 +67,9 @@ export class AgentLoop {
     ];
     let iterations = 0;
     let toolCallsTotal = 0;
+    let promptTokens = 0;
+    let completionTokens = 0;
+    let usageSeen = false;
 
     while (iterations < this.options.maxIterations) {
       if (this.options.signal?.aborted) {
@@ -84,11 +100,24 @@ export class AgentLoop {
           })
         : await this.options.provider.chat(req);
 
+      if (resp.usage) {
+        promptTokens += resp.usage.promptTokens;
+        completionTokens += resp.usage.completionTokens;
+        usageSeen = true;
+      }
+
       if (!resp.toolCalls || resp.toolCalls.length === 0) {
         flushSentences(true); // akış bitti — kalan yarım cümleyi de TTS'e ver
         const text = resp.content.trim();
         if (!text) throw new Error('Model boş cevap döndü.');
-        return { text, iterations, toolCalls: toolCallsTotal, stoppedByLimit: false };
+        const out: AgentRunResult = {
+          text,
+          iterations,
+          toolCalls: toolCallsTotal,
+          stoppedByLimit: false,
+        };
+        if (usageSeen) out.usage = { promptTokens, completionTokens };
+        return out;
       }
 
       // Asistan mesajı tool çağrılarıyla birlikte geçmişe eklenir.
@@ -102,7 +131,15 @@ export class AgentLoop {
         if (this.options.signal?.aborted) {
           throw new Error('İşlem iptal edildi.');
         }
+        const t0 = Date.now();
         const result = await this.executeTool(call.name, call.arguments);
+        this.options.onToolEvent?.({
+          tool: call.name,
+          ok: result.ok,
+          error: result.error,
+          resultJson: JSON.stringify(result).slice(0, 300),
+          ms: Date.now() - t0,
+        });
         toolCallsTotal += 1;
         messages.push({
           role: 'tool',
@@ -118,12 +155,14 @@ export class AgentLoop {
     }
 
     // Güvenlik sınırı: iterasyon bitti, dürüst sonuç.
-    return {
+    const limited: AgentRunResult = {
       text: 'Görev adım sınırına ulaştı; daha basit bir istekle tekrar dene.',
       iterations,
       toolCalls: toolCallsTotal,
       stoppedByLimit: true,
     };
+    if (usageSeen) limited.usage = { promptTokens, completionTokens };
+    return limited;
   }
 
   private async executeTool(name: string, rawArgs: string): Promise<ToolResult> {

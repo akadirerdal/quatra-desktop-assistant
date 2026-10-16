@@ -4,7 +4,7 @@
 > **👤 kullanıcı bildirimleri (Tur 7)** + **🔧 geliştirici tespitleri (v1 öncelik analizi)**.
 > Durum: ⬜ başlanmadı · 🟡 devam ediyor · ✅ bitti. Bir madde bitince `EKSIKLER.md`’nin ✅ bölümüne de işlenir.
 > **Son güncelleme:** 16.10.2026 (Tur 10)
-> **Durum:** A ✅ (V1-01…05), B ✅ (V1-06 streaming, V1-07 “sus”, V1-09 sözlü izin), C ✅ (V1-10 bağlam, V1-11 hatırlatıcı, V1-12 yedek sağlayıcı), D ✅ (V1-13 tepsi, V1-14 otomatik başlatma); V1-08 yerel uyandırma → paketleme aşamasına bırakıldı (SORULAR #5). E: V1-15 🟡 (favori/eleme sende), V1-16 ✅. Sıradaki: F paketi (V1-17 işlem günlüğü, V1-18 yedek/geri al, V1-19 token).
+> **Durum:** A ✅ (V1-01…05), B ✅ (V1-06 streaming, V1-07 “sus”, V1-09 sözlü izin), C ✅ (V1-10 bağlam, V1-11 hatırlatıcı, V1-12 yedek sağlayıcı), D ✅ (V1-13 tepsi, V1-14 otomatik başlatma), F ✅ (V1-17 işlem günlüğü, V1-18 not yedeği, V1-19 token sayaçları); V1-08 yerel uyandırma → paketleme aşamasına bırakıldı (SORULAR #5). E: V1-15 🟡 (favori/eleme sende), V1-16 ✅. G (V1-20/21 NSIS + güncelleme): ürün bitince. Sıradaki: E görsel turu + Şafak kontrast + ölü kontrol artığı avı.
 
 ---
 
@@ -35,9 +35,9 @@
 - ✅ **V1-16 · Mikrofon kapatma simgesi yenilendi** — “Ekolayzır” (C) düğmesi: 4 çubuk gerçek mikrofon seviyesiyle oynar; muted görselindeki kırmızı çapraz çizgi kaldırıldı (sakin, kesikli çizgi). Kullanıcı kabul etti (“idare eder”, 16.10). 👤
 
 ## F. Güvenlik & Güven
-- ⬜ **V1-17 · İşlem günlüğü (audit)** — Quatra’nın yaptığı işlerin kalıcı ve görüntülenebilir kaydı. 🔧
-- ⬜ **V1-18 · Dosya yazımında yedek/geri alma** — yanlış yazılan not geri alınabilir. 🔧
-- ⬜ **V1-19 · Maliyet/token görünürlüğü** — kullanım şeffaflığı (aylık özet). 🔧
+- ✅ **V1-17 · İşlem günlüğü (audit)** — her tool işi kalıcı kayda düşer (yerel `audit.jsonl`, redact'lı, son 800 kayıt); Ayarlar → yeni “İşlem Kaydı” bölümünde listelenir/temizlenir. 🔧 → (Tur 10)
+- ✅ **V1-18 · Dosya yazımında yedek/geri alma** — bir notun üzerine yazılmadan önce `.bak` kopyası alınır; İşlem Kaydı → “Geri al” ile dönülür (aynı klasör güvenlik doğrulaması). 🔧 → (Tur 10)
+- ✅ **V1-19 · Maliyet/token görünürlüğü** — sağlayıcı usage bildirdiğinde aylık + toplam token sayaçları görünür (uydurma sayı yok). 🔧 → (Tur 10)
 
 ## G. Dağıtım
 - ⬜ **V1-20 · Kurulum dosyası (NSIS)** — v1’in çift tıkla kurulabilir olması. 🔧
