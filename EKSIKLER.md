@@ -70,8 +70,12 @@ _Bu sıralama §9’daki kullanıcı maddeleriyle birleştirilip **`V1-UPDATE.md
 4. ✅ **Uyku süresi ayarı** — Ayarlar → Ses ve Giriş’te 2–30 sn kaydırıcı (varsayılan 5 sn); sohbet içi sessizlik süresini belirler. (Tur 10 → V1-05)
 5. 🟡 **Daha fazla tema** — hazır renk temaları/paletler. _(Tur 9: tema motoru yazıldı; 7 hazır tema Ayarlar → Görünüm'den canlı deneniyor; ince ayar sende → V1-15)_
 6. ✅ **Mikrofon kapatma simgesi yenilendi** — C · Ekolayzır düğmesi uygulandı; ortadaki kırmızı çapraz çizgi (muted görseli) kaldırıldı; kullanıcı kabul etti (“idare eder”). → çözülenlere taşındı
-7. ⬜ **Windows açılışında otomatik başlatma** — bilgisayar kapanıp açıldığında Quatra kendiliğinden başlasın; Ayarlar’dan aç/kapat edilebilsin.
-8. ⬜ **İzin istekleri sözlü olsun** — izin gerektiğinde ekranda baloncuk/görev kartı çıkmasın; Quatra sözlü sorsun (ör. “Not alayım mı?”) ve sesli “evet/hayır” ile onay alsın.
+7. ✅ **Windows açılışında otomatik başlatma** — uygulandı (Tur 10 → V1-14): Ayarlar → Genel'de anahtar; bilgisayar açılınca Quatra başlar ve tepside bekler. Yalnız kurulu (paketlenmiş) sürümde etkin; kaynak modda dürüstçe “desteklenmez” der.
+8. ✅ **İzin istekleri sözlü olsun** — uygulandı (Tur 10 → V1-09): ekran onayı kaldırıldı; Quatra sesle sorar, “evet/hayır” ile yanıtlanır (20 sn zaman aşımı → güvenli ret).
+
+### Tur 10 — 16.10.2026 akşamı (kullanıcı bildirimi)
+
+1. ⚠️ **ÖNEMLİ SORUN — ayrıntı bekleniyor:** “Bir sorun fark ettim, önemli sorun diye not et” (16.10 akşamı). Sorunun tanımı henüz paylaşılmadı; paylaşılır paylaşılmaz buraya işlenir ve **öncelikli** çözülür.
 
 _(Yeni bildirim geldikçe buraya eklenir.)_
 
