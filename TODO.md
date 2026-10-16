@@ -218,3 +218,7 @@ Durum etiketleri: ✅ tamam | 🟡 kısmi | ⛔ blocked | ⬜ başlanmadı.
 **Tur 5 (kullanım kılavuzu PDF):** kullanıcı hafızayı onayladı ("hafıza da çalışıyor, güzel oldu") ve "neyin nerede çalıştığını" öğrenebilmek için tüm yapılanları kapsayan bir PDF istedi.
 - `scripts/quatra-kilavuz.py` (reportlab + Windows Arial — Türkçe karakterler gömülü) → `docs/Quatra-Kullanim-Kilavuzu.pdf` (~120 KB): ekran rehberi, sesli kullanım akışı, gerçek yetenekler + model seviyeleri, hafıza sistemi, 8 ayar bölümü, veri/gizlilik yerleşimi, sorun giderme tablosu, dürüst sınırlar, hızlı komut kartı, teknik kod haritası.
 - PDF masaüstüne kopyalandı (`Quatra-Kullanim-Kilavuzu.pdf`); kılavuz her sürümde `python scripts/quatra-kilavuz.py` ile yeniden üretilir.
+
+**Tur 6 (eksikler listesi):** kullanıcı talimatı: "not al — eksikleri not ediyorsun".
+- `EKSIKLER.md` oluşturuldu (repo kökü): sesli deneyim, konuşma anlayışı, araçlar, hafıza, arayüz, güvenlik, platform, altyapı başlıklarında bilinen tüm eksikler + "kullanıcı incelemesinden gelenler" bölümü + ✅ çözülenler bölümü.
+- Kural: kullanıcı inceleme sırasında eksik bildirdikçe buraya işlenir; çözülen madde ✅ bölümüne taşınır.
