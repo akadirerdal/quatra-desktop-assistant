@@ -139,7 +139,7 @@ export class AssistantController {
       }
       const now = performance.now();
       // Kendi sesinin yankısına karşı kısa bekleme süresi.
-      if (now - this.speakStartedAt < 600) {
+      if (now - this.speakStartedAt < 800) {
         requestAnimationFrame(tick);
         return;
       }
@@ -261,17 +261,26 @@ export class AssistantController {
   private scheduleFollowUp(): void {
     const token = ++this.followToken;
     setTimeout(() => {
-      if (token !== this.followToken) return;
-      const st = useAssistantStore.getState();
-      const settings = useSettingsStore.getState().settings;
-      if (!settings.voice.continuous) {
-        this.conversationActive = false;
-        if (this.wake?.isRunning()) this.wake.resume();
-        return;
-      }
-      if (st.mutedByUser || st.status !== 'idle') return;
-      if (this.audio.isRecording()) return; // mikrofon meşgulse bu tur atla
-      void this.startCommandCapture('followup');
+      void (async () => {
+        if (token !== this.followToken) return;
+        const st = useAssistantStore.getState();
+        const settings = useSettingsStore.getState().settings;
+        if (!settings.voice.continuous) {
+          this.conversationActive = false;
+          if (this.wake?.isRunning()) this.wake.resume();
+          return;
+        }
+        if (st.mutedByUser || st.status !== 'idle') return;
+        // Uyandırma servisi mikrofonu ele geçirmişse nazikçe devral
+        // (yoksa kullanıcının sözleri uyandırma döngüsünde kaybolur).
+        if (this.audio.isRecording()) {
+          this.wake?.pause();
+          this.audio.cancelRecording();
+          await new Promise((r) => setTimeout(r, 200));
+        }
+        if (useAssistantStore.getState().status !== 'idle') return;
+        void this.startCommandCapture('followup');
+      })();
     }, 500);
   }
 
@@ -473,7 +482,9 @@ export class AssistantController {
     this.stopBargeWatch();
     const store = useAssistantStore.getState();
     if (store.status === 'speaking') store.setStatus('idle');
-    if (this.wake?.isRunning()) this.wake.resume();
+    // Sohbet hâlâ sürüyorsa uyandırma servisi BEKLEMEDE kalır (mikrofonu sohbete bırakır).
+    // Yalnızca sohbet bittiğinde "Quatra" beklemeye döner.
+    if (this.wake?.isRunning() && !this.conversationActive) this.wake.resume();
     // Sürekli sohbet: cevap okunduktan sonra kendiliğinden dinlemeye dön.
     this.scheduleFollowUp();
   }

@@ -76,6 +76,7 @@ export class AudioService {
   private playCtx: AudioContext | null = null;
   private playingSource: AudioBufferSourceNode | null = null;
   private speakRaf = 0;
+  private speakSeq = 0;
 
   constructor(
     private readonly onError: (message: string) => void,
@@ -285,21 +286,31 @@ export class AudioService {
 
   /** Motor dağıtıcı: Edge Neural (önerilen) veya sistem TTS'i. */
   speak(text: string, rate: number, pitch: number, voiceName: string): void {
+    // Durum HEMEN 'speaking' olur — barge-in izlemesi sentez beklerken de ayakta kalır.
+    const seq = ++this.speakSeq;
+    useAssistantStore.getState().setStatus('speaking');
     const engine = useSettingsStore.getState().settings.voice.ttsEngine;
     if (engine === 'edge' && window.quatra) {
-      void this.speakEdge(text, rate, pitch, voiceName);
+      void this.speakEdge(text, rate, pitch, voiceName, seq);
       return;
     }
-    this.speakSystem(text, rate, pitch, voiceName);
+    this.speakSystem(text, rate, pitch, voiceName, seq);
   }
 
   /**
    * Edge Neural oynatma — GERÇEK çıkış analyser'ı ile (speakLevel gerçek sinyal olur).
    * Hata durumunda oturum akışı ölmez: sistem TTS'ine düşer.
    */
-  private async speakEdge(text: string, rate: number, pitch: number, voiceName: string): Promise<void> {
+  private async speakEdge(
+    text: string,
+    rate: number,
+    pitch: number,
+    voiceName: string,
+    seq: number,
+  ): Promise<void> {
     this.logEvent(`TTS: Edge (${voiceName || 'otomatik'})`);
     const res = await window.quatra?.tts.synthesize(text, voiceName, rate, pitch);
+    if (seq !== this.speakSeq) return; // araya yeni komut/işlem girdi — çalma
     if (!res || !res.ok || !res.audio) {
       this.logEvent(`TTS Edge HATA: ${res?.message ?? 'boş'} → sistem sesine düşüldü`);
       this.onError(
@@ -307,12 +318,16 @@ export class AudioService {
           ? `${res.message} — sistem sesine geçildi.`
           : 'Edge sesi alınamadı — sistem sesine geçildi.',
       );
-      this.speakSystem(text, rate, pitch, voiceName);
+      this.speakSystem(text, rate, pitch, voiceName, seq);
       return;
     }
     try {
       const ctx = new AudioContext();
       const buffer = await ctx.decodeAudioData(res.audio.slice(0));
+      if (seq !== this.speakSeq) {
+        void ctx.close().catch(() => undefined);
+        return; // iptal edildi — çalma
+      }
       const source = ctx.createBufferSource();
       source.buffer = buffer;
       const outAnalyser = ctx.createAnalyser();
@@ -352,12 +367,12 @@ export class AudioService {
       source.start();
     } catch {
       this.onError('Ses çözülemedi — sistem sesine geçildi.');
-      this.speakSystem(text, rate, pitch, voiceName);
+      this.speakSystem(text, rate, pitch, voiceName, seq);
     }
   }
 
   /** Sistem TTS'i (çevrimdışı yedek). */
-  private speakSystem(text: string, rate: number, pitch: number, voiceName: string): void {
+  private speakSystem(text: string, rate: number, pitch: number, voiceName: string, seq: number): void {
     if (!('speechSynthesis' in window)) {
       this.onError('Bu sistemde ses çıkışı (TTS) yok. Cevap yazılı olarak gösterildi.');
       return;
@@ -371,12 +386,15 @@ export class AudioService {
     const voice = voices.find((v) => v.name === voiceName) ?? voices.find((v) => v.lang.startsWith('tr'));
     if (voice) utterance.voice = voice;
     utterance.onstart = () => {
+      if (seq !== this.speakSeq) return;
       useAssistantStore.getState().setStatus('speaking');
     };
     utterance.onend = () => {
+      if (seq !== this.speakSeq) return;
       this.onTtsEnd();
     };
     utterance.onerror = () => {
+      if (seq !== this.speakSeq) return;
       useAssistantStore.getState().setStatus('idle');
       this.onError('Ses çalınamadı — cevap ekranda gösterildi.');
       this.onTtsEnd();
@@ -385,6 +403,7 @@ export class AudioService {
   }
 
   stopSpeaking(): void {
+    this.speakSeq += 1; // devam eden/gelmekte olan oynatmayı iptal et
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     try {
       if (this.playingSource) {
