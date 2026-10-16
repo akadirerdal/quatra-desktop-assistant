@@ -19,7 +19,7 @@
 
 7. **"Sus" komutu (V1-07)** — uygulandı; varsayılan kelimeler: "sus / sussana / sus bakalım / sus artık / artık sus / kes sesini / sesini kes / sessiz ol / konuşma / dur / yeter / yeter artık". Senin kullanacağın kelimeler farklıysa söyle.
 
-8. **Hatırlatıcı sesi (V1-11)** — hatırlatma gelince yalnız sesli mi ("Efendim, hatırlatman var: …") yoksa kısa bir zil + ses mi?
+8. **Hatırlatıcı sesi (V1-11)** — uygulandı; şimdilik **yalnız sesli** ("Efendim, hatırlatmam var: …") + görsel balon. İstersen kısa bir zil sesi de ekleyebilirim — söyle.
 
 9. **Tepsi davranışı (V1-13)** — pencere kapatılınca arka planda dinlemeye devam etsin mi, yoksa "kapalı sayıl" (yalnız tepside beklesin, sen açınca dinlesin) mi? Varsayılanı uyguluyorum: tepside yaşar + dinleme **kapalı** başlar, tek tıkla açılır (gizlilik tarafı güvenli olan).
 

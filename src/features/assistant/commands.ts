@@ -48,6 +48,42 @@ export function parseConfirmAnswer(text: string): 'yes' | 'no' | null {
   return null;
 }
 
+/** Hatırlatıcı niyeti (V1-11) — "10 dakika sonra çayı hatırlat" / "1 saat sonra alarm kur". */
+export interface ReminderIntent {
+  delayMs: number;
+  /** Hatırlatılacak söz; boş olabilir ("10 dakika sonra hatırlat"). */
+  what: string;
+}
+
+const REMINDER_UNIT_MS: Record<string, number> = {
+  saniye: 1000,
+  sn: 1000,
+  dakika: 60_000,
+  dk: 60_000,
+  saat: 3_600_000,
+  sa: 3_600_000,
+};
+
+export function parseReminderIntent(text: string): ReminderIntent | null {
+  const t = text.trim().replace(/\s+/g, ' ');
+  const m =
+    /(\d{1,3})\s*(saniye|sn|dakika|dk|saat|sa)\s*(?:(\d{1,3})\s*(dakika|dk|saniye|sn))?\s*sonra\s+(?:bana\s+)?(?:(.*?)\s+)?(?:hatırlat(?:[ıi]r)?|alarm\s*kur\w*)\s*[:,]?\s*(.*)/i.exec(
+      t,
+    );
+  if (!m) return null;
+  const first = (REMINDER_UNIT_MS[m[2]!.toLowerCase()] ?? 0) * Number(m[1]);
+  const second = m[3] && m[4] ? (REMINDER_UNIT_MS[m[4]!.toLowerCase()] ?? 0) * Number(m[3]) : 0;
+  const delayMs = first + second;
+  if (delayMs < 2000 || delayMs > 24 * 3_600_000) return null; // 2 sn – 24 saat
+  let what = ((m[5] || m[6]) ?? '').trim();
+  what = what
+    .replace(/^(mısın|misin|musun|müsün)\b\s*/i, '')
+    .replace(/^lütfen\b\s*/i, '')
+    .replace(/^[:,]\s*/, '')
+    .trim();
+  return { delayMs, what };
+}
+
 /** "benim adım X" / "hatırla: Y" kalıplarını tanır (sorular hariç). */
 export function parseMemoryIntent(text: string): MemoryIntent {
   const t = text.trim();

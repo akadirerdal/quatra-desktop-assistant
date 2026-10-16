@@ -10,11 +10,11 @@
 
 Kullanıcının sorusu üzerine: bence v1’den önce çözülmesi gerekenler, önem sırasıyla:
 
-1. **Konuşma bağlamı** — takip soruları (“peki ya yarın?”) şu an anlaşılmıyor; asistanı “insan gibi” hissettiren en kritik parça. (Phase 3)
-2. **Hatırlatıcı / zamanlayıcı** — “10 dakika sonra hatırlat” yok; asistanın en çok beklenen yeteneği, yokluğu hemen fark ediliyor.
-3. **Yanıt akışı + “sus” komutu** — uzun cevapta ilk ses gecikmesi büyük; sesli durdurma komutu yok. Sesli deneyimde “kontrol” hissi için şart.
-4. **Uyandırma kelimesinin yerelleşmesi** — “Quatra” demek bile internet turu; internet yokken asistan tümüyle sağır. Yerel uyandırma modeli gecikmeyi ve bağımlılığı bitirir.
-5. **Yedek sağlayıcı + zarif hata** — DeepSeek kesintisinde Quatra sessiz kalıyor; “şu an bağlanamıyorum” diyebilmeli ve ikinci sağlayıcıya geçebilmeli.
+1. ✅ **Konuşma bağlamı** — çözüldü (V1-10, Tur 10): son turlar bağlam olarak ekleniyor; “peki ya yarın?” anlaşılır.
+2. ✅ **Hatırlatıcı / zamanlayıcı** — çözüldü (V1-11, Tur 10): “10 dakika sonra … hatırlat / alarm kur” sesli + görsel çalışır.
+3. ✅ **Yanıt akışı + “sus” komutu** — çözüldü (V1-06/07, Tur 10): cümle cümle seslendirme + sesli durdurma.
+4. **Uyandırma kelimesinin yerelleşmesi** — “Quatra” demek bile internet turu; internet yokken asistan tümüyle sağır. Yerel uyandırma modeli gecikmeyi ve bağımlılığı bitirir. (Tur 10: paketleme aşamasına bırakıldı.)
+5. ✅ **Yedek sağlayıcı + zarif hata** — çözüldü (V1-12, Tur 10): geçici DeepSeek kesintisinde Groq'a yedek geçiş; hata net ve sesli.
 6. **Tepsi + arka plan + otomatik başlatma** — asistan “her an orada” olmalı; kullanıcı da otomatik başlatma istedi (bkz. §9).
 7. **Kurulum dosyası + otomatik güncelleme** — v1’in dağıtılabilir olması için; şu an yalnız kaynak koddan çalışıyor.
 8. **İşlem günlüğü + dosya yedeği/geri alma** — yaptığı işlerin kaydı ve yanlış yazımda geri dönüş; güven için.
@@ -30,11 +30,9 @@ _Bu sıralama §9’daki kullanıcı maddeleriyle birleştirilip **`V1-UPDATE.md
 - ⬜ **Yalnızca Türkçe** — başka dilde konuşma/arayüz yok.
 
 ## 2. Konuşma anlayışı
-- ⬜ **Kısa süreli bağlam yok** — her komut bağımsız değerlendirilir; “peki ya yarın?”, “bunu biraz kısalt” gibi takip cümleleri anlaşılmaz. (Phase 3)
 - ⬜ **İnternetten güncel bilgi yok** — hava durumu, haber, fiyat gibi sorularda yalnız modelin kendi bilgisi var. (Phase 2 — tarayıcı köprüsü)
 
 ## 3. Araçlar / yetenekler
-- ⬜ **Hatırlatıcı / zamanlayıcı / alarm yok** — “10 dakika sonra hatırlat” gibi klasik asistan istekleri şu an desteklenmiyor. (En belirgin eksik.)
 - ⬜ **Dosya işlemleri asgari** — yalnız not yazma var; okuma, arama, taşıma, silme yok.
 - ⬜ **Ekran görüntüsü alma yok.**
 - ⬜ **Web sayfası okuma/özetleme yok** — tarayıcı köprüsü gelince gelecek.
@@ -65,7 +63,6 @@ _Bu sıralama §9’daki kullanıcı maddeleriyle birleştirilip **`V1-UPDATE.md
 - ⬜ **Otomatik güncelleme yok.**
 
 ## 8. Altyapı
-- ⬜ **Yedek sağlayıcı yok** — DeepSeek kesintisinde ikinci sağlayıcıya geçilmiyor (Groq adapter’ı ikincil olarak planlı).
 - ⬜ **Maliyet/token sayaçları görünmüyor.**
 - ⬜ **Çevrimdışı mod yok** — sistem TTS dışında beyin ve ses tanıma internet ister.
 
@@ -95,3 +92,6 @@ _(Yeni bildirim geldikçe buraya eklenir.)_
 - ✅ **(Tur 10, 16.10) Yanıt akışı — streaming + cümle cümle seslendirme (V1-06)** — yanıt üretilirken tamamlanan her cümle anında TTS kuyruğuna girer; ilk ses gecikmesi düşer. “sus” bu kuyruktaki cümleleri de iptal eder.
 - ✅ **(Tur 10, 16.10) “Sus” komutu (V1-07)** — “sus / kes sesini / sessiz ol / konuşma / dur / yeter” sesli durdurma; okuma sırasında söylenirse barge-in ile zincirlenir; sohbet bağlamı korunur.
 - ✅ **(Tur 10, 16.10) Sözlü izin akışı (V1-09)** — ekran onay kutusu kaldırıldı; Quatra sesle sorar (“Şunun için izin gerekiyor: … Evet mi, hayır mı?”); “evet/hayır” sesle yanıtlanır; 20 sn cevap gelmezse işlem yapılmaz (SORULAR #10).
+- ✅ **(Tur 10, 16.10) Kısa süreli konuşma bağlamı (V1-10)** — son 6 tur (≤4000 karakter) prompt'a eklenir; “peki ya yarın?” gibi takip cümleleri anlaşılır. Bağlam yalnız RAM'de tutulur — diske yazılmaz.
+- ✅ **(Tur 10, 16.10) Hatırlatıcı / zamanlayıcı (V1-11)** — “10 dakika sonra … hatırlat / alarm kur” (2 sn – 24 saat): sesli onay + görev balonu; süre dolunca sesle + yazıyla haber verir.
+- ✅ **(Tur 10, 16.10) Yedek sağlayıcı + zarif hata (V1-12)** — DeepSeek geçici kesintisinde (ağ/zaman aşımı/sunucu/hız limiti/anahtar) Groq'a otomatik geçiş; ikisi de düşerse hata SESLİ bildirilir (sessiz kalmaz).

@@ -9,7 +9,7 @@ import { DeepSeekClient } from '../src/providers/deepseek/client';
 import { ToolRegistry } from '../src/features/tools/registry';
 import { PermissionManager } from '../src/features/tools/permissions';
 import { createBuiltinTools } from '../src/features/tools/builtins';
-import { AgentLoop, DEFAULT_SYSTEM_PROMPT } from '../src/features/agent/loop';
+import { AgentLoop, DEFAULT_SYSTEM_PROMPT, type AgentRunResult } from '../src/features/agent/loop';
 import { MemoryStore } from '../src/services/memory/memory-store';
 import { getApiKey } from './credentials';
 import { createNativeBridge } from './native';
@@ -23,6 +23,8 @@ import {
   shouldReplaceEntry,
 } from '../src/services/memory/extraction';
 import { appLogger } from '../src/services/log/logger';
+import { ProviderError, isFallbackEligible } from '../src/providers/types';
+import { appendContextTurn, contextToMessages, type ContextTurn } from '../src/features/agent/context';
 
 export interface AgentRunRequest {
   text: string;
@@ -56,6 +58,12 @@ interface PendingConfirm {
 }
 
 let pendingConfirm: PendingConfirm | null = null;
+
+/** V1-12 yedek sağlayıcı: Groq sohbet modeli (OpenAI-uyumlu uç). */
+const GROQ_FALLBACK_MODEL = 'llama-3.3-70b-versatile';
+
+/** V1-10 kısa süreli bağlam — YALNIZ bellekte tutulur, diske yazılmaz. */
+let contextHistory: ContextTurn[] = [];
 
 export function cancelActiveAgent(): void {
   activeAbort?.abort();
@@ -102,7 +110,7 @@ export async function runAgent(
       return;
     }
 
-    const client = new DeepSeekClient({
+    let client = new DeepSeekClient({
       getApiKey: () => getApiKey('deepseek'),
       timeoutMs: 60_000,
     });
@@ -193,23 +201,51 @@ export async function runAgent(
       `agent başladı — model=${req.model}, hafıza=${memoryBlock ? 'var' : 'yok'}, sıcaklık=${req.temperature ?? '-'}`,
     );
 
-    const loop = new AgentLoop({
-      provider: client,
-      registry,
-      permissions,
-      native: createNativeBridge(win),
-      model: req.model,
-      systemPrompt,
-      temperature: req.temperature,
-      maxTokens: req.maxTokens,
-      signal: abort.signal,
-      onSentence: (text) => emit({ type: 'sentence', requestId, text }),
-    });
+    const buildLoop = (provider: DeepSeekClient, model: string) =>
+      new AgentLoop({
+        provider,
+        registry,
+        permissions,
+        native: createNativeBridge(win),
+        model,
+        systemPrompt,
+        temperature: req.temperature,
+        maxTokens: req.maxTokens,
+        signal: abort.signal,
+        context: contextToMessages(contextHistory),
+        onSentence: (text) => emit({ type: 'sentence', requestId, text }),
+      });
 
-    const result = await loop.run(req.text);
+    let usedFallback = false;
+    let result: AgentRunResult;
+    try {
+      result = await buildLoop(client, req.model).run(req.text);
+    } catch (e) {
+      // V1-12: ana sağlayıcı GEÇİCİ hatayla düştüyse yedeğe geç (iptal hariç, anahtar varsa).
+      const code = e instanceof ProviderError ? e.code : 'unknown';
+      const groqKey = await getApiKey('groq');
+      if (!isFallbackEligible(code) || !groqKey || abort.signal.aborted) throw e;
+      log.warn(`ana sağlayıcı hatası (${code}) → yedek sağlayıcıya geçiliyor`);
+      emit({
+        type: 'caption',
+        requestId,
+        text: 'Ana sağlayıcı yanıt vermedi — yedek sağlayıcıya geçtim.',
+      });
+      client = new DeepSeekClient({
+        baseUrl: 'https://api.groq.com/openai/v1',
+        getApiKey: () => getApiKey('groq'),
+        timeoutMs: 60_000,
+        maxRetries: 1,
+      });
+      usedFallback = true;
+      result = await buildLoop(client, GROQ_FALLBACK_MODEL).run(req.text);
+    }
+
     log.info(
-      `agent bitti — iterasyon=${result.iterations}, tool=${result.toolCalls}, süre=${Date.now() - startedAt}ms`,
+      `agent bitti — iterasyon=${result.iterations}, tool=${result.toolCalls}, süre=${Date.now() - startedAt}ms${usedFallback ? ' (yedek sağlayıcı)' : ''}`,
     );
+    // Kısa süreli bağlam (V1-10): yalnız BAŞARILI tur eklenir.
+    contextHistory = appendContextTurn(contextHistory, req.text, result.text);
     emit({ type: 'caption', requestId, text: result.text });
     emit({
       type: 'done',
@@ -221,7 +257,13 @@ export async function runAgent(
 
     // ---- Garantili hafıza: model hafiza_kaydet'i çağırmayı unutsa bile ----
     // yerel çıkarım HER ZAMAN çalışır; cevabı geciktirmez (fire-and-forget).
-    void persistMemory(req, result.text, client, memoryStore);
+    void persistMemory(
+      req,
+      result.text,
+      client,
+      memoryStore,
+      usedFallback ? GROQ_FALLBACK_MODEL : 'deepseek-chat',
+    );
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Bilinmeyen hata';
     const category =
@@ -242,6 +284,7 @@ async function persistMemory(
   assistantText: string,
   client: DeepSeekClient,
   store: MemoryStore,
+  chatModel: string,
 ): Promise<void> {
   const log = appLogger.scoped('memory');
   try {
@@ -267,7 +310,7 @@ async function persistMemory(
 
     // 2) Yerel çıkarım — model tool çağırmayı unutsa da kalıcı bilgiler yakalanır.
     const res = await client.chat({
-      model: 'deepseek-chat',
+      model: chatModel,
       messages: [
         { role: 'system', content: EXTRACTION_PROMPT },
         {

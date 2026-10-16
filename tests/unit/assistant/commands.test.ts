@@ -7,6 +7,7 @@ import {
   isNameQuestion,
   parseConfirmAnswer,
   parseMemoryIntent,
+  parseReminderIntent,
 } from '../../../src/features/assistant/commands';
 
 describe('parseMemoryIntent', () => {
@@ -127,5 +128,40 @@ describe('parseConfirmAnswer', () => {
   it('anlaşılmayan yanıtta null döner', () => {
     expect(parseConfirmAnswer('bugün hava nasıl')).toBeNull();
     expect(parseConfirmAnswer('not al')).toBeNull();
+  });
+});
+
+describe('parseReminderIntent', () => {
+  it('süre + hatırlat kalıbını çözer', () => {
+    expect(parseReminderIntent('10 dakika sonra toplantıyı hatırlat')).toEqual({
+      delayMs: 600_000,
+      what: 'toplantıyı',
+    });
+    expect(parseReminderIntent('5 dk sonra hatırlat: su iç')).toEqual({
+      delayMs: 300_000,
+      what: 'su iç',
+    });
+    expect(parseReminderIntent('30 saniye sonra hatırlat')).toEqual({ delayMs: 30_000, what: '' });
+  });
+
+  it('iki parçalı süreyi toplar; "alarm kur" da geçerli', () => {
+    expect(parseReminderIntent('1 saat 30 dakika sonra alarm kur')).toEqual({
+      delayMs: 5_400_000,
+      what: '',
+    });
+  });
+
+  it('"hatırlatır mısın" dolgusunu mesaja katmaz', () => {
+    expect(parseReminderIntent('10 dakika sonra hatırlatır mısın: çayı koy')).toEqual({
+      delayMs: 600_000,
+      what: 'çayı koy',
+    });
+  });
+
+  it('zaman aralığı dışını ve kalıpsızı reddeder', () => {
+    expect(parseReminderIntent('1 saniye sonra hatırlat')).toBeNull();
+    expect(parseReminderIntent('25 saat sonra hatırlat')).toBeNull();
+    expect(parseReminderIntent('yarın hatırlat')).toBeNull();
+    expect(parseReminderIntent('saat kaç')).toBeNull();
   });
 });

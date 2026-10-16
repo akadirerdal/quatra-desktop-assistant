@@ -4,7 +4,7 @@
 > **👤 kullanıcı bildirimleri (Tur 7)** + **🔧 geliştirici tespitleri (v1 öncelik analizi)**.
 > Durum: ⬜ başlanmadı · 🟡 devam ediyor · ✅ bitti. Bir madde bitince `EKSIKLER.md`’nin ✅ bölümüne de işlenir.
 > **Son güncelleme:** 16.10.2026 (Tur 10)
-> **Durum:** A ✅ (V1-01…05), B ✅ (V1-06 streaming, V1-07 “sus”, V1-09 sözlü izin); V1-08 yerel uyandırma → paketleme aşamasına bırakıldı (SORULAR #5). E: V1-15 🟡 (favori/eleme sende), V1-16 ✅. Sıradaki: C paketi (V1-10 bağlam, V1-11 hatırlatıcı).
+> **Durum:** A ✅ (V1-01…05), B ✅ (V1-06 streaming, V1-07 “sus”, V1-09 sözlü izin), C ✅ (V1-10 bağlam, V1-11 hatırlatıcı, V1-12 yedek sağlayıcı); V1-08 yerel uyandırma → paketleme aşamasına bırakıldı (SORULAR #5). E: V1-15 🟡 (favori/eleme sende), V1-16 ✅. Sıradaki: D paketi (V1-13 tepsi, V1-14 otomatik başlatma).
 
 ---
 
@@ -22,9 +22,9 @@
 - ✅ **V1-09 · Sözlü izin akışı** — ekran kutusu YOK: `agent:confirm` olayı → Quatra sesle sorar, “evet/hayır” sesle yanıtlanır (20 sn sınır; 2 anlaşılmaz yanıtta güvenli ret); araç adları Türkçe etiketlenir. 👤 → (Tur 10)
 
 ## C. Zeka & Konuşma
-- ⬜ **V1-10 · Kısa süreli konuşma bağlamı** — son konuşma turları hatırlanır; takip soruları (“peki ya yarın?”) anlaşılır; token bütçesi sınırlı tutulur. 🔧
-- ⬜ **V1-11 · Hatırlatıcı / zamanlayıcı** — “10 dakika sonra hatırlat”, “alarm kur”; hatırlatma sesli + görsel gelsin. 🔧
-- ⬜ **V1-12 · Yedek sağlayıcı + zarif hata** — DeepSeek kesintisinde Quatra sessiz kalmaz: ikinci sağlayıcıya geçer ya da net sesli hata verir (“şu an bağlanamıyorum”). 🔧
+- ✅ **V1-10 · Kısa süreli konuşma bağlamı** — son 6 tur (toplam ≤4000 karakter) prompt'a eklenir; takip soruları (“peki ya yarın?”) anlaşılır. Bağlam yalnız RAM'de tutulur — diske yazılmaz. 🔧 → (Tur 10)
+- ✅ **V1-11 · Hatırlatıcı / zamanlayıcı** — “10 dakika sonra … hatırlat”, “alarm kur” (2 sn – 24 saat; iki parçalı süre desteği); sesli onay + görev balonu; süre dolunca sesle + yazıyla haber verir. 🔧 → (Tur 10)
+- ✅ **V1-12 · Yedek sağlayıcı + zarif hata** — DeepSeek GEÇİCİ hatasında (ağ / zaman aşımı / sunucu / hız limiti / anahtar) Groq'a otomatik yedek; ikisi de yanıt vermezse hata SESLİ bildirilir (“şu an bağlanamıyorum”). 🔧 → (Tur 10)
 
 ## D. Arka Plan & Başlangıç
 - ⬜ **V1-13 · Tepsi simgesi + arka planda yaşam** — pencere kapatılınca uygulama ölmez; tepside çalışır, dinlemeye devam eder. 🔧

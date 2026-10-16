@@ -376,3 +376,28 @@ describe('AgentLoop — akış (streaming) cümleleri', () => {
     expect(res.text).toBe('Tamam.');
   });
 });
+
+describe('AgentLoop — kısa süreli bağlam (V1-10)', () => {
+  it('bağlam turları system ile güncel mesaj arasına girer', async () => {
+    const provider = scriptedProvider([
+      { response: { content: 'devam edelim', finishReason: 'stop' } },
+    ]);
+    const loop = new AgentLoop({
+      provider,
+      registry: makeRegistry(),
+      permissions,
+      native,
+      model: 'x',
+      systemPrompt: 'sys',
+      context: [
+        { role: 'user', content: 'yarın hava nasıl?' },
+        { role: 'assistant', content: 'Yarın güneşli görünüyor.' },
+      ],
+    });
+    await loop.run('peki ya sonraki gün?');
+    const call = vi.mocked(provider.chat).mock.calls[0]![0];
+    expect(call.messages.map((m) => m.role)).toEqual(['system', 'user', 'assistant', 'user']);
+    expect(call.messages[1]!.content).toBe('yarın hava nasıl?');
+    expect(call.messages[3]!.content).toBe('peki ya sonraki gün?');
+  });
+});

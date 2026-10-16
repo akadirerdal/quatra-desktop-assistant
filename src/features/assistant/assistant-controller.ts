@@ -15,6 +15,7 @@ import {
   detectSleepCommand,
   detectStopSpeakingCommand,
   parseConfirmAnswer,
+  parseReminderIntent,
 } from './commands';
 import { strings } from '../../renderer/strings';
 import type { AgentEvent } from '../../renderer/global';
@@ -54,6 +55,7 @@ export class AssistantController {
   private pendingConfirmRetries = 0;
   private pendingConfirmTool = '';
   private pendingConfirmRequestId: string | null = null;
+  private reminderTimers: Array<ReturnType<typeof setTimeout>> = [];
 
   constructor() {
     this.audio = new AudioService(
@@ -85,6 +87,8 @@ export class AssistantController {
   }
 
   dispose(): void {
+    for (const timer of this.reminderTimers) clearTimeout(timer);
+    this.reminderTimers = [];
     this.detachAgent?.();
     this.detachShortcut?.();
     this.wake?.stop();
@@ -359,6 +363,28 @@ export class AssistantController {
     });
   }
 
+  /** Yerel hatırlatıcı (V1-11) — sesli onay + görsel görev balonu; süre dolunca sesle haber. */
+  private scheduleReminder(delayMs: number, what: string): void {
+    const store = useAssistantStore.getState();
+    const label =
+      delayMs < 60_000 ? `${Math.round(delayMs / 1000)} sn` : `${Math.round(delayMs / 60_000)} dk`;
+    const taskId = store.pushTask({
+      title: what ? `⏰ ${what}` : '⏰ Hatırlatma',
+      detail: `${strings.reminderPending} (${label})`,
+      state: 'running',
+    });
+    this.wake?.pause();
+    this.sayLocal(strings.reminderSet.replace('{time}', label));
+    const timer = setTimeout(() => {
+      const st = useAssistantStore.getState();
+      st.updateTask(taskId, { state: 'done', detail: strings.reminderDone });
+      setTimeout(() => useAssistantStore.getState().removeTask(taskId), TASK_DONE_LINGER_MS);
+      this.wake?.pause();
+      this.sayLocal(what ? `${strings.reminderFired}: ${what}` : strings.reminderFiredPlain);
+    }, delayMs);
+    this.reminderTimers.push(timer);
+  }
+
   /** Kullanıcı "dinle" dedi (buton). */
   toggleListening(): void {
     const st = useAssistantStore.getState();
@@ -459,6 +485,13 @@ export class AssistantController {
       if (this.conversationActive && !useAssistantStore.getState().mutedByUser) {
         this.scheduleFollowUp();
       }
+      return;
+    }
+
+    // Hatırlatıcı (V1-11): "10 dakika sonra ... hatırlat" — modele gitmeden yerel zamanlayıcı.
+    const reminder = parseReminderIntent(text);
+    if (reminder) {
+      this.scheduleReminder(reminder.delayMs, reminder.what);
       return;
     }
 
@@ -633,6 +666,11 @@ export class AssistantController {
           setTimeout(() => store.removeTask(task.id), TASK_DONE_LINGER_MS);
         }
         store.setCaption(event.message);
+        // Net sesli hata (V1-12): kullanıcı sessiz kalmaz.
+        if (useSettingsStore.getState().settings.voice.autoSpeak) {
+          this.wake?.pause();
+          this.speakText(event.message);
+        }
         break;
       }
     }

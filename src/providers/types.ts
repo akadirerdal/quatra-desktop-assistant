@@ -82,6 +82,17 @@ export class ProviderError extends Error {
   }
 }
 
+/** Yedek sağlayıcıya geçmeye uygun geçici hatalar (V1-12) — kalıcı hatalarda geçilmez. */
+export function isFallbackEligible(code: ProviderErrorCode): boolean {
+  return (
+    code === 'network' ||
+    code === 'timeout' ||
+    code === 'server' ||
+    code === 'rate_limit' ||
+    code === 'auth'
+  );
+}
+
 /** HTTP durum kodunu yapılandırılmış hataya çevirir (body asla mesaja gömülmez). */
 export function mapHttpError(status: number): ProviderError {
   if (status === 401 || status === 403) {

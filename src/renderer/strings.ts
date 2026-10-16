@@ -168,6 +168,11 @@ export const strings = {
   confirmApproved: 'Tamam, yapıyorum.',
   confirmDenied: 'Peki, yapmıyorum.',
   confirmNoResponse: 'Onay süresi geçmişti; işlem yapılmadı.',
+  reminderSet: 'Tamam — {time} sonra hatırlatacağım.',
+  reminderPending: 'Hatırlatma bekliyor',
+  reminderFired: 'Efendim, hatırlatmam var',
+  reminderFiredPlain: 'Efendim, hatırlatma zamanı geldi.',
+  reminderDone: 'Zamanı geldi',
   micTestTitle: 'Mikrofonu test et',
   micTestHint:
     'Canlı seviyeyi gör, 3 sn kaydet, dinle — test mevcut ayarlarla (cihaz + kazanç + kapı) çalışır.',

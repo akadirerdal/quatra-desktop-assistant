@@ -25,6 +25,8 @@ export interface AgentOptions {
   signal?: AbortSignal;
   /** Verilirse akış (streaming) kullanılır: TAMAMLANAN her cümle buraya verilir (TTS için). */
   onSentence?: (text: string) => void;
+  /** Kısa süreli bağlam turları (V1-10) — system'den sonra, güncel mesajdan önce eklenir. */
+  context?: Array<{ role: 'user' | 'assistant'; content: string }>;
 }
 
 export interface AgentRunResult {
@@ -45,6 +47,9 @@ export class AgentLoop {
     const log = appLogger.scoped('agent');
     const messages: ChatMessage[] = [
       { role: 'system', content: this.options.systemPrompt },
+      ...(this.options.context ?? []).map(
+        (m): ChatMessage => ({ role: m.role, content: m.content }),
+      ),
       { role: 'user', content: userText },
     ];
     let iterations = 0;
