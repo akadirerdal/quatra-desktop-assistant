@@ -98,12 +98,47 @@ describe('MainScreen', () => {
     expect(screen.getByText('DeepSeek · Model seç')).toBeTruthy();
   });
 
-  it('mikrofon kapalıyken MIC OFF gösterir', () => {
+  it('mikrofon kapalıyken düğme "Mikrofonu aç" olarak işaretlenir (kırmızı durum)', () => {
     act(() => {
       useAssistantStore.getState().setMuted(true);
     });
     renderMain();
-    expect(screen.getByText('Mikrofon kapalı')).toBeTruthy();
+    const btn = screen.getByLabelText('Mikrofonu aç');
+    expect(btn.className).toContain('is-muted');
+    expect(btn.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('dinlerken ekolayzır çubukları gerçek mikrofon seviyesiyle ölçeklenir', () => {
+    act(() => {
+      useAssistantStore.getState().setStatus('listening');
+      useAssistantStore.getState().setLevels(0.9, 0);
+    });
+    renderMain();
+    const btn = screen.getByLabelText('Mikrofonu sustur');
+    const bars = btn.querySelectorAll('i');
+    expect(bars.length).toBe(4);
+    const scales = [...bars].map((b) =>
+      parseFloat((b as HTMLElement).style.transform.replace('scaleY(', '')),
+    );
+    expect(Math.max(...scales)).toBeGreaterThan(0.7);
+    expect(Math.min(...scales)).toBeGreaterThanOrEqual(0.14);
+  });
+
+  it('hareketi azalt açıkken dinleme çubukları sabit desende kalır', () => {
+    act(() => {
+      useSettingsStore.setState({
+        settings: { ...DEFAULT_SETTINGS, appearance: { ...DEFAULT_SETTINGS.appearance, reducedMotion: true } },
+      });
+      useAssistantStore.getState().setStatus('listening');
+      useAssistantStore.getState().setLevels(0.95, 0);
+    });
+    renderMain();
+    const btn = screen.getByLabelText('Mikrofonu sustur');
+    const nums = [...btn.querySelectorAll('i')].map((b) =>
+      parseFloat((b as HTMLElement).style.transform.replace('scaleY(', '')),
+    );
+    // Gerçek seviye 0.95 olsa da canlı ölçek (0.14+0.855) kullanılmaz; sabit desen kalır.
+    expect(Math.max(...nums)).toBeLessThan(0.7);
   });
 });
 

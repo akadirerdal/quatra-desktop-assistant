@@ -1,9 +1,10 @@
 /**
- * Ana ekran — minimal: marka, visualizer, durum, caption, mic pill, alt çubuk,
+ * Ana ekran — minimal: marka, visualizer, durum, caption, mikrofon düğmesi, alt çubuk,
  * saydam görev balonları, ayarlar dişlisi. Chat paneli YOK.
  */
 import { useEffect, useState } from 'react';
 import { Visualizer } from './Visualizer';
+import { MicButton } from './MicButton';
 import { BottomBar } from './BottomBar';
 import { useAssistantStore } from '../../state/assistant-store';
 import { useSettingsStore } from '../../state/settings-store';
@@ -16,7 +17,6 @@ export function MainScreen(props: {
   const status = useAssistantStore((s) => s.status);
   const caption = useAssistantStore((s) => s.caption);
   const tasks = useAssistantStore((s) => s.tasks);
-  const mutedByUser = useAssistantStore((s) => s.mutedByUser);
   const connection = useAssistantStore((s) => s.connection);
   const activation = useSettingsStore((s) => s.settings.activation);
   const [captionVisible, setCaptionVisible] = useState(false);
@@ -80,11 +80,8 @@ export function MainScreen(props: {
         ))}
       </div>
 
-      {/* Mikrofon göstergesi */}
-      <button className="micPill" onClick={props.onToggleMic} title={mutedByUser ? strings.micOn : strings.micOff}>
-        <span className={`micDot ${status === 'listening' ? 'on' : mutedByUser ? 'off' : ''}`} />
-        {mutedByUser ? strings.micOff : 'MIC'}
-      </button>
+      {/* Mikrofon düğmesi — "Ekolayzır" (konsept C): çubuklar gerçek seviyeyle oynar */}
+      <MicButton onToggle={props.onToggleMic} />
 
       {/* Alt çubuk: model + mod pill'leri (OpenCode tarzı) */}
       <BottomBar />

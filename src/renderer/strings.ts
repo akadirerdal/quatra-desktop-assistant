@@ -11,6 +11,8 @@ export const strings = {
   statusOffline: 'Çevrimdışı',
   micOn: 'Mikrofon açık',
   micOff: 'Mikrofon kapalı',
+  micMute: 'Mikrofonu sustur',
+  micUnmute: 'Mikrofonu aç',
   settings: 'Ayarlar',
   settingsClose: 'Kapat',
   general: 'Genel',

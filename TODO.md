@@ -237,5 +237,6 @@ Durum etiketleri: ✅ tamam | 🟡 kısmi | ⛔ blocked | ⬜ başlanmadı.
 - **Tema sistemi (V1-15):** `src/renderer/themes.ts` — 7 hazır tema (Gece Moru, Okyanus, Zümrüt, Gün Batımı, Gül, Grafit, Şafak) + saf yardımcılar (`mixHex`, `accentFamily`, `buildThemeVars`, `applyAppearance`); şema `appearance.theme`; Ayarlar → Görünüm'de tema seçici (tema seçimi vurguyu da temaya döndürür; alttan ince ayar yapılabilir).
 - **Ölü kontroller bulundu ve düzeltildi:** (1) vurgu rengi CSS'e hiç uygulanmıyordu — yalnız canvas'a gidiyordu; (2) "Arayüz ölçeği" hiçbir yere bağlı değildi; (3) "Hareketi azalt" yalnız canvas'ı etkiliyordu. Artık üçü de gerçek: CSS değişkenleri + `body zoom` + `reduced-motion` sınıfı.
 - **Stil:** sabit vurgu/panel rgba'ları değişkenleştirildi (`color-mix`, `--glass`, `--overlay`, `--on-accent`); Visualizer'daki sabit renkler temaya bağlandı (#b9acf5 → türetilmiş parlak vurgu, #5a5d6e → tema muted). Şafak (aydınlık) tema dahil — aydınlık kontrast turu kullanıcıyla yapılacak.
-- **MIC simgesi (V1-16):** 4 animasyonlu konsept → `docs/mic-onerileri.html`; seçim bekliyor.
-- **Kanıt:** 162 test ✅ (themes.test.ts +5), `verify` yeşil, secret taraması temiz.
+- **MIC simgesi (V1-16):** 4 animasyonlu konsept → `docs/mic-onerileri.html`; kullanıcı **C · Ekolayzır**'ı seçti.
+- **C konsepti uygulandı:** `mic-eq.ts` (saf seviye matematiği) + `MicButton.tsx` — dinlerken çubuklar gerçek mikrofon seviyesiyle oynar, konuşurken gerçek çıkış sinyali (yoksa sakin sabit desen), kapalıyken kırmızıya çöker; "Hareketi azalt" açıkken sabit desen. Eski `micPill`/`micDot` kaldırıldı; düğme etiketleri ("Mikrofonu sustur/aç") + aria-pressed eklendi.
+- **Kanıt:** 168 test ✅ (themes +5, mic-eq +4, UI +2), `verify` yeşil, secret taraması temiz.

@@ -105,36 +105,47 @@ body {
   background: var(--panel);
 }
 
-.micPill {
+/* Mikrofon düğmesi — "Ekolayzır" (konsept C): çubuklar gerçek seviyeyle oynar. */
+.micEq {
   position: absolute;
   bottom: 14px;
   left: 16px;
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 6px 12px;
+  gap: 3.5px;
+  height: 38px;
+  padding: 0 15px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: var(--panel);
-  font-size: 11px;
-  color: var(--muted);
+  background: var(--panel-2);
   cursor: pointer;
 }
-.micPill:hover {
-  color: var(--text);
+.micEq:hover {
+  border-color: var(--accent-dim);
 }
-.micDot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
+.micEq i {
+  width: 3px;
+  height: 16px;
+  border-radius: 2px;
   background: var(--muted);
+  transform-origin: center;
+  transition: transform 0.12s ease, background-color 0.3s ease;
 }
-.micDot.on {
-  background: var(--green);
-  box-shadow: 0 0 8px var(--green);
+.micEq.is-listening i {
+  background: var(--accent);
 }
-.micDot.off {
+.micEq.is-speaking i {
+  background: var(--accent-bright);
+}
+.micEq.is-processing i {
+  background: var(--accent-dim);
+}
+.micEq.is-muted i {
   background: var(--red);
+}
+.micEq.is-error i {
+  background: var(--red);
+  opacity: 0.7;
 }
 
 /* ---------- özel başlık çubuğu ---------- */
