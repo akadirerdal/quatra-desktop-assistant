@@ -18,7 +18,7 @@ src/features/
   settings/          # 8 kategori ayar paneli
 src/state/           # zustand store'lar (settings zod-şemalı, assistant)
 src/services/        # log (redact'lı ring-buffer), storage backend'leri
-tests/unit/          # 213 test — GERÇEK API anahtarı gerekmez
+tests/unit/          # 236 test — GERÇEK API anahtarı gerekmez
 docs/                # platform matrisi
 ```
 
@@ -35,7 +35,7 @@ Güvenlik sınırları: renderer'da Node yok; API anahtarı yalnızca `safeStora
 npm install
 npm run dev           # yalnız renderer (tarayıcıda)
 npm run dev:electron  # Electron + Vite (canlı geliştirme)
-npm run verify        # typecheck + lint + 213 test + secret taraması (kapı)
+npm run verify        # typecheck + lint + 236 test + secret taraması (kapı)
 npm run build         # üretim derlemesi (dist + dist-electron)
 npm run package:win   # Windows NSIS kurulumu (release/)
 npm run package:mac   # macOS DMG (release/) — yalnız macOS'ta üretilir
@@ -96,7 +96,7 @@ Alt çubuktaki model pill'inden seçilir (gerçek preset'ler):
 ## Testler
 
 ```bash
-npm run test          # 213 unit/component testi — credentials'sız, mock ağ
+npm run test          # 236 unit/component testi — credentials'sız, mock ağ
 npm run verify        # tam kapı
 ```
 

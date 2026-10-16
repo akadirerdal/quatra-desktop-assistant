@@ -429,9 +429,16 @@ export class AudioService {
       const started = Date.now();
       const buffer = await audio.arrayBuffer();
       const res = await window.quatra.stt.transcribe(buffer, audio.type || 'audio/webm', 'tr');
-      if (res.ok && res.text) {
-        this.logEvent(`STT ok (${Date.now() - started}ms)`);
-        return { ok: true, text: res.text };
+      if (res.ok) {
+        const text = (res.text ?? '').trim();
+        const ms = Date.now() - started;
+        if (res.filtered) {
+          // Whisper sessizlik/gürültüde "Altyazı M.K." gibi künye uydurdu → filtrelendi, duyulmadı sayılır.
+          this.logEvent(`STT hayalet kalıp filtrelendi: "${res.filtered}" (${ms}ms)`);
+        } else {
+          this.logEvent(text ? `STT ok (${ms}ms)` : `STT boş sonuç (${ms}ms) — duyulmadı`);
+        }
+        return { ok: true, text };
       }
       this.logEvent(`STT HATA: ${res.message ?? 'boş sonuç'}`);
       return { ok: false, message: res.message ?? 'Sesin anlaşılamadı.' };

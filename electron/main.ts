@@ -11,6 +11,10 @@ import { appLogger } from '../src/services/log/logger';
 import { appendLogLine, logFilePath } from './log-file';
 import { createTray, notifyFirstHide } from './tray';
 
+// Chromium mikrofon yakalarken sistem mikrofon sesini otomatik ayarlamasın.
+// (wake-word dinlemesi açıkken seviyenin kendi kendine 45 → 80+ çıkmasının nedeni buydu)
+app.commandLine.appendSwitch('disable-features', 'WebRtcAllowInputVolumeAdjustment');
+
 // esbuild main'i CJS olarak üretir; __dirname doğrudan kullanılabilir.
 const log = appLogger.scoped('main');
 

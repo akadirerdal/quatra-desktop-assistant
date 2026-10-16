@@ -85,7 +85,11 @@ export function registerIpc(win: BrowserWindow): void {
           mimeType: String(mimeType || 'audio/webm'),
           language: language ? String(language) : 'tr',
         });
-        return { ok: true, text: result.text };
+        return {
+          ok: true,
+          text: result.text,
+          ...(result.filtered ? { filtered: result.filtered } : {}),
+        };
       } catch (e) {
         const err = e instanceof ProviderError ? e : new ProviderError('unknown', 'Ses tanıma başarısız.');
         return { ok: false, code: err.code, message: err.message };

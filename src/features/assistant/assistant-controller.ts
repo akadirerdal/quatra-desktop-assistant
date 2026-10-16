@@ -267,8 +267,23 @@ export class AssistantController {
         this.onAudioError(res.message);
         return;
       }
-      st.setCaption(res.text);
-      this.send(res.text);
+      const heard = res.text.trim();
+      if (!heard) {
+        // Sessiz/gürültü kaydı ya da filtrelenmiş hayalet kalıp ("Altyazı M.K." gibi):
+        // boş istek agent'a GİTMEZ; sessizlik dalıyla aynı davranış uygulanır.
+        st.setStatus('idle');
+        this.conversationActive = false;
+        if (source === 'followup' || source === 'barge') {
+          st.setCaption('');
+        } else if (source === 'wake') {
+          st.setCaption(strings.wakeHeardNothing);
+        } else {
+          st.setCaption(strings.sttFailed);
+        }
+        return;
+      }
+      st.setCaption(heard);
+      this.send(heard);
     } finally {
       this.listening = false;
       // Sohbet sürüyorsa uyandırma servisi bekler (çakışma olmaz);

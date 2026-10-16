@@ -8,6 +8,44 @@ import { ProviderError } from '../../providers/types';
 const GROQ_BASE = 'https://api.groq.com/openai/v1';
 const MODEL = 'whisper-large-v3-turbo';
 
+/**
+ * Whisper, sessizlik/gürültü ya da anlaşılmaz kısa sesler verildiğinde "altyazı künyesi"
+ * uydurur (bilinen klasik: "Altyazı M.K."; kapanış kalıpları: "İzlediğiniz için teşekkür
+ * ederim."). Bu kalıplar gerçek kullanıcı konuşması olamayacak kadar spesifik — eşleşirse
+ * metin boşaltılır ve "duyulmadı" sayılır (caption/agent'a asla ulaşmaz).
+ */
+const HALLUCINATION_PATTERNS: readonly RegExp[] = [
+  /^alt\s*yaz[ıi](lar)?(?:[.\s]+m\.?\s*k\.?)?$/,
+  /^m\.?\s*k\.?$/,
+  /m\.?\s*k\.?\s+tarafından/,
+  /^çeviri[.\s]+m\.?\s*k\.?$/,
+  /^(bizi )?izlediğiniz için teşekkür( ederim|ler)?\.?$/,
+  /^(kanala )?abone olmay[ıi] unutmay[ıi]n/,
+  /amara\.org/,
+  /mooji\.org/,
+  /^subtitles? by/,
+  /^transcri(bed|ption) by/,
+  /^thanks? for watching/,
+];
+
+/** Karşılaştırma için sadeleştir: Türkçe küçük harf, birleşik işaretleri at, noktalama→boşluk (nokta kalır). */
+function normalizeForMatch(text: string): string {
+  return text
+    .toLocaleLowerCase('tr')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\p{L}\p{N}\s.]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Bilinen Whisper hayalet kalıbıysa boş string döner; değilse metin (kırpılmış hâli korunarak) aynen kalır. */
+export function stripHallucination(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) return '';
+  const flat = normalizeForMatch(trimmed);
+  return HALLUCINATION_PATTERNS.some((re) => re.test(flat)) ? '' : trimmed;
+}
+
 export interface TranscribeOptions {
   apiKey: string;
   audio: Uint8Array;
@@ -20,6 +58,8 @@ export interface TranscribeOptions {
 export interface TranscribeResult {
   text: string;
   model: string;
+  /** Hayalet kalıp filtrelendiyse ham model çıktısı (yalnız log/teşhis için). */
+  filtered?: string;
 }
 
 export async function transcribeAudio(options: TranscribeOptions): Promise<TranscribeResult> {
@@ -61,7 +101,11 @@ export async function transcribeAudio(options: TranscribeOptions): Promise<Trans
     }
 
     const data = (await res.json()) as { text?: string };
-    return { text: (data.text ?? '').trim(), model: MODEL };
+    const raw = (data.text ?? '').trim();
+    const text = stripHallucination(raw);
+    const result: TranscribeResult = { text, model: MODEL };
+    if (raw && !text) result.filtered = raw; // hayalet kalıp — teşhis için ham çıktı taşınır
+    return result;
   } catch (e) {
     if (e instanceof ProviderError) throw e;
     if (e instanceof Error && (e.name === 'AbortError' || e.name === 'TimeoutError')) {

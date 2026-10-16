@@ -18,7 +18,7 @@ export interface QuatraBridge {
       audio: ArrayBuffer,
       mimeType: string,
       language?: string,
-    ): Promise<{ ok: boolean; text?: string; code?: string; message?: string }>;
+    ): Promise<{ ok: boolean; text?: string; filtered?: string; code?: string; message?: string }>;
   };
   tts: {
     voices(): Promise<{
