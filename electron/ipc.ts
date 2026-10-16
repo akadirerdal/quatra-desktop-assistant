@@ -20,7 +20,7 @@ import type { AgentRunRequest } from './agent-service';
 let registeredShortcut: string | null = null;
 
 function isCredentialId(v: unknown): v is CredentialId {
-  return v === 'deepseek' || v === 'groq';
+  return v === 'deepseek' || v === 'groq' || v === 'mem0';
 }
 
 export function registerIpc(win: BrowserWindow): void {

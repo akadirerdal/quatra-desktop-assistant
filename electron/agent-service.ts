@@ -13,6 +13,8 @@ import { AgentLoop, DEFAULT_SYSTEM_PROMPT } from '../src/features/agent/loop';
 import { MemoryStore } from '../src/services/memory/memory-store';
 import { getApiKey } from './credentials';
 import { createNativeBridge } from './native';
+import { mem0Add, mem0Search } from './mem0-service';
+import { parseExtractedFacts, shouldReplaceEntry } from '../src/services/memory/extraction';
 import { appLogger } from '../src/services/log/logger';
 
 export interface AgentRunRequest {
@@ -25,6 +27,8 @@ export interface AgentRunRequest {
   useMemory?: boolean;
   /** Kullanıcı detaylı yanıt istedi (uzun cevap talimatı eklenir). */
   detailed?: boolean;
+  /** Hafıza motoru: local | mem0. */
+  memoryEngine?: 'local' | 'mem0';
 }
 
 export type AgentEvent =
@@ -96,7 +100,24 @@ export async function runAgent(
     const memoryStore = new MemoryStore(path.join(app.getPath('userData'), 'memory.json'));
     let memoryBlock = '';
     if (req.useMemory) {
-      memoryBlock = await memoryStore.contextBlock(req.text, 1200);
+      try {
+        if (req.memoryEngine === 'mem0') {
+          const mem0Key = await getApiKey('mem0');
+          if (mem0Key) {
+            const results = await mem0Search(mem0Key, req.text, 6);
+            if (results.length) {
+              memoryBlock = 'Kullanıcı hakkında hatırlananlar:\n' + results.map((r) => `- ${r.memory}`).join('\n');
+            }
+          } else {
+            memoryBlock = await memoryStore.contextBlock(req.text, 1200);
+          }
+        } else {
+          memoryBlock = await memoryStore.contextBlock(req.text, 1200);
+        }
+      } catch (e) {
+        log.warn(`hafıza araması başarısız (yerel devam): ${String(e)}`);
+        memoryBlock = await memoryStore.contextBlock(req.text, 1200);
+      }
     }
 
     // Model, konuşma içinde öğrendiği önemli bilgileri KENDİSİ hafızaya yazar.
@@ -156,6 +177,10 @@ export async function runAgent(
       iterations: result.iterations,
       toolCalls: result.toolCalls,
     });
+
+    // ---- Garantili hafıza: model hafiza_kaydet'i çağırmayı unutsa bile ----
+    // yerel çıkarım HER ZAMAN çalışır; cevabı geciktirmez (fire-and-forget).
+    void persistMemory(req, result.text, client, memoryStore);
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Bilinmeyen hata';
     const category =
@@ -166,5 +191,59 @@ export async function runAgent(
     emit({ type: 'error', requestId, category, message: msg });
   } finally {
     if (activeAbort === abort) activeAbort = null;
+  }
+}
+
+// ---- Hafıza çıkarımı (garanti katmanı) ----
+
+const EXTRACT_PROMPT = [
+  'Sen bir bilgi çıkarıcısın. Aşağıdaki konuşmadan KULLANICI hakkında kalıcı değer taşıyan',
+  'olguları çıkar (isim, yaş, tercihler, önemli olaylar, kişisel bilgiler).',
+  'Yalnızca JSON dizi döndür, örnek: ["Kullanıcının adı: Ali", "Kullanıcı Fenerbahçeli"].',
+  'Kalıcı olmayan şeyleri (geçici sorular, hava durumu gibi) EKLEME. Boşsa [] döndür.',
+].join('\n');
+
+async function persistMemory(
+  req: AgentRunRequest,
+  assistantText: string,
+  client: DeepSeekClient,
+  store: MemoryStore,
+): Promise<void> {
+  const log = appLogger.scoped('memory');
+  try {
+    // 1) mem0 motoru seçiliyse buluta da yaz.
+    if (req.memoryEngine === 'mem0') {
+      const mem0Key = await getApiKey('mem0');
+      if (mem0Key) {
+        try {
+          await mem0Add(mem0Key, [
+            { role: 'user', content: req.text.slice(0, 2000) },
+            { role: 'assistant', content: assistantText.slice(0, 2000) },
+          ]);
+          log.info('hafıza: mem0 senkronu tamam');
+        } catch (e) {
+          log.warn(`hafıza: mem0 senkronu hata (yerel devam): ${String(e)}`);
+        }
+      }
+    }
+    // 2) Yerel çıkarım HER ZAMAN çalışır.
+    const res = await client.chat({
+      model: 'deepseek-chat',
+      messages: [
+        { role: 'system', content: EXTRACT_PROMPT },
+        { role: 'user', content: `Kullanıcı: ${req.text.slice(0, 1200)}\nAsistan: ${assistantText.slice(0, 1200)}` },
+      ],
+      temperature: 0.1,
+      maxTokens: 300,
+    });
+    const facts = parseExtractedFacts(res.content);
+    for (const fact of facts) {
+      const existing = (await store.load()).find((e) => shouldReplaceEntry(e.text, fact));
+      if (existing) await store.remove(existing.id);
+      await store.add(fact, 'assistant');
+    }
+    if (facts.length) log.info(`hafıza: ${facts.length} olgu çıkarıldı`);
+  } catch (e) {
+    log.warn(`hafıza çıkarımı başarısız: ${String(e)}`);
   }
 }

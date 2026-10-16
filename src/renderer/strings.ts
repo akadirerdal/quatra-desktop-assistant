@@ -115,8 +115,14 @@ export const strings = {
   edgeVoiceHint: 'Edge sesleri ücretsiz ve doğaldır (internet ister). Çevrimdışıyken Windows sesine düşer.',
   memory: 'Hafıza',
   memoryHint:
-    '«Hatırla: …» diyerek kayıt eklersin. Kayıtlar yalnızca bu cihazda saklanır; sadece sohbet bağlamına eklenir, hiçbir servise yüklenmez.',
+    '«Hatırla: …» diyerek kayıt eklersin. Önemli bilgiler konuşma içinde otomatik çıkarılır ve yalnızca bu cihazda saklanır.',
   memoryEnabled: 'Hafızayı sohbette kullan',
+  memoryEngine: 'Hafıza motoru',
+  memoryEngineLocal: 'Yerel (varsayılan — veriler cihazında kalır)',
+  memoryEngineMem0: 'mem0 (bulut — GitHub mem0 entegrasyonu, anahtar gerekir)',
+  mem0Key: 'mem0 API Anahtarı',
+  mem0KeyHint:
+    'app.mem0.ai’dan alınır. Bu motor seçildiğinde konuşmalardan çıkarılan olgular mem0 bulutuna yazılır; yerel kopya daima tutulur.',
   memorySaved: 'Hatırladım ✓',
   memorySaveFailed: 'Hafızaya kaydedilemedi.',
   memoryEmpty: 'Henüz hiçbir şey hatırlamıyorum.',

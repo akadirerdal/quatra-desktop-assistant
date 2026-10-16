@@ -133,7 +133,7 @@ function GeneralSection(): React.JSX.Element {
 }
 
 function KeyBlock(props: {
-  id: 'deepseek' | 'groq';
+  id: 'deepseek' | 'groq' | 'mem0';
   label: string;
   hint: string;
 }): React.JSX.Element {
@@ -683,9 +683,25 @@ function MemorySection(): React.JSX.Element {
         <label style={{ margin: 0 }}>{strings.memoryEnabled}</label>
         <Switch
           on={settings.memory.enabled}
-          onChange={(v) => void update({ memory: { enabled: v } })}
+          onChange={(v) => void update({ memory: { ...settings.memory, enabled: v } })}
         />
       </div>
+      <div className="field">
+        <label>{strings.memoryEngine}</label>
+        <Select
+          value={settings.memory.engine}
+          onChange={(v) =>
+            void update({ memory: { ...settings.memory, engine: v as typeof settings.memory.engine } })
+          }
+          options={[
+            { value: 'local', label: strings.memoryEngineLocal },
+            { value: 'mem0', label: strings.memoryEngineMem0 },
+          ]}
+        />
+      </div>
+      {settings.memory.engine === 'mem0' && (
+        <KeyBlock id="mem0" label={strings.mem0Key} hint={strings.mem0KeyHint} />
+      )}
       <div className="field">
         <div className="row">
           <input

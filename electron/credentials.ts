@@ -11,7 +11,7 @@ import { app, safeStorage } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 
-export type CredentialId = 'deepseek' | 'groq';
+export type CredentialId = 'deepseek' | 'groq' | 'mem0';
 
 interface CredentialsFile {
   version: 2;

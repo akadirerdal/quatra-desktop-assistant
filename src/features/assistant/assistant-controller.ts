@@ -386,6 +386,7 @@ export class AssistantController {
         maxTokens: settings.provider.maxTokens,
         personality: settings.personality || undefined,
         useMemory: settings.memory.enabled,
+        memoryEngine: settings.memory.engine,
         detailed: isDetailRequest(text),
       })
       .catch(() => {
@@ -416,16 +417,19 @@ export class AssistantController {
     this.sayLocal(`${strings.memoryListPrefix} ${entries.length} kayıt:\n${recent}`);
   }
 
-  /** "adım ne?" → hafızadaki isim kaydından yanıt verir. */
+  /** "adım ne?" → hafızadaki isim kaydından yanıt verir (çöp kayıtları atlar). */
   private async answerNameQuestion(): Promise<void> {
     const entries = (await window.quatra?.memory.list()) ?? [];
-    const nameEntry = entries.find((e) => e.text.toLowerCase().includes('kullanıcının adı'));
+    const nameEntries = entries.filter((e) => e.text.toLowerCase().includes('kullanıcının adı'));
+    const nameEntry = nameEntries[nameEntries.length - 1]; // EN SON geçerli kayıt
     if (nameEntry) {
       const name = nameEntry.text.replace(/kullanıcının adı\s*[:：]\s*/i, '').trim();
-      this.sayLocal(`${strings.nameAnswer} ${name}.`);
-    } else {
-      this.sayLocal(strings.nameUnknown);
+      if (name && name !== 'ne' && !/^quatra/i.test(name)) {
+        this.sayLocal(`${strings.nameAnswer} ${name}.`);
+        return;
+      }
     }
+    this.sayLocal(strings.nameUnknown);
   }
 
   private onAgentEvent(event: AgentEvent): void {
