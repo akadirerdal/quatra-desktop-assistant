@@ -87,6 +87,8 @@ export class AudioService {
   private playStartedAt = 0;
   private burstMs = 0;
   private bargeFired = false;
+  private bargeLogCount = 0;
+  private bargeLastLogAt = 0;
   private bargeCallback: (() => void) | null = null;
 
   /** Söz kesme işleyicisi — mikrofon döngüsü kullanıcı konuşmasını yakalayınca çağırır. */
@@ -165,14 +167,23 @@ export class AudioService {
           (this.pendingPlay || this.playingSource !== null)
         ) {
           const voice = useSettingsStore.getState().settings.voice;
-          if (voice.bargeIn && now - this.playStartedAt > 800) {
+          if (voice.bargeIn && now - this.playStartedAt > 600) {
             const thr = vadThresholdOf(voice.vadSensitivity) * 0.85;
-            if (this.currentLevel > thr) {
-              this.burstMs += dt;
+            const loud = this.currentLevel > 0.3; // kesin kullanıcı sesi: hızlı tetikleme
+            if (this.currentLevel > thr || loud) {
+              this.burstMs += loud ? dt * 2 : dt;
             } else {
               this.burstMs = 0;
             }
-            if (this.burstMs > 350) {
+            // Teşhis: saniyede bir seviye/eşik durumu (en fazla 5 satır).
+            if (this.bargeLogCount < 5 && now - this.bargeLastLogAt > 1000) {
+              this.bargeLastLogAt = now;
+              this.bargeLogCount += 1;
+              this.logEvent(
+                `barge-izleme: seviye=${this.currentLevel.toFixed(2)} eşik=${thr.toFixed(3)} birikim=${this.burstMs.toFixed(0)}ms`,
+              );
+            }
+            if (this.burstMs > 250) {
               this.bargeFired = true;
               this.burstMs = 0;
               this.logEvent('barge: kullanıcı konuşuyor — çalma durdurulacak');
@@ -348,7 +359,9 @@ export class AudioService {
     const seq = ++this.speakSeq;
     this.pendingPlay = true;
     this.bargeFired = false;
-    this.playStartedAt = Date.now();
+    // performance.now() — barge tespitindeki zaman karşılaştırmalarıyla AYNI taban (Date.now değil!).
+    this.playStartedAt = performance.now();
+    this.bargeLogCount = 0;
     useAssistantStore.getState().setStatus('speaking');
     const engine = useSettingsStore.getState().settings.voice.ttsEngine;
     if (engine === 'edge' && window.quatra) {
