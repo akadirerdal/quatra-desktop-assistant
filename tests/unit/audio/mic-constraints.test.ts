@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildMicConstraints,
+  micPermissionHint,
   minPeakOf,
   vadThresholdOf,
 } from '../../../src/features/audio/audio-service';
@@ -48,5 +49,18 @@ describe('mikrofon filtreleri ve VAD', () => {
     expect(minPeakOf(1)).toBeGreaterThan(minPeakOf(10));
     expect(minPeakOf(5)).toBeCloseTo(0.16, 2);
     expect(minPeakOf(10)).toBeCloseTo(0.1, 2);
+  });
+});
+
+describe('mikrofon izni ipucu', () => {
+  it('macOS’ta Sistem Ayarları yolunu gösterir', () => {
+    expect(micPermissionHint('MacIntel')).toContain('Sistem Ayarları');
+    expect(micPermissionHint('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)')).toContain(
+      'Sistem Ayarları',
+    );
+  });
+
+  it('Windows’ta Windows Ayarlar yolunu gösterir', () => {
+    expect(micPermissionHint('Win32')).toContain('Windows Ayarlar');
   });
 });

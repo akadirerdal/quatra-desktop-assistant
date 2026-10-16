@@ -17,7 +17,8 @@
     "format": "prettier --write .",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run check:secrets",
     "check:secrets": "node scripts/check-secrets.mjs",
-    "package:win": "npm run build && electron-builder --win nsis"
+    "package:win": "npm run build && electron-builder --win nsis",
+    "package:mac": "npm run build && electron-builder --mac"
   },
   "dependencies": {
     "msedge-tts": "^2.1.0",
@@ -61,12 +62,25 @@
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
+      "build/**/*",
       "package.json"
     ],
     "win": {
       "target": [
         "nsis"
       ]
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.png",
+      "hardenedRuntime": false,
+      "identity": null,
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Quatra, sesli komutlarını duyabilmek için mikrofona erişir."
+      }
     },
     "nsis": {
       "oneClick": false,

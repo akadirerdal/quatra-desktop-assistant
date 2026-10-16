@@ -79,6 +79,13 @@ export function pickRecorderMime(): string {
   return '';
 }
 
+/** Mikrofon izni reddedilirse nereye bakılacağını platforma göre söyler (dürüst yönlendirme). */
+export function micPermissionHint(platform: string): string {
+  return platform.toLowerCase().includes('mac')
+    ? 'Sistem Ayarları → Gizlilik ve Güvenlik → Mikrofon’dan izin ver.'
+    : 'Windows Ayarlar → Gizlilik → Mikrofon’dan izin ver.';
+}
+
 export class AudioService {
   private stream: MediaStream | null = null;
   private audioCtx: AudioContext | null = null;
@@ -157,7 +164,7 @@ export class AudioService {
       this.logEvent(`mic HATA: ${denied ? 'izin reddedildi' : String(e)}`);
       this.onError(
         denied
-          ? 'Mikrofon izni reddedildi. Windows Ayarlar → Gizlilik → Mikrofon’dan izin ver.'
+          ? `Mikrofon izni reddedildi. ${micPermissionHint(navigator.platform || navigator.userAgent || '')}`
           : 'Mikrofon bulunamadı.',
       );
       return false;

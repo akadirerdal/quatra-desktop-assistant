@@ -21,10 +21,19 @@ export function showMainWindow(win: BrowserWindow): void {
 
 export function createTray(win: BrowserWindow, quit: () => void): void {
   if (tray) return;
-  // Simge: build/icon.ico (dist-electron/../build).
-  const iconPath = path.join(__dirname, '..', 'build', 'icon.ico');
-  const image = nativeImage.createFromPath(iconPath);
-  if (image.isEmpty()) log.warn(`tepsi simgesi okunamadı: ${iconPath}`);
+  // Simge: Windows'ta .ico; macOS menü çubuğunda .png (retina için @2x temsili).
+  // build/**/* paket listesinde → kurulu sürümde de bulunur.
+  const iconDir = path.join(__dirname, '..', 'build');
+  const preferred = process.platform === 'darwin' ? 'tray.png' : 'icon.ico';
+  let image = nativeImage.createFromPath(path.join(iconDir, preferred));
+  if (process.platform === 'darwin' && !image.isEmpty()) {
+    const retina = nativeImage.createFromPath(path.join(iconDir, 'tray@2x.png'));
+    if (!retina.isEmpty()) image.addRepresentation({ scaleFactor: 2, buffer: retina.toPNG() });
+  }
+  if (image.isEmpty() && preferred !== 'icon.ico') {
+    image = nativeImage.createFromPath(path.join(iconDir, 'icon.ico'));
+  }
+  if (image.isEmpty()) log.warn(`tepsi simgesi okunamadı: ${path.join(iconDir, preferred)}`);
   tray = new Tray(image.isEmpty() ? nativeImage.createEmpty() : image);
   tray.setToolTip('Quatra — sesli asistan');
   const menu = Menu.buildFromTemplate([

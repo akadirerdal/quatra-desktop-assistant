@@ -18,7 +18,7 @@ src/features/
   settings/          # 8 kategori ayar paneli
 src/state/           # zustand store'lar (settings zod-şemalı, assistant)
 src/services/        # log (redact'lı ring-buffer), storage backend'leri
-tests/unit/          # 79 test — GERÇEK API anahtarı gerekmez
+tests/unit/          # 213 test — GERÇEK API anahtarı gerekmez
 docs/                # platform matrisi
 ```
 
@@ -35,9 +35,10 @@ Güvenlik sınırları: renderer'da Node yok; API anahtarı yalnızca `safeStora
 npm install
 npm run dev           # yalnız renderer (tarayıcıda)
 npm run dev:electron  # Electron + Vite (canlı geliştirme)
-npm run verify        # typecheck + lint + 81 test + secret taraması (kapı)
+npm run verify        # typecheck + lint + 213 test + secret taraması (kapı)
 npm run build         # üretim derlemesi (dist + dist-electron)
 npm run package:win   # Windows NSIS kurulumu (release/)
+npm run package:mac   # macOS DMG (release/) — yalnız macOS'ta üretilir
 ```
 
 Pencere: özel başlık çubuğu (menü yok) — **─ küçült / □ büyüt-geri al / ✕ kapat**; ilk açılışta **tam ekran** (F11 ile çık/gir).
@@ -64,7 +65,7 @@ Mod geçişi: sesli "yazılım moduna geç" / "normal moda geç" / "mod değişt
 
 ## Güncelleme ve veri kalıcılığı
 
-- Ayarlar ve API anahtarları `%APPDATA%\Quatra` altında tutulur (eski konumlardan otomatik göç eder).
+- Ayarlar ve API anahtarları Windows'ta `%APPDATA%\Quatra`, macOS'ta `~/Library/Application Support/Quatra` altında tutulur (eski konumlardan otomatik göç eder).
 - Güncelleme/kurulum anahtarları **silmez** (`deleteAppDataOnUninstall: false`).
 
 ## Model seviyeleri
@@ -95,7 +96,7 @@ Alt çubuktaki model pill'inden seçilir (gerçek preset'ler):
 ## Testler
 
 ```bash
-npm run test          # 79 unit/component testi — credentials'sız, mock ağ
+npm run test          # 213 unit/component testi — credentials'sız, mock ağ
 npm run verify        # tam kapı
 ```
 
