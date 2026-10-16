@@ -10,7 +10,12 @@ let hasState: Record<string, boolean> = {};
 function installBridge(): void {
   (window as unknown as { quatra: unknown }).quatra = {
     version: '0.1.0',
-    settings: { load: async () => null, save: async () => ({ ok: true }) },
+    settings: {
+      load: async () => null,
+      save: async () => ({ ok: true }),
+      exportFile: async () => ({ ok: true, canceled: true }),
+      importFile: async () => ({ ok: true, canceled: true }),
+    },
     credentials: {
       has: async (id: string) => !!hasState[id],
       available: async () => true,

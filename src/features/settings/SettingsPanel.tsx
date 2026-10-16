@@ -79,6 +79,7 @@ function GeneralSection(): React.JSX.Element {
   const settings = useSettingsStore((s) => s.settings);
   const update = useSettingsStore((s) => s.update);
   const restoreDefaults = useSettingsStore((s) => s.restoreDefaults);
+  const setCaption = useAssistantStore((s) => s.setCaption);
   const [confirming, setConfirming] = useState(false);
   const [version, setVersion] = useState('0.1.0');
   const [loginItem, setLoginItem] = useState<{ supported: boolean; enabled: boolean } | null>(null);
@@ -145,6 +146,34 @@ function GeneralSection(): React.JSX.Element {
       <div className="hint">
         {loginItem && !loginItem.supported ? strings.launchAtLoginDev : strings.launchAtLoginHint}
       </div>
+      <div className="field row">
+        <Button
+          onClick={() => {
+            void window.quatra?.settings.exportFile().then((r) => {
+              if (r.ok && !r.canceled) setCaption(strings.settingsExported);
+            });
+          }}
+        >
+          {strings.settingsExport}
+        </Button>
+        <Button
+          onClick={() => {
+            void window.quatra?.settings.importFile().then((r) => {
+              if (r.ok && !r.canceled) {
+                void useSettingsStore
+                  .getState()
+                  .load()
+                  .then(() => setCaption(strings.settingsImported));
+              } else if (!r.ok) {
+                setCaption(r.message ?? strings.settingsImportFailed);
+              }
+            });
+          }}
+        >
+          {strings.settingsImport}
+        </Button>
+      </div>
+      <div className="hint">{strings.settingsIoHint}</div>
       <div className="field">
         <Button variant="danger" onClick={() => setConfirming(true)}>
           {strings.restoreDefaults}

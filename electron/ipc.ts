@@ -2,7 +2,7 @@
  * IPC kayıtları — renderer ile güvenli köprü.
  * Kanallar sabit listededir; keyfi kanal/dinamik handler YOKTUR.
  */
-import { app, BrowserWindow, globalShortcut, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain } from 'electron';
 import { clearApiKey, credentialsAvailable, getApiKey, hasApiKey, setApiKey } from './credentials';
 import type { CredentialId } from './credentials';
 import { loadSettingsFile, saveSettingsFile } from './settings-file';
@@ -176,6 +176,48 @@ export function registerIpc(win: BrowserWindow): void {
       return { ok: true };
     } catch {
       return { ok: false };
+    }
+  });
+
+  // ---------------------------------------------------------------- ayar dışa/içe aktarma
+  // Not: settings.json API anahtarı İÇERMEZ (anahtarlar ayrı credential vault'ta).
+  ipcMain.handle('settings:export', async () => {
+    const parent = win && !win.isDestroyed() ? win : undefined;
+    const opts = {
+      defaultPath: 'quatra-ayarlar.json',
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    };
+    const result = parent
+      ? await dialog.showSaveDialog(parent, opts)
+      : await dialog.showSaveDialog(opts);
+    if (result.canceled || !result.filePath) return { ok: true, canceled: true };
+    try {
+      const data = await loadSettingsFile();
+      fs.writeFileSync(result.filePath, JSON.stringify(data ?? {}, null, 2), 'utf8');
+      return { ok: true, path: result.filePath };
+    } catch {
+      return { ok: false, message: 'Ayarlar dosyaya yazılamadı.' };
+    }
+  });
+  ipcMain.handle('settings:import', async () => {
+    const parent = win && !win.isDestroyed() ? win : undefined;
+    const opts = {
+      properties: ['openFile' as const],
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    };
+    const result = parent
+      ? await dialog.showOpenDialog(parent, opts)
+      : await dialog.showOpenDialog(opts);
+    if (result.canceled || !result.filePaths[0]) return { ok: true, canceled: true };
+    try {
+      const parsed = JSON.parse(fs.readFileSync(result.filePaths[0], 'utf8')) as unknown;
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        return { ok: false, message: 'Dosya geçerli bir ayar dosyası değil.' };
+      }
+      await saveSettingsFile(parsed); // renderer load() zod ile temizler
+      return { ok: true };
+    } catch {
+      return { ok: false, message: 'Dosya okunamadı veya bozuk.' };
     }
   });
 

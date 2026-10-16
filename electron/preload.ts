@@ -10,6 +10,10 @@ const quatra = {
   settings: {
     load: (): Promise<unknown> => ipcRenderer.invoke('settings:load'),
     save: (data: unknown): Promise<{ ok: boolean }> => ipcRenderer.invoke('settings:save', data),
+    exportFile: (): Promise<{ ok: boolean; canceled?: boolean; path?: string; message?: string }> =>
+      ipcRenderer.invoke('settings:export'),
+    importFile: (): Promise<{ ok: boolean; canceled?: boolean; message?: string }> =>
+      ipcRenderer.invoke('settings:import'),
   },
 
   credentials: {

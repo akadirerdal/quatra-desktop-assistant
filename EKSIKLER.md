@@ -45,12 +45,10 @@ _Bu sıralama §9’daki kullanıcı maddeleriyle birleştirilip **`V1-UPDATE.md
 - ⬜ **Hafızada arama/filtreleme yok** — kayıt sayısı artınca gerekli olacak.
 
 ## 5. Arayüz
-- ⬜ **Konuşma geçmişi görüntülenemiyor** — altyazılar kaybolduktan sonra geriye dönük okunamıyor (chat panelli tasarım bilinçli olarak yok; istenirse “geçmiş” görünümü eklenir).
-- ⬜ **Açık tema yok** — yalnız koyu tema; vurgu rengi değiştirilebiliyor.
+- ⬜ **Konuşma geçmişi görüntülenemiyor** — altyazılar kaybolduktan sonra geriye dönük okunamıyor (chat panelli tasarım bilinçli olarak yok; istenirse “geçmiş” görünümü eklenir). (Karar bekliyor — SORULAR/V1-UPDATE-H.)
 - ⬜ **Yazıyla komut girişi yok** — bilinçli (ses öncelikli); klavye girişi alanı opsiyonel olarak eklenebilir.
 
 ## 6. Güvenlik ve veri
-- ⬜ **Ayarları dışa/içe aktarma yok.**
 
 ## 7. Platform / kurulum
 - ⬜ **macOS hiç test edilmedi** — Windows için geliştirildi.
@@ -95,3 +93,5 @@ _(Yeni bildirim geldikçe buraya eklenir.)_
 - ✅ **(Tur 10, 16.10) Not yedeği / geri alma (V1-18)** — mevcut bir notun üzerine yazılmadan önce `.bak` kopyası alınır; İşlem Kaydı'ndan tek tıkla geri alınır (aynı klasör doğrulamasıyla).
 - ✅ **(Tur 10, 16.10) Token sayaçları (V1-19)** — sağlayıcı usage bildirdiğinde aylık + toplam giriş/çıkış tokenları ve istek sayısı İşlem Kaydı'nda görünür.
 - ✅ **(Tur 10, 16.10) Ölü kontroller gerçek yapıldı** — “Konuşma bağlamını temizle”, “Günlükleri temizle” ve “Konuşma metinlerini sakla” (opt-in, `transcripts.jsonl`) artık gerçekten çalışıyor; “Konuşma kayıtlarını sil” eklendi.
+- ✅ **(Tur 10, 16.10) Şafak (aydınlık) tema (V1-15)** — açık tema eksikliği kapandı: Şafak teması kontrast turundan geçti (metin/ikincil metin/vurgu okunaklı); favori/eleme senin incelemede (SORULAR #2).
+- ✅ **(Tur 10, 16.10) Ayarları dışa/içe aktarma** — Ayarlar → Genel: JSON olarak dışa aktar / içe aktar; API anahtarları dosyaya DAHİL DEĞİL (ayrı vault'ta).

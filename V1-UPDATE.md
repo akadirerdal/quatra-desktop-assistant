@@ -4,7 +4,7 @@
 > **👤 kullanıcı bildirimleri (Tur 7)** + **🔧 geliştirici tespitleri (v1 öncelik analizi)**.
 > Durum: ⬜ başlanmadı · 🟡 devam ediyor · ✅ bitti. Bir madde bitince `EKSIKLER.md`’nin ✅ bölümüne de işlenir.
 > **Son güncelleme:** 16.10.2026 (Tur 10)
-> **Durum:** A ✅ (V1-01…05), B ✅ (V1-06 streaming, V1-07 “sus”, V1-09 sözlü izin), C ✅ (V1-10 bağlam, V1-11 hatırlatıcı, V1-12 yedek sağlayıcı), D ✅ (V1-13 tepsi, V1-14 otomatik başlatma), F ✅ (V1-17 işlem günlüğü, V1-18 not yedeği, V1-19 token sayaçları); V1-08 yerel uyandırma → paketleme aşamasına bırakıldı (SORULAR #5). E: V1-15 🟡 (favori/eleme sende), V1-16 ✅. G (V1-20/21 NSIS + güncelleme): ürün bitince. Sıradaki: E görsel turu + Şafak kontrast + ölü kontrol artığı avı.
+> **Durum:** A ✅, B ✅, C ✅, D ✅, F ✅; E: V1-15 🟡 (7 tema + Şafak kontrastı hazır — favori/eleme senin turunda, SORULAR #2), V1-16 ✅. G (V1-20/21): “ürün bitince” kuralıyla ertelendi (SORULAR #6). Ek paket ✅: ayar dışa/içe aktarma. V1-08 yerel uyandırma → paketleme aşamasına bırakıldı (SORULAR #5). H: karar bekleyen 3 madde (SORULAR + senin incelemede).
 
 ---
 
@@ -40,8 +40,8 @@
 - ✅ **V1-19 · Maliyet/token görünürlüğü** — sağlayıcı usage bildirdiğinde aylık + toplam token sayaçları görünür (uydurma sayı yok). 🔧 → (Tur 10)
 
 ## G. Dağıtım
-- ⬜ **V1-20 · Kurulum dosyası (NSIS)** — v1’in çift tıkla kurulabilir olması. 🔧
-- ⬜ **V1-21 · Otomatik güncelleme** — yeni sürüm kendiliğinden gelir. 🔧
+- 🟡 **V1-20 · Kurulum dosyası (NSIS)** — kural gereği (“NSIS ürün bitince”) ertelendi; liste bitince üretilecek. Kaynak modda tepsi/otomatik başlatma dahil her şey çalışıyor. 🔧
+- 🟡 **V1-21 · Otomatik güncelleme** — gerçek bir dağıtım sunucusu gerektirir; sunucu planı yoksa “manuel güncelleme” dürüst seçeneği (SORULAR #6). 🔧
 
 ---
 

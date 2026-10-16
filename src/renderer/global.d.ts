@@ -4,6 +4,8 @@ export interface QuatraBridge {
   settings: {
     load(): Promise<unknown>;
     save(data: unknown): Promise<{ ok: boolean }>;
+    exportFile(): Promise<{ ok: boolean; canceled?: boolean; path?: string; message?: string }>;
+    importFile(): Promise<{ ok: boolean; canceled?: boolean; message?: string }>;
   };
   credentials: {
     has(id: string): Promise<boolean>;
