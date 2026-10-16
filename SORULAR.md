@@ -25,6 +25,12 @@
 
 10. **İzin istekleri (V1-09)** — sözlü onay "evet/hayır" ile çalışıyor; **20 sn** cevap gelmezse işlem yapılmaz (güvenli varsayılan). İki kez anlaşılmayan yanıtta da güvenli ret. Süre sence uygun mu?
 
+11. **Ses Stüdyosu nerede yaşasın? (yeni mikrofon sistemi)** — Plan: Ayarlar'a yeni **"Ses Stüdyosu"** bölümü (Cihazlar · Mixer · Filtreler · Presetler · Teşhis alt bölümleriyle; mevcut karanlık tasarım dili). Alternatif: ayrı pencere. Önerim Ayarlar içinde — her şey tek yerde kalır. *(Ayrıntı: `MIKROFON.md`)*
+
+12. **Varsayılan ses profili** — Yeni filtre zincirinde ilk açılışta ne aktif olsun: (a) **boş** — yalnız dahili temizlik, en öngörülebilir *(önerim)*; (b) "Hafif temizlik" — HPF + yumuşak bastırma; (c) "Konuşma netliği" — kompresör + EQ + bastırma. Üçü de hazır profil olarak tek tıkla denenebilecek.
+
+13. **RNNoise güçlendirmesi** — Dahili gürültü bastırmaya ek olarak **RNNoise** (yerel, ücretsiz, BSD-3 lisanslı) motorunu opsiyonel olarak ekleyeyim mi? Klavye/fan seslerinde daha güçlü temizlik + STT'ye daha temiz ses. Önerim: ekle.
+
 > Not: Bu dosyaya geliştirme sırasında yeni sorular eklenir; **hiçbir soru geliştirmeyi durdurmaz** — makul varsayımla ilerlerim, varsayım burada listelenir.
 
 ---
