@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  isGarbageNameEntry,
+  hasMemorySignal,
+  isGarbageEntry,
+  isNearDuplicate,
   parseExtractedFacts,
   shouldReplaceEntry,
 } from '../../../src/services/memory/extraction';
@@ -29,6 +31,32 @@ describe('parseExtractedFacts', () => {
   it('boş/çöp girdiyi temizler', () => {
     expect(parseExtractedFacts('')).toEqual([]);
     expect(parseExtractedFacts('x')).toEqual([]);
+    expect(parseExtractedFacts('[]')).toEqual([]);
+  });
+});
+
+describe('hasMemorySignal', () => {
+  it('kişisel bilgi mesajlarını tanır', () => {
+    expect(hasMemorySignal('benim adım Ali')).toBe(true);
+    expect(hasMemorySignal('kedim Karabaş çok tatlı')).toBe(true);
+    expect(hasMemorySignal('çayı şekersiz severim')).toBe(true);
+    expect(hasMemorySignal('hatırla: yarın toplantı var')).toBe(true);
+  });
+
+  it('günlük sohbeti sinyal saymaz', () => {
+    expect(hasMemorySignal('bugün hava nasıl')).toBe(false);
+    expect(hasMemorySignal('saat kaç')).toBe(false);
+    expect(hasMemorySignal('teşekkürler')).toBe(false);
+  });
+});
+
+describe('isNearDuplicate', () => {
+  it('noktalama/büyük-küçük harf farkını yok sayar', () => {
+    expect(isNearDuplicate('Kullanıcı çay sever.', 'kullanıcı çay sever')).toBe(true);
+  });
+
+  it('farklı kayıtları ayırır', () => {
+    expect(isNearDuplicate('Kullanıcının adı: Ali', 'Kullanıcı Fenerbahçeli')).toBe(false);
   });
 });
 
@@ -37,20 +65,29 @@ describe('shouldReplaceEntry', () => {
     expect(shouldReplaceEntry('Kullanıcının adı: Ali', 'Kullanıcının adı: Veli')).toBe(true);
   });
 
+  it('yaş kaydı da güncellenir', () => {
+    expect(shouldReplaceEntry('Kullanıcının yaşı: 20', 'Kullanıcının yaşı: 21')).toBe(true);
+  });
+
   it('farklı tür kayıtları değiştirmez', () => {
     expect(shouldReplaceEntry('Kullanıcı çay sever', 'Kullanıcının adı: Veli')).toBe(false);
   });
 });
 
-describe('isGarbageNameEntry', () => {
+describe('isGarbageEntry', () => {
   it('eski bug kalıntılarını tanır', () => {
-    expect(isGarbageNameEntry('Kullanıcının adı: ne')).toBe(true);
-    expect(isGarbageNameEntry('Kullanıcının adı: kuatral')).toBe(true);
-    expect(isGarbageNameEntry('Kullanıcının adı: ne kuatral')).toBe(true);
+    expect(isGarbageEntry('Kullanıcının adı: ne')).toBe(true);
+    expect(isGarbageEntry('Kullanıcının adı: kuatral')).toBe(true);
+    expect(isGarbageEntry('Kullanıcının adı: ne kuatral')).toBe(true);
   });
 
-  it('geçerli adları korur', () => {
-    expect(isGarbageNameEntry('Kullanıcının adı: Ali')).toBe(false);
-    expect(isGarbageNameEntry('Kullanıcı çay sever')).toBe(false);
+  it('asistan meta kayıtlarını tanır', () => {
+    expect(isGarbageEntry('Asistan kullanıcıya Efendim diyor')).toBe(true);
+  });
+
+  it('geçerli kayıtları korur', () => {
+    expect(isGarbageEntry('Kullanıcının adı: Ali')).toBe(false);
+    expect(isGarbageEntry('Kullanıcı çay sever')).toBe(false);
+    expect(isGarbageEntry('Kullanıcının yaşı: 21')).toBe(false);
   });
 });

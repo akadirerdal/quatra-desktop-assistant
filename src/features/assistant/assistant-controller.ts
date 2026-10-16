@@ -328,6 +328,10 @@ export class AssistantController {
       void this.saveMemory(`Kullanıcının adı: ${memIntent.name}`);
       return;
     }
+    if (memIntent?.kind === 'surname') {
+      void this.saveMemory(`Kullanıcının soyadı: ${memIntent.surname}`);
+      return;
+    }
     if (memIntent?.kind === 'remember') {
       void this.saveMemory(memIntent.text);
       return;
@@ -387,6 +391,7 @@ export class AssistantController {
         personality: settings.personality || undefined,
         useMemory: settings.memory.enabled,
         memoryEngine: settings.memory.engine,
+        autoLearn: settings.memory.autoLearn,
         detailed: isDetailRequest(text),
       })
       .catch(() => {

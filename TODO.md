@@ -199,3 +199,16 @@ Durum etiketleri: ✅ tamam | 🟡 kısmi | ⛔ blocked | ⬜ başlanmadı.
   - **Log düzeltmeleri:** open_app Türkçe ad eşlemesi (not defteri, hesap makinesi, görev yöneticisi…), tool HATA detayları loglanır, agent model/süre logu, ses hattı olay logları (mic açılış filtreleri, kayıt sonu, STT sonucu, TTS motoru + fallback, barge olayları), renderer → main log köprüsü (info/warn/error).
 - **Kanıt:** 126 test ✅, paketli smoke ✅ (log: filtreler A/A/A + uyandırma döngüsü kayıtlı), kurulum masaüstünde
 - **Şu an:** Phase 2'ye geçilebilir.
+
+### Geri Bildirim Turları — 2026-10-16 (gece, devam)
+
+**Tur 2 (barge + hafıza v2):** barge-in zaman tabanı hatası düzeltildi (Date.now↔performance.now karışımı); uyandırma sonrası komut devri ("quatra hatırla: …"); "Efendim?" karşılaması; kısa yanıt varsayılanı + detay bayrağı; hafıza: `hafiza_kaydet` tool + "adım ne?" yerel yanıt. 137 test.
+
+**Tur 3 (hafıza v3 — mem0):** model tool'u unutsa bile konuşma sonrası garantili çıkarım; GitHub **mem0** (67K ⭐, Apache-2.0) REST entegrasyonu — opsiyonel "mem0" motoru (Ayarlar → Hafıza; anahtar kasada); çöp ad kayıtları açılışta temizlenir; isim kaydı değiştirme usulü. 149 test.
+
+**Tur 4 (hafıza v4 — "insan gibi hatırla"):** geri bildirim: "her şeyi kaydediyor, 'Hatırladım' diyor, istekleri yanlış anlıyor".
+- **Sessiz öğrenme:** sistem prompt + tool talimatı — kayıt işlemi kullanıcıya asla bildirilmez ("hatırladım/not aldım" yasak); yerel onay "Aklımda ✓".
+- **Kalite kapıları:** `hasMemorySignal` (kişisel sinyal yoksa çıkarım çağrısı hiç yapılmaz) + katı `EXTRACTION_PROMPT` (KAYDET/KAYDETME listeleri) + `isGarbageEntry` + `isNearDuplicate` (yakın tekrar engeli) + tekil kayıt güncelleme (isim/yaş/meslek… eskisini değiştirir).
+- **Ayarlar:** "Konuşmalardan otomatik öğren" anahtarı (varsayılan açık) — `memory.autoLearn`.
+- **Komut ayrıştırma:** "unutma"/"not al" eklendi; "hatırladın mı?" gibi sorular kayıt sayılmaz (yanlış anlama azaltıldı).
+- **Kanıt:** 156 test ✅

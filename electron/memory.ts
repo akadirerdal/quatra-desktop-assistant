@@ -5,7 +5,7 @@
 import { app, ipcMain } from 'electron';
 import path from 'node:path';
 import { MemoryStore } from '../src/services/memory/memory-store';
-import { isGarbageNameEntry } from '../src/services/memory/extraction';
+import { appLogger } from '../src/services/log/logger';
 
 function store(): MemoryStore {
   return new MemoryStore(path.join(app.getPath('userData'), 'memory.json'));
@@ -14,11 +14,8 @@ function store(): MemoryStore {
 /** Açılışta eski bug kalıntılarını (ör. "adı: ne") temizler. */
 async function cleanupOnBoot(): Promise<void> {
   try {
-    const s = store();
-    const entries = await s.load();
-    for (const e of entries) {
-      if (isGarbageNameEntry(e.text)) await s.remove(e.id);
-    }
+    const removed = await store().cleanupGarbage();
+    if (removed > 0) appLogger.scoped('memory').info(`${removed} çöp kayıt temizlendi`);
   } catch {
     // temizlik hatası önemli değil
   }

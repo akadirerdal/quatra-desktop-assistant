@@ -39,6 +39,8 @@ const VoiceSchema = z.object({
 const MemorySchema = z.object({
   /** Hafızanın prompt'a eklenip eklenmeyeceği (kayıtlar hep yerel kalır). */
   enabled: z.boolean().default(true),
+  /** Konuşmalardan otomatik öğrenme — yalnızca kalıcı değer taşıyan bilgiler. */
+  autoLearn: z.boolean().default(true),
   /** Motor: local (varsayılan, cihazda) | mem0 (bulut, ek anahtar gerekir). */
   engine: z.enum(['local', 'mem0']).default('local'),
 });

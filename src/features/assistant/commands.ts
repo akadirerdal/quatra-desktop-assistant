@@ -5,6 +5,7 @@
 
 export type MemoryIntent =
   | { kind: 'name'; name: string }
+  | { kind: 'surname'; surname: string }
   | { kind: 'remember'; text: string }
   | null;
 
@@ -27,7 +28,14 @@ export function parseMemoryIntent(text: string): MemoryIntent {
     const name = nameMatch[2].replace(/[.!?,]+$/g, '').trim().slice(0, 60);
     if (name && !/^ne\b/i.test(name)) return { kind: 'name', name };
   }
-  const rememberMatch = t.match(/^(hatırla|şunu hatırla|not et|aklında tut)[,:\s]+(.+)$/i);
+  const surnameMatch = t.match(/^(benim soyadım|soyadım|soyismim)\s+(.+)$/i);
+  if (surnameMatch?.[2]) {
+    const surname = surnameMatch[2].replace(/[.!?,]+$/g, '').trim().slice(0, 60);
+    if (surname && !/^ne\b/i.test(surname)) return { kind: 'surname', surname };
+  }
+  const rememberMatch = t.match(
+    /^(hatırla|şunu hatırla|not et|not al|aklında tut|unutma|şunu unutma)[,:\s]+(.+)$/i,
+  );
   if (rememberMatch?.[2]) {
     return { kind: 'remember', text: rememberMatch[2].trim().slice(0, 500) };
   }

@@ -14,7 +14,14 @@ import { MemoryStore } from '../src/services/memory/memory-store';
 import { getApiKey } from './credentials';
 import { createNativeBridge } from './native';
 import { mem0Add, mem0Search } from './mem0-service';
-import { parseExtractedFacts, shouldReplaceEntry } from '../src/services/memory/extraction';
+import {
+  EXTRACTION_PROMPT,
+  hasMemorySignal,
+  isGarbageEntry,
+  isNearDuplicate,
+  parseExtractedFacts,
+  shouldReplaceEntry,
+} from '../src/services/memory/extraction';
 import { appLogger } from '../src/services/log/logger';
 
 export interface AgentRunRequest {
@@ -29,6 +36,8 @@ export interface AgentRunRequest {
   detailed?: boolean;
   /** Hafıza motoru: local | mem0. */
   memoryEngine?: 'local' | 'mem0';
+  /** Konuşmalardan otomatik öğrenme (ayarlardan; varsayılan açık). */
+  autoLearn?: boolean;
 }
 
 export type AgentEvent =
@@ -120,11 +129,11 @@ export async function runAgent(
       }
     }
 
-    // Model, konuşma içinde öğrendiği önemli bilgileri KENDİSİ hafızaya yazar.
+    // Model, konuşma içinde öğrendiği KALICI bilgileri SESSİZCE hafızaya yazar.
     registry.register({
       name: 'hafiza_kaydet',
       description:
-        'Kullanıcı hakkında önemli bir bilgiyi kalıcı hafızaya ekler (isim, tercihler, önemli olaylar). Kullanıcı kendisiyle ilgili kalıcı değer taşıyan bir şey söylediğinde kullan. Kısa ve öz yaz.',
+        'Kullanıcı hakkında KALICI değer taşıyan bir bilgiyi hafızaya ekler (isim, yaş, kalıcı tercih, ilişki, önemli tarih). Geçici şeyleri (anlık durum, hava durumu, sohbet dolgusu) kaydetme. Kaydettiğini kullanıcıya SÖYLEME; yanıtında "hatırladım/not aldım" deme, doğal sohbete devam et. Kısa ve öz yaz (ör. "Kullanıcının adı: Ali").',
       schema: z.object({ text: z.string().min(2).max(500) }),
       parameters: {
         type: 'object',
@@ -135,7 +144,11 @@ export async function runAgent(
       },
       permission: 'safe',
       run: async (args: { text: string }) => {
-        await memoryStore.add(args.text, 'assistant');
+        const text = String(args.text).trim();
+        if (!text || isGarbageEntry(text)) return { saved: false };
+        const existing = (await memoryStore.load()).find((e) => shouldReplaceEntry(e.text, text));
+        if (existing) await memoryStore.remove(existing.id);
+        await memoryStore.add(text, 'assistant');
         return { saved: true };
       },
     });
@@ -194,14 +207,7 @@ export async function runAgent(
   }
 }
 
-// ---- Hafıza çıkarımı (garanti katmanı) ----
-
-const EXTRACT_PROMPT = [
-  'Sen bir bilgi çıkarıcısın. Aşağıdaki konuşmadan KULLANICI hakkında kalıcı değer taşıyan',
-  'olguları çıkar (isim, yaş, tercihler, önemli olaylar, kişisel bilgiler).',
-  'Yalnızca JSON dizi döndür, örnek: ["Kullanıcının adı: Ali", "Kullanıcı Fenerbahçeli"].',
-  'Kalıcı olmayan şeyleri (geçici sorular, hava durumu gibi) EKLEME. Boşsa [] döndür.',
-].join('\n');
+// ---- Hafıza çıkarımı: yalnızca KALICI bilgiler, sessizce ----
 
 async function persistMemory(
   req: AgentRunRequest,
@@ -211,7 +217,11 @@ async function persistMemory(
 ): Promise<void> {
   const log = appLogger.scoped('memory');
   try {
-    // 1) mem0 motoru seçiliyse buluta da yaz.
+    // Kapılar: kapalıysa veya mesajda kişisel sinyal yoksa hiç model çağrısı yapılmaz.
+    if (req.autoLearn === false) return;
+    if (!hasMemorySignal(req.text)) return;
+
+    // 1) mem0 motoru seçiliyse buluta da yaz (kullanıcı bu motoru seçtiyse).
     if (req.memoryEngine === 'mem0') {
       const mem0Key = await getApiKey('mem0');
       if (mem0Key) {
@@ -226,23 +236,31 @@ async function persistMemory(
         }
       }
     }
-    // 2) Yerel çıkarım HER ZAMAN çalışır.
+
+    // 2) Yerel çıkarım — model tool çağırmayı unutsa da kalıcı bilgiler yakalanır.
     const res = await client.chat({
       model: 'deepseek-chat',
       messages: [
-        { role: 'system', content: EXTRACT_PROMPT },
-        { role: 'user', content: `Kullanıcı: ${req.text.slice(0, 1200)}\nAsistan: ${assistantText.slice(0, 1200)}` },
+        { role: 'system', content: EXTRACTION_PROMPT },
+        {
+          role: 'user',
+          content: `Kullanıcı: ${req.text.slice(0, 1200)}\nAsistan: ${assistantText.slice(0, 1200)}`,
+        },
       ],
       temperature: 0.1,
       maxTokens: 300,
     });
-    const facts = parseExtractedFacts(res.content);
+    const facts = parseExtractedFacts(res.content).filter((f) => !isGarbageEntry(f));
+    let saved = 0;
     for (const fact of facts) {
-      const existing = (await store.load()).find((e) => shouldReplaceEntry(e.text, fact));
-      if (existing) await store.remove(existing.id);
+      const entries = await store.load();
+      const replace = entries.find((e) => shouldReplaceEntry(e.text, fact));
+      if (replace) await store.remove(replace.id);
+      else if (entries.some((e) => isNearDuplicate(e.text, fact))) continue;
       await store.add(fact, 'assistant');
+      saved += 1;
     }
-    if (facts.length) log.info(`hafıza: ${facts.length} olgu çıkarıldı`);
+    if (saved > 0) log.info(`hafıza: ${saved} kalıcı bilgi öğrenildi`);
   } catch (e) {
     log.warn(`hafıza çıkarımı başarısız: ${String(e)}`);
   }

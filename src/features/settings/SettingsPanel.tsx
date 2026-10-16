@@ -684,6 +684,14 @@ function MemorySection(): React.JSX.Element {
           onChange={(v) => void update({ memory: { ...settings.memory, enabled: v } })}
         />
       </div>
+      <div className="field row between">
+        <label style={{ margin: 0 }}>{strings.memoryAutoLearn}</label>
+        <Switch
+          on={settings.memory.autoLearn}
+          onChange={(v) => void update({ memory: { ...settings.memory, autoLearn: v } })}
+        />
+      </div>
+      <div className="hint">{strings.memoryAutoLearnHint}</div>
       <div className="field">
         <label>{strings.memoryEngine}</label>
         <Select

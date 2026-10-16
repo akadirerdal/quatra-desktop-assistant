@@ -50,6 +50,7 @@ export interface QuatraBridge {
       useMemory?: boolean;
       detailed?: boolean;
       memoryEngine?: 'local' | 'mem0';
+      autoLearn?: boolean;
     }): Promise<{ started: boolean }>;
     cancel(): Promise<{ ok: boolean }>;
     onEvent(handler: (event: AgentEvent) => void): () => void;

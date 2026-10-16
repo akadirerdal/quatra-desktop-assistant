@@ -4,6 +4,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { isGarbageEntry, isNearDuplicate } from './extraction';
 
 export interface MemoryEntry {
   id: string;
@@ -39,9 +40,10 @@ export class MemoryStore {
     const trimmed = text.trim().slice(0, 500);
     if (!trimmed) throw new Error('Boş hafıza kaydı.');
     const entries = await this.load();
-    if (entries.some((e) => e.text === trimmed)) {
-      // Aynı kayıt zaten var — sessizce geri dön.
-      return entries.find((e) => e.text === trimmed)!;
+    const existing = entries.find((e) => e.text === trimmed || isNearDuplicate(e.text, trimmed));
+    if (existing) {
+      // Aynı/çok benzer kayıt zaten var — sessizce geri dön.
+      return existing;
     }
     const entry: MemoryEntry = { id: newId(), text: trimmed, createdAt: new Date().toISOString(), source };
     entries.push(entry);
@@ -95,5 +97,13 @@ export class MemoryStore {
     await fs.promises.mkdir(path.dirname(this.file), { recursive: true });
     await fs.promises.writeFile(tmp, JSON.stringify({ version: 1, entries }, null, 2), 'utf8');
     await fs.promises.rename(tmp, this.file);
+  }
+
+  /** Çöp kayıtları temizler ("Kullanıcının adı: ne" gibi eski bug kalıntıları). */
+  async cleanupGarbage(): Promise<number> {
+    const entries = await this.load();
+    const clean = entries.filter((e) => !isGarbageEntry(e.text));
+    if (clean.length !== entries.length) await this.save(clean);
+    return entries.length - clean.length;
   }
 }

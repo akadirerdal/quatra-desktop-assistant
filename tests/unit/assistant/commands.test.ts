@@ -13,6 +13,14 @@ describe('parseMemoryIntent', () => {
     expect(parseMemoryIntent('ismim Ayşe!')).toEqual({ kind: 'name', name: 'Ayşe' });
   });
 
+  it('soyad kalıbını yakalar', () => {
+    expect(parseMemoryIntent('soyadım Demir')).toEqual({ kind: 'surname', surname: 'Demir' });
+    expect(parseMemoryIntent('benim soyadım Yılmaz.')).toEqual({
+      kind: 'surname',
+      surname: 'Yılmaz',
+    });
+  });
+
   it('"adım ne" sorusunu KAYIT sanmaz', () => {
     expect(parseMemoryIntent('adım ne')).toBeNull();
     expect(parseMemoryIntent('benim adım ne?')).toBeNull();
@@ -28,6 +36,15 @@ describe('parseMemoryIntent', () => {
       text: 'köpeğimin adı Karabaş',
     });
     expect(parseMemoryIntent('not et, süt al')).toEqual({ kind: 'remember', text: 'süt al' });
+    expect(parseMemoryIntent('unutma: annemin doğum günü 5 Mayıs')).toEqual({
+      kind: 'remember',
+      text: 'annemin doğum günü 5 Mayıs',
+    });
+  });
+
+  it('hatırla SORUSUNU kayıt sanmaz', () => {
+    expect(parseMemoryIntent('hatırladın mı?')).toBeNull();
+    expect(parseMemoryIntent('bunu hatırlıyor musun')).toBeNull();
   });
 
   it('alakasız metinde null döner', () => {
