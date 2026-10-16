@@ -4,6 +4,7 @@
  */
 import { app, BrowserWindow, dialog } from 'electron';
 import path from 'node:path';
+import { z } from 'zod';
 import { DeepSeekClient } from '../src/providers/deepseek/client';
 import { ToolRegistry } from '../src/features/tools/registry';
 import { PermissionManager } from '../src/features/tools/permissions';
@@ -22,6 +23,8 @@ export interface AgentRunRequest {
   personality?: string;
   /** Hafıza kayıtlarının prompt'a eklenmesi (ayarlardan). */
   useMemory?: boolean;
+  /** Kullanıcı detaylı yanıt istedi (uzun cevap talimatı eklenir). */
+  detailed?: boolean;
 }
 
 export type AgentEvent =
@@ -90,17 +93,40 @@ export async function runAgent(
     for (const tool of createBuiltinTools()) registry.register(tool);
 
     // Hafıza: kullanıcı izin verdiyse ilgili kayıtlar prompt'a eklenir (yalnız yerel).
+    const memoryStore = new MemoryStore(path.join(app.getPath('userData'), 'memory.json'));
     let memoryBlock = '';
     if (req.useMemory) {
-      const memoryStore = new MemoryStore(path.join(app.getPath('userData'), 'memory.json'));
       memoryBlock = await memoryStore.contextBlock(req.text, 1200);
     }
+
+    // Model, konuşma içinde öğrendiği önemli bilgileri KENDİSİ hafızaya yazar.
+    registry.register({
+      name: 'hafiza_kaydet',
+      description:
+        'Kullanıcı hakkında önemli bir bilgiyi kalıcı hafızaya ekler (isim, tercihler, önemli olaylar). Kullanıcı kendisiyle ilgili kalıcı değer taşıyan bir şey söylediğinde kullan. Kısa ve öz yaz.',
+      schema: z.object({ text: z.string().min(2).max(500) }),
+      parameters: {
+        type: 'object',
+        properties: {
+          text: { type: 'string', description: 'Hatırlanacak bilgi (ör. "Kullanıcının adı: Ali")' },
+        },
+        required: ['text'],
+      },
+      permission: 'safe',
+      run: async (args: { text: string }) => {
+        await memoryStore.add(args.text, 'assistant');
+        return { saved: true };
+      },
+    });
 
     const systemPrompt =
       (memoryBlock ? `${memoryBlock}\n\n` : '') +
       (req.personality
         ? `${DEFAULT_SYSTEM_PROMPT}\nKullanıcı tercihi: ${req.personality}`
-        : DEFAULT_SYSTEM_PROMPT);
+        : DEFAULT_SYSTEM_PROMPT) +
+      (req.detailed
+        ? '\nKullanıcı detaylı yanıt istiyor — bu yanıtı kapsamlı ve ayrıntılı ver.'
+        : '');
 
     log.info(
       `agent başladı — model=${req.model}, hafıza=${memoryBlock ? 'var' : 'yok'}, sıcaklık=${req.temperature ?? '-'}`,

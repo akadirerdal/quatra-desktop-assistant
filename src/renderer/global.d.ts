@@ -48,6 +48,7 @@ export interface QuatraBridge {
       maxTokens?: number;
       personality?: string;
       useMemory?: boolean;
+      detailed?: boolean;
     }): Promise<{ started: boolean }>;
     cancel(): Promise<{ ok: boolean }>;
     onEvent(handler: (event: AgentEvent) => void): () => void;

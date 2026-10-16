@@ -7,7 +7,7 @@ import { useAssistantStore, TASK_DONE_LINGER_MS } from '../../state/assistant-st
 import { useSettingsStore, activeModel } from '../../state/settings-store';
 import { AudioService } from '../audio/audio-service';
 import { WakeWordService, matchesWakeWord, extractCommandAfterWake } from '../audio/wake-word';
-import { parseMemoryIntent, detectModeCommand } from './commands';
+import { parseMemoryIntent, detectModeCommand, isNameQuestion, isDetailRequest } from './commands';
 import { strings } from '../../renderer/strings';
 import type { AgentEvent } from '../../renderer/global';
 
@@ -22,6 +22,8 @@ export class AssistantController {
   private registeredCombo: string | null = null;
   private followToken = 0;
   private conversationActive = false;
+  private pendingWakeCapture = false;
+  private greetingIndex = 0;
 
   constructor() {
     this.audio = new AudioService(
@@ -143,7 +145,14 @@ export class AssistantController {
       st.setStatus('processing');
       this.send(rest.trim());
     } else {
-      void this.startCommandCapture('wake');
+      // Sadece "quatra" dendi → kısa karşılama ("Efendim?") + dinlemeye geç.
+      const greetings = [strings.wakeGreeting, strings.wakeGreetingAlt];
+      const greeting = greetings[this.greetingIndex % greetings.length]!;
+      this.greetingIndex += 1;
+      this.pendingWakeCapture = true;
+      this.conversationActive = true;
+      this.wake?.pause();
+      this.sayLocal(greeting);
     }
   }
 
@@ -307,6 +316,12 @@ export class AssistantController {
     const assistant = useAssistantStore.getState();
     const lower = text.toLowerCase();
 
+    // "adım ne?" gibi sorular → hafızadan yanıt (yanlışlıkla kayıt değil!)
+    if (isNameQuestion(text)) {
+      void this.answerNameQuestion();
+      return;
+    }
+
     // Yerel hafıza komutları (isim + hatırla)
     const memIntent = parseMemoryIntent(text);
     if (memIntent?.kind === 'name') {
@@ -371,6 +386,7 @@ export class AssistantController {
         maxTokens: settings.provider.maxTokens,
         personality: settings.personality || undefined,
         useMemory: settings.memory.enabled,
+        detailed: isDetailRequest(text),
       })
       .catch(() => {
         assistant.updateTask(taskId, { state: 'error', detail: strings.taskFailed });
@@ -398,6 +414,18 @@ export class AssistantController {
     }
     const recent = entries.slice(-5).map((e) => `- ${e.text}`).join('\n');
     this.sayLocal(`${strings.memoryListPrefix} ${entries.length} kayıt:\n${recent}`);
+  }
+
+  /** "adım ne?" → hafızadaki isim kaydından yanıt verir. */
+  private async answerNameQuestion(): Promise<void> {
+    const entries = (await window.quatra?.memory.list()) ?? [];
+    const nameEntry = entries.find((e) => e.text.toLowerCase().includes('kullanıcının adı'));
+    if (nameEntry) {
+      const name = nameEntry.text.replace(/kullanıcının adı\s*[:：]\s*/i, '').trim();
+      this.sayLocal(`${strings.nameAnswer} ${name}.`);
+    } else {
+      this.sayLocal(strings.nameUnknown);
+    }
   }
 
   private onAgentEvent(event: AgentEvent): void {
@@ -461,6 +489,14 @@ export class AssistantController {
   private onTtsEnd(): void {
     const store = useAssistantStore.getState();
     if (store.status === 'speaking') store.setStatus('idle');
+    // Karşılama ("Efendim?") bitti → dinlemeye geç.
+    if (this.pendingWakeCapture) {
+      this.pendingWakeCapture = false;
+      if (!store.mutedByUser) {
+        void this.startCommandCapture('wake');
+        return;
+      }
+    }
     // Sohbet hâlâ sürüyorsa uyandırma servisi BEKLEMEDE kalır (mikrofonu sohbete bırakır).
     // Yalnızca sohbet bittiğinde "Quatra" beklemeye döner.
     if (this.wake?.isRunning() && !this.conversationActive) this.wake.resume();

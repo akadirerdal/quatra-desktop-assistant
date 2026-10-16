@@ -1,11 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { parseMemoryIntent, detectModeCommand } from '../../../src/features/assistant/commands';
+import {
+  detectModeCommand,
+  isDetailRequest,
+  isNameQuestion,
+  parseMemoryIntent,
+} from '../../../src/features/assistant/commands';
 
 describe('parseMemoryIntent', () => {
   it('isim kalıbını yakalar', () => {
     expect(parseMemoryIntent('benim adım Ali')).toEqual({ kind: 'name', name: 'Ali' });
     expect(parseMemoryIntent('adım Mehmet')).toEqual({ kind: 'name', name: 'Mehmet' });
     expect(parseMemoryIntent('ismim Ayşe!')).toEqual({ kind: 'name', name: 'Ayşe' });
+  });
+
+  it('"adım ne" sorusunu KAYIT sanmaz', () => {
+    expect(parseMemoryIntent('adım ne')).toBeNull();
+    expect(parseMemoryIntent('benim adım ne?')).toBeNull();
   });
 
   it('hatırla kalıbını yakalar', () => {
@@ -23,6 +33,20 @@ describe('parseMemoryIntent', () => {
   it('alakasız metinde null döner', () => {
     expect(parseMemoryIntent('saat kaç')).toBeNull();
     expect(parseMemoryIntent('hava nasıl')).toBeNull();
+  });
+});
+
+describe('isNameQuestion / isDetailRequest', () => {
+  it('isim sorusunu tanır', () => {
+    expect(isNameQuestion('adım ne')).toBe(true);
+    expect(isNameQuestion('benim ismim ne?')).toBe(true);
+    expect(isNameQuestion('benim adım Ali')).toBe(false);
+  });
+
+  it('detay isteğini tanır', () => {
+    expect(isDetailRequest('bunu detaylı anlat')).toBe(true);
+    expect(isDetailRequest('uzun uzun açıkla')).toBe(true);
+    expect(isDetailRequest('saat kaç')).toBe(false);
   });
 });
 

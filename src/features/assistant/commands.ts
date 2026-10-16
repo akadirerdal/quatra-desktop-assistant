@@ -8,13 +8,24 @@ export type MemoryIntent =
   | { kind: 'remember'; text: string }
   | null;
 
-/** "benim adım X" / "hatırla: Y" kalıplarını tanır. */
+/** "adım ne?" gibi SORULAR yanlışlıkla kayıt kalıbına girmesin. */
+export function isNameQuestion(text: string): boolean {
+  return /(benim\s+)?(adım|ismim|adın)\s+ne\b/i.test(text) || /\b(adım|ismim|adın)\s+ne\??$/i.test(text.trim());
+}
+
+/** Kullanıcı uzun/detaylı yanıt mı istiyor? */
+export function isDetailRequest(text: string): boolean {
+  return /detaylı|ayrıntılı|uzun uzun|uzun anlat|daha kapsamlı|açıkla|detaya gir/i.test(text);
+}
+
+/** "benim adım X" / "hatırla: Y" kalıplarını tanır (sorular hariç). */
 export function parseMemoryIntent(text: string): MemoryIntent {
   const t = text.trim();
-  const nameMatch = t.match(/^(benim adım|adım|ismim|benim ismim|adın ne olsun)\s+(.+)$/i);
+  if (isNameQuestion(t)) return null;
+  const nameMatch = t.match(/^(benim adım|adım|ismim|benim ismim)\s+(.+)$/i);
   if (nameMatch?.[2]) {
     const name = nameMatch[2].replace(/[.!?,]+$/g, '').trim().slice(0, 60);
-    if (name) return { kind: 'name', name };
+    if (name && !/^ne\b/i.test(name)) return { kind: 'name', name };
   }
   const rememberMatch = t.match(/^(hatırla|şunu hatırla|not et|aklında tut)[,:\s]+(.+)$/i);
   if (rememberMatch?.[2]) {
