@@ -3,6 +3,7 @@
 > Asistan adı: **Quatra**. Bu doküman tek plan kaynağıdır.
 > Çalışma prensibi: sadece `verify` (typecheck+lint+test) geçen adım ✅ olur. Kırmızıyken sonraki adıma geçilmez.
 > **Çalışma modu (2026-10-16, kullanıcı kararı):** Geliştirme bundan sonra **kaynak koddan** yürür (`npm run dev:electron`) — her turda paketleme YOK. NSIS kurulum dosyası yalnızca ürün bitince üretilir. Tur döngüsü: kod → `npm run verify` → dev uygulamada kullanıcı testi.
+> **Masaüstü başlatıcı:** `Quatra.lnk` (masaüstü) → `scripts/quatra-baslat.vbs` → gizli `npm run dev:electron`. Zaten açıksa uyarır; pencereyi kapatınca tüm süreçler kendiliğinden durur. İkon `build/icon.ico` (`node scripts/make-icon.mjs` ile üretilir; final kurulum paketlemesi de bunu kullanır).
 
 ---
 
