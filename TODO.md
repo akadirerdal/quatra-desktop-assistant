@@ -214,3 +214,7 @@ Durum etiketleri: ✅ tamam | 🟡 kısmi | ⛔ blocked | ⬜ başlanmadı.
 - **Ayarlar:** "Konuşmalardan otomatik öğren" anahtarı (varsayılan açık) — `memory.autoLearn`.
 - **Komut ayrıştırma:** "unutma"/"not al" eklendi; "hatırladın mı?" gibi sorular kayıt sayılmaz (yanlış anlama azaltıldı).
 - **Kanıt:** 156 test ✅
+
+**Tur 5 (kullanım kılavuzu PDF):** kullanıcı hafızayı onayladı ("hafıza da çalışıyor, güzel oldu") ve "neyin nerede çalıştığını" öğrenebilmek için tüm yapılanları kapsayan bir PDF istedi.
+- `scripts/quatra-kilavuz.py` (reportlab + Windows Arial — Türkçe karakterler gömülü) → `docs/Quatra-Kullanim-Kilavuzu.pdf` (~120 KB): ekran rehberi, sesli kullanım akışı, gerçek yetenekler + model seviyeleri, hafıza sistemi, 8 ayar bölümü, veri/gizlilik yerleşimi, sorun giderme tablosu, dürüst sınırlar, hızlı komut kartı, teknik kod haritası.
+- PDF masaüstüne kopyalandı (`Quatra-Kullanim-Kilavuzu.pdf`); kılavuz her sürümde `python scripts/quatra-kilavuz.py` ile yeniden üretilir.
