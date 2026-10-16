@@ -89,6 +89,19 @@ export function App(): React.JSX.Element {
     applyAppearance(appearanceCss);
   }, [loaded, appearanceCss]);
 
+  // Tepsi komutları (V1-13): pencere gizliyken mikrofon aç/kapat + ayarları aç.
+  useEffect(() => {
+    const off = window.quatra?.app.onCommand((cmd) => {
+      if (cmd.name === 'toggle-mic') {
+        const muted = useAssistantStore.getState().mutedByUser;
+        controller.setMuted(!muted);
+      } else if (cmd.name === 'open-settings') {
+        setSettingsOpen(true);
+      }
+    });
+    return () => off?.();
+  }, [controller]);
+
   const toggleMic = () => {
     if (mutedByUser) {
       controller.setMuted(false);

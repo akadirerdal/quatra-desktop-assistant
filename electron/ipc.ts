@@ -127,6 +127,26 @@ export function registerIpc(win: BrowserWindow): void {
     return { ok: true, handled: resolveAgentConfirm(String(requestId ?? ''), approved === true) };
   });
 
+  // ---------------------------------------------------------------- otomatik başlatma (V1-14)
+  // Gerçek durum İŞLETİM SİSTEMİNDEN okunur (kayıt defteri). Kaynak modda dürüstçe "desteklenmiyor".
+  const loginItemSupported = (): boolean =>
+    (process.platform === 'win32' || process.platform === 'darwin') && app.isPackaged;
+  ipcMain.handle('app:login-item-get', async () => {
+    if (!loginItemSupported()) return { ok: true, supported: false, enabled: false };
+    return { ok: true, supported: true, enabled: app.getLoginItemSettings().openAtLogin };
+  });
+  ipcMain.handle('app:login-item-set', async (_e, enabled: boolean) => {
+    if (!loginItemSupported()) {
+      return {
+        ok: false,
+        supported: false,
+        message: 'Otomatik başlatma yalnız kurulu (paketlenmiş) sürümde kullanılabilir.',
+      };
+    }
+    app.setLoginItemSettings({ openAtLogin: enabled === true });
+    return { ok: true, supported: true, enabled: app.getLoginItemSettings().openAtLogin };
+  });
+
   // ---------------------------------------------------------------- global bas-konuş
   ipcMain.handle('shortcut:register', async (_e, accelerator: string) => {
     const log = appLogger.scoped('shortcut');

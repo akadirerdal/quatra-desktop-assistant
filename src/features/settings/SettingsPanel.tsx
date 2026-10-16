@@ -70,9 +70,16 @@ function GeneralSection(): React.JSX.Element {
   const restoreDefaults = useSettingsStore((s) => s.restoreDefaults);
   const [confirming, setConfirming] = useState(false);
   const [version, setVersion] = useState('0.1.0');
+  const [loginItem, setLoginItem] = useState<{ supported: boolean; enabled: boolean } | null>(null);
 
   useEffect(() => {
     void window.quatra?.app.version().then((v) => setVersion(v));
+  }, []);
+
+  useEffect(() => {
+    void window.quatra?.app
+      .getLaunchAtLogin()
+      .then((r) => setLoginItem({ supported: r.supported, enabled: r.enabled }));
   }, []);
 
   return (
@@ -109,6 +116,23 @@ function GeneralSection(): React.JSX.Element {
       <div className="field">
         <label>{strings.version}</label>
         <div className="statusHint">Quatra {version}</div>
+      </div>
+      <div className="field row between">
+        <label style={{ margin: 0 }}>{strings.launchAtLogin}</label>
+        <Switch
+          on={loginItem?.enabled ?? false}
+          disabled={loginItem !== null && !loginItem.supported}
+          onChange={(v) => {
+            void window.quatra?.app.setLaunchAtLogin(v).then((r) => {
+              if (r.ok && r.supported && typeof r.enabled === 'boolean') {
+                setLoginItem({ supported: true, enabled: r.enabled });
+              }
+            });
+          }}
+        />
+      </div>
+      <div className="hint">
+        {loginItem && !loginItem.supported ? strings.launchAtLoginDev : strings.launchAtLoginHint}
       </div>
       <div className="field">
         <Button variant="danger" onClick={() => setConfirming(true)}>

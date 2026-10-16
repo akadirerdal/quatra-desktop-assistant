@@ -62,6 +62,11 @@ export interface QuatraBridge {
   app: {
     version(): Promise<string>;
     rendererReady(): void;
+    getLaunchAtLogin(): Promise<{ ok: boolean; supported: boolean; enabled: boolean }>;
+    setLaunchAtLogin(
+      enabled: boolean,
+    ): Promise<{ ok: boolean; supported: boolean; enabled?: boolean; message?: string }>;
+    onCommand(handler: (cmd: { name: 'toggle-mic' | 'open-settings' }) => void): () => void;
   };
   log: {
     openLogs(): Promise<{ ok: boolean; path?: string; message?: string }>;

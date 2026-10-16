@@ -4,7 +4,7 @@
 > **👤 kullanıcı bildirimleri (Tur 7)** + **🔧 geliştirici tespitleri (v1 öncelik analizi)**.
 > Durum: ⬜ başlanmadı · 🟡 devam ediyor · ✅ bitti. Bir madde bitince `EKSIKLER.md`’nin ✅ bölümüne de işlenir.
 > **Son güncelleme:** 16.10.2026 (Tur 10)
-> **Durum:** A ✅ (V1-01…05), B ✅ (V1-06 streaming, V1-07 “sus”, V1-09 sözlü izin), C ✅ (V1-10 bağlam, V1-11 hatırlatıcı, V1-12 yedek sağlayıcı); V1-08 yerel uyandırma → paketleme aşamasına bırakıldı (SORULAR #5). E: V1-15 🟡 (favori/eleme sende), V1-16 ✅. Sıradaki: D paketi (V1-13 tepsi, V1-14 otomatik başlatma).
+> **Durum:** A ✅ (V1-01…05), B ✅ (V1-06 streaming, V1-07 “sus”, V1-09 sözlü izin), C ✅ (V1-10 bağlam, V1-11 hatırlatıcı, V1-12 yedek sağlayıcı), D ✅ (V1-13 tepsi, V1-14 otomatik başlatma); V1-08 yerel uyandırma → paketleme aşamasına bırakıldı (SORULAR #5). E: V1-15 🟡 (favori/eleme sende), V1-16 ✅. Sıradaki: F paketi (V1-17 işlem günlüğü, V1-18 yedek/geri al, V1-19 token).
 
 ---
 
@@ -27,8 +27,8 @@
 - ✅ **V1-12 · Yedek sağlayıcı + zarif hata** — DeepSeek GEÇİCİ hatasında (ağ / zaman aşımı / sunucu / hız limiti / anahtar) Groq'a otomatik yedek; ikisi de yanıt vermezse hata SESLİ bildirilir (“şu an bağlanamıyorum”). 🔧 → (Tur 10)
 
 ## D. Arka Plan & Başlangıç
-- ⬜ **V1-13 · Tepsi simgesi + arka planda yaşam** — pencere kapatılınca uygulama ölmez; tepside çalışır, dinlemeye devam eder. 🔧
-- ⬜ **V1-14 · Windows açılışında otomatik başlatma** — bilgisayar kapanıp açıldığında Quatra kendiliğinden başlar; Ayarlar’dan aç/kapat. 👤🔧
+- ✅ **V1-13 · Tepsi simgesi + arka planda yaşam** — window close = tepsiye in (uygulama ölmez); tepsi menüsü (Göster / Mikrofon / Ayarlar / Çıkış); ilk inişte bildirim; `backgroundThrottling:false` ile arka planda tam hız. 🔧 → (Tur 10)
+- ✅ **V1-14 · Windows açılışında otomatik başlatma** — Ayarlar → Genel'de anahtar; gerçek durum işletim sisteminden okunur; kurulu (paketlenmiş) sürümde etkin, kaynak modda dürüst “desteklenmez” notu. 👤🔧 → (Tur 10)
 
 ## E. Görsel & Kişiselleştirme *(karar birlikte)*
 - 🟡 **V1-15 · Tema sistemi** — 7 hazır tema uygulandı (Gece Moru, Okyanus, Zümrüt, Gün Batımı, Gül, Grafit, Şafak); Ayarlar → Görünüm'den canlı deneniyor. Kalan: senin turun + ince ayar (favoriler kalır, istemediklerin çıkar). 👤

@@ -9,6 +9,7 @@ import path from 'node:path';
 import { registerIpc } from './ipc';
 import { appLogger } from '../src/services/log/logger';
 import { appendLogLine, logFilePath } from './log-file';
+import { createTray, notifyFirstHide } from './tray';
 
 // esbuild main'i CJS olarak üretir; __dirname doğrudan kullanılabilir.
 const log = appLogger.scoped('main');
@@ -51,6 +52,13 @@ function bootUserDataPath(): void {
 bootUserDataPath();
 
 let mainWindow: BrowserWindow | null = null;
+// V1-13: X ile kapanma tepsiye iner; gerçek çıkış tepsi menüsünden veya uygulama kapanışından.
+let isQuitting = false;
+
+function quitApp(): void {
+  isQuitting = true;
+  app.quit();
+}
 
 function createWindow(): void {
   // Varsayılan menü (File/Edit/View…) kaldırılır — üst panel özel çubuktur.
@@ -72,6 +80,8 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false, // FAZ 7'de sandbox + CSP sertleştirmesiyle kaldırılacak (TODO 7.2)
+      // Tepsiye inince zamanlayıcılar kısılmasın (sesli asistan arka planda çalışır).
+      backgroundThrottling: false,
     },
   });
 
@@ -155,6 +165,15 @@ function createWindow(): void {
     void mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 
+  // V1-13: X = tepsiye in; uygulama yaşar, gerçek çıkış tepsi menüsünden.
+  mainWindow.on('close', (e) => {
+    if (isQuitting) return;
+    e.preventDefault();
+    mainWindow?.hide();
+    notifyFirstHide();
+    log.info('pencere tepsiye indi — uygulama yaşamaya devam ediyor');
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -186,10 +205,15 @@ void app.whenReady().then(() => {
   });
 
   createWindow();
+  if (mainWindow) createTray(mainWindow, quitApp);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+});
+
+app.on('before-quit', () => {
+  isQuitting = true;
 });
 
 app.on('window-all-closed', () => {

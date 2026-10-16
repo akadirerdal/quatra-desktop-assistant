@@ -256,3 +256,5 @@ Durum etiketleri: ✅ tamam | 🟡 kısmi | ⛔ blocked | ⬜ başlanmadı.
 - **Kanıt:** 190 test ✅ (commands +5, sentences +6, loop streaming +2), `verify` yeşil, secret taraması temiz.
 - **C paketi — anlayış & dayanıklılık (V1-10/11/12) ✅:** kısa süreli bağlam (son 6 tur ≤4000 karakter; yalnız RAM'de); yerel hatırlatıcı (“10 dakika sonra … hatırlat / alarm kur”, 2 sn–24 saat; sesli onay + görev balonu + sesli haber); yedek sağlayıcı (geçici DeepSeek hatasında Groq'a otomatik geçiş; ikisi de düşerse SESLİ hata).
 - **Kanıt:** 201 test ✅ (commands +4, context +4, fallback +2, loop bağlam +1), `verify` yeşil, secret taraması temiz.
+- **D paketi — arka plan & başlangıç (V1-13/14) ✅:** tepsi modu (X = tepsiye in; menü: Göster / Mikrofon Aç-Kapat / Ayarlar / Çıkış; ilk inişte tek sefer bilgilendirme; `backgroundThrottling:false`); Ayarlar → Genel'e “Windows açılışında başlat” anahtarı (durum işletim sisteminden okunur; yalnız kurulu sürümde etkin, kaynak modda dürüst “desteklenmez” notu).
+- **Kanıt:** 201 test ✅ (D: yeni saf mantık yok; main süreç + arayüz bağlantısı — ayar testi köprüsü güncellendi), `verify` yeşil, secret taraması temiz.

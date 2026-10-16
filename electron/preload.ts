@@ -82,6 +82,17 @@ const quatra = {
   app: {
     version: (): Promise<string> => ipcRenderer.invoke('app:version'),
     rendererReady: (): void => ipcRenderer.send('app:renderer-ready'),
+    getLaunchAtLogin: (): Promise<{ ok: boolean; supported: boolean; enabled: boolean }> =>
+      ipcRenderer.invoke('app:login-item-get'),
+    setLaunchAtLogin: (
+      enabled: boolean,
+    ): Promise<{ ok: boolean; supported: boolean; enabled?: boolean; message?: string }> =>
+      ipcRenderer.invoke('app:login-item-set', enabled),
+    onCommand: (handler: (cmd: { name: 'toggle-mic' | 'open-settings' }) => void): (() => void) => {
+      const listener = (_e: unknown, cmd: { name: 'toggle-mic' | 'open-settings' }) => handler(cmd);
+      ipcRenderer.on('app:command', listener);
+      return () => ipcRenderer.removeListener('app:command', listener);
+    },
   },
 
   log: {

@@ -47,8 +47,6 @@ _Bu sıralama §9’daki kullanıcı maddeleriyle birleştirilip **`V1-UPDATE.md
 ## 5. Arayüz
 - ⬜ **Konuşma geçmişi görüntülenemiyor** — altyazılar kaybolduktan sonra geriye dönük okunamıyor (chat panelli tasarım bilinçli olarak yok; istenirse “geçmiş” görünümü eklenir).
 - ⬜ **Açık tema yok** — yalnız koyu tema; vurgu rengi değiştirilebiliyor.
-- ⬜ **Tepsi (system tray) simgesi yok** — pencereyi kapatınca uygulama tümüyle kapanır; arka planda “kulak” kalmaz.
-- ⬜ **Arka planda sürekli dinleme yok** — üsttekiyle bağlantılı; tepsi + arka plan modu birlikte gelecek.
 - ⬜ **Yazıyla komut girişi yok** — bilinçli (ses öncelikli); klavye girişi alanı opsiyonel olarak eklenebilir.
 
 ## 6. Güvenlik ve veri
@@ -59,7 +57,6 @@ _Bu sıralama §9’daki kullanıcı maddeleriyle birleştirilip **`V1-UPDATE.md
 ## 7. Platform / kurulum
 - ⬜ **macOS hiç test edilmedi** — Windows için geliştirildi.
 - ⬜ **Final kurulum dosyası henüz yok** — şu an kaynak koddan çalışıyor; NSIS kurulum ürün bitince üretilecek.
-- ⬜ **Windows başlangıcında otomatik açılma yok.**
 - ⬜ **Otomatik güncelleme yok.**
 
 ## 8. Altyapı
@@ -95,3 +92,5 @@ _(Yeni bildirim geldikçe buraya eklenir.)_
 - ✅ **(Tur 10, 16.10) Kısa süreli konuşma bağlamı (V1-10)** — son 6 tur (≤4000 karakter) prompt'a eklenir; “peki ya yarın?” gibi takip cümleleri anlaşılır. Bağlam yalnız RAM'de tutulur — diske yazılmaz.
 - ✅ **(Tur 10, 16.10) Hatırlatıcı / zamanlayıcı (V1-11)** — “10 dakika sonra … hatırlat / alarm kur” (2 sn – 24 saat): sesli onay + görev balonu; süre dolunca sesle + yazıyla haber verir.
 - ✅ **(Tur 10, 16.10) Yedek sağlayıcı + zarif hata (V1-12)** — DeepSeek geçici kesintisinde (ağ/zaman aşımı/sunucu/hız limiti/anahtar) Groq'a otomatik geçiş; ikisi de düşerse hata SESLİ bildirilir (sessiz kalmaz).
+- ✅ **(Tur 10, 16.10) Tepsi + arka planda yaşam (V1-13)** — pencere kapatılınca uygulama kapanmaz, tepsiye iner (ilk inişte bir kez bilgilendirme). Tepsi menüsü: Göster · Mikrofon Aç/Kapat · Ayarları Aç · Çıkış. Arka planda zamanlayıcılar kısılmaz (`backgroundThrottling:false`). Mikrofon durumu kullanıcıda kalır — tepsi kendiliğinden dinlemeye başlamaz.
+- ✅ **(Tur 10, 16.10) Windows açılışında otomatik başlatma (V1-14)** — Ayarlar → Genel'de anahtar; durum işletim sisteminden okunur; yalnız kurulu (paketlenmiş) sürümde etkin — kaynak modda dürüstçe “desteklenmez” der.

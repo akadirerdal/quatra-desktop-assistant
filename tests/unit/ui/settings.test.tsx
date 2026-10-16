@@ -37,7 +37,13 @@ function installBridge(): void {
       onEvent: () => () => undefined,
     },
     tools: { pickDirectory: async () => null },
-    app: { version: async () => '0.1.0', rendererReady: () => undefined },
+    app: {
+      version: async () => '0.1.0',
+      rendererReady: () => undefined,
+      getLaunchAtLogin: async () => ({ ok: true, supported: false, enabled: false }),
+      setLaunchAtLogin: async () => ({ ok: false, supported: false }),
+      onCommand: () => () => undefined,
+    },
     window: { minimize: () => undefined, toggleMaximize: () => undefined, close: () => undefined },
   };
 }
