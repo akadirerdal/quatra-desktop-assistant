@@ -61,6 +61,8 @@ export const strings = {
   wakeUnavailable: 'Uyandırma motoru kurulu değil — şimdilik kullanılamaz',
   pttKey: 'Bas-konuş kısayolu',
   accent: 'Vurgu rengi',
+  theme: 'Tema',
+  themeHint: 'Tema arka plan renklerini değiştirir; seçince vurgu rengi de o temaya döner. Vurguyu alttan ince ayarlayabilirsin.',
   intensity: 'Görsel yoğunluk',
   animationSpeed: 'Animasyon hızı',
   glow: 'Işıltı',

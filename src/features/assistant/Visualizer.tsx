@@ -8,6 +8,7 @@
 import { useEffect, useRef } from 'react';
 import { useAssistantStore } from '../../state/assistant-store';
 import { useSettingsStore } from '../../state/settings-store';
+import { accentFamily, getTheme } from '../../renderer/themes';
 import type { VisualizerState } from '../../state/assistant-store';
 
 const TAU = Math.PI * 2;
@@ -56,6 +57,8 @@ export function Visualizer(props: { width?: number; height?: number }): React.JS
       const glow = appRef.glow;
       const intensity = appRef.intensity;
       const accent = appRef.accent;
+      const accentBright = accentFamily(accent).bright;
+      const mutedColor = getTheme(appRef.theme).vars.muted;
 
       const drawLine = (y: number, half: number, alpha: number) => {
         ctx.save();
@@ -144,7 +147,7 @@ export function Visualizer(props: { width?: number; height?: number }): React.JS
             const bh = Math.max(2, amp * env);
             ctx.save();
             ctx.globalAlpha = 0.35 + 0.6 * env;
-            ctx.fillStyle = env > 0.65 ? '#b9acf5' : accent;
+            ctx.fillStyle = env > 0.65 ? accentBright : accent;
             ctx.fillRect(x, cy - bh / 2, bw, bh);
             ctx.restore();
             x += bw + gap;
@@ -156,7 +159,7 @@ export function Visualizer(props: { width?: number; height?: number }): React.JS
           const half = 80;
           ctx.save();
           ctx.globalAlpha = 0.5;
-          ctx.strokeStyle = '#5a5d6e';
+          ctx.strokeStyle = mutedColor;
           ctx.lineWidth = 2;
           ctx.beginPath();
           ctx.moveTo(cx - half, cy);

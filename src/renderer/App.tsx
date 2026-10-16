@@ -11,6 +11,7 @@ import { useAssistantStore } from '../state/assistant-store';
 import { useSettingsStore } from '../state/settings-store';
 import { setSettingsBackend } from '../state/settings-store';
 import { IpcSettingsBackend } from './ipc-bridge';
+import { applyAppearance } from './themes';
 import { strings } from './strings';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { broken: boolean }> {
@@ -80,6 +81,13 @@ export function App(): React.JSX.Element {
     if (!loaded) return;
     void controller.syncActivation();
   }, [controller, loaded, activation.mode, activation.pushToTalkKey, activation.wakeWord]);
+
+  // Görünüm: tema, vurgu, ölçek ve hareket ayarlarını CSS'e uygula (ölü kontrol yok).
+  const appearanceCss = useSettingsStore((s) => s.settings.appearance);
+  useEffect(() => {
+    if (!loaded) return;
+    applyAppearance(appearanceCss);
+  }, [loaded, appearanceCss]);
 
   const toggleMic = () => {
     if (mutedByUser) {

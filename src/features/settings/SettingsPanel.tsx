@@ -7,6 +7,7 @@ import { Button, Dialog, Select, Slider, StatusPill, Switch } from '../../compon
 import { useSettingsStore } from '../../state/settings-store';
 import { useAssistantStore } from '../../state/assistant-store';
 import { strings } from '../../renderer/strings';
+import { THEMES, getTheme } from '../../renderer/themes';
 import type { AssistantController } from '../assistant/assistant-controller';
 
 type Category = 'general' | 'provider' | 'voice' | 'activation' | 'appearance' | 'memory' | 'privacy' | 'diagnostics';
@@ -588,6 +589,35 @@ function AppearanceSection(): React.JSX.Element {
   return (
     <>
       <h3>{strings.appearance}</h3>
+      <div className="field">
+        <label>{strings.theme}</label>
+        <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+          {THEMES.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => void update({ appearance: { ...app, theme: t.id, accent: t.accent } })}
+              title={`${t.label} — ${t.desc}`}
+              aria-label={t.label}
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 8,
+                cursor: 'pointer',
+                background: t.vars.bg,
+                border: app.theme === t.id ? `2px solid ${t.accent}` : '1px solid var(--border)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <span style={{ width: 12, height: 12, borderRadius: '50%', background: t.accent, display: 'inline-block' }} />
+            </button>
+          ))}
+        </div>
+        <div className="hint">
+          {getTheme(app.theme).label}: {strings.themeHint}
+        </div>
+      </div>
       <div className="field">
         <label>{strings.accent}</label>
         <div className="row" style={{ gap: 8 }}>

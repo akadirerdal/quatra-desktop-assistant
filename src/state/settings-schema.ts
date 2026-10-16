@@ -53,6 +53,8 @@ const ActivationSchema = z.object({
 });
 
 const AppearanceSchema = z.object({
+  /** Tema paleti — id listesi src/renderer/themes.ts ile senkron tutulmalı. */
+  theme: z.enum(['gece', 'okyanus', 'zumrut', 'gunbatimi', 'gul', 'grafit', 'safak']).default('gece'),
   accent: z.string().regex(/^#[0-9a-fA-F]{6}$/).default('#9B87F5'),
   intensity: z.number().min(0).max(1).default(0.7),
   animationSpeed: z.number().min(0.5).max(2).default(1),

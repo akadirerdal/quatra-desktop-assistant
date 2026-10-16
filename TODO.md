@@ -232,3 +232,10 @@ Durum etiketleri: ✅ tamam | 🟡 kısmi | ⛔ blocked | ⬜ başlanmadı.
 - `V1-UPDATE.md` oluşturuldu: 21 numaralı madde, 7 paket halinde (A mikrofon, B sesli deneyim, C zeka, D arka plan, E görsel, F güvenlik, G dağıtım) + H "v1'de değerlendirilecek" + I "kapsam dışı".
 - Kaynak etiketleri: 👤 kullanıcı bildirimi, 🔧 geliştirici tespiti; her madde tamamlanınca ✅ + EKSIKLER.md ile senkron.
 - EKSIKLER.md v1 bölümü ve §9, V1-UPDATE.md'ye bağlandı (tek doğru kaynak).
+
+**Tur 9 (E paketi — tema sistemi + MIC konseptleri):** kullanıcı "E paketinden başlayalım" dedi.
+- **Tema sistemi (V1-15):** `src/renderer/themes.ts` — 7 hazır tema (Gece Moru, Okyanus, Zümrüt, Gün Batımı, Gül, Grafit, Şafak) + saf yardımcılar (`mixHex`, `accentFamily`, `buildThemeVars`, `applyAppearance`); şema `appearance.theme`; Ayarlar → Görünüm'de tema seçici (tema seçimi vurguyu da temaya döndürür; alttan ince ayar yapılabilir).
+- **Ölü kontroller bulundu ve düzeltildi:** (1) vurgu rengi CSS'e hiç uygulanmıyordu — yalnız canvas'a gidiyordu; (2) "Arayüz ölçeği" hiçbir yere bağlı değildi; (3) "Hareketi azalt" yalnız canvas'ı etkiliyordu. Artık üçü de gerçek: CSS değişkenleri + `body zoom` + `reduced-motion` sınıfı.
+- **Stil:** sabit vurgu/panel rgba'ları değişkenleştirildi (`color-mix`, `--glass`, `--overlay`, `--on-accent`); Visualizer'daki sabit renkler temaya bağlandı (#b9acf5 → türetilmiş parlak vurgu, #5a5d6e → tema muted). Şafak (aydınlık) tema dahil — aydınlık kontrast turu kullanıcıyla yapılacak.
+- **MIC simgesi (V1-16):** 4 animasyonlu konsept → `docs/mic-onerileri.html`; seçim bekliyor.
+- **Kanıt:** 162 test ✅ (themes.test.ts +5), `verify` yeşil, secret taraması temiz.

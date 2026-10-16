@@ -12,6 +12,10 @@
   --green: #3fd68f;
   --red: #f06a6a;
   --yellow: #e8b85c;
+  /* Tema sistemi ek değişkenleri (runtime'da themes.ts günceller). */
+  --glass: rgba(15, 16, 23, 0.72);
+  --overlay: rgba(4, 5, 8, 0.65);
+  --on-accent: #0b0c10;
 }
 
 * {
@@ -193,7 +197,7 @@ body {
   padding: 5px 14px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgba(155, 135, 245, 0.06);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
   font-size: 10.5px;
   color: var(--accent-bright);
   cursor: pointer;
@@ -280,7 +284,7 @@ body {
   padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: rgba(15, 16, 23, 0.72);
+  background: var(--glass);
   backdrop-filter: blur(4px);
   font-size: 12px;
   animation: bubbleIn 0.25s ease;
@@ -320,7 +324,7 @@ body {
 .settingsOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(4, 5, 8, 0.6);
+  background: var(--overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -365,7 +369,7 @@ body {
 }
 .navItem.active {
   color: var(--accent-bright);
-  background: rgba(155, 135, 245, 0.12);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 .settingsContent {
   flex: 1;
@@ -436,7 +440,7 @@ textarea.input {
 .btn.primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #0b0c10;
+  color: var(--on-accent);
   font-weight: 600;
 }
 .btn.primary:hover {
@@ -466,7 +470,7 @@ textarea.input {
   transition: background 0.2s ease;
 }
 .switch.on {
-  background: rgba(155, 135, 245, 0.35);
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
   border-color: var(--accent-dim);
 }
 .switch .knob {
@@ -527,7 +531,7 @@ textarea.input {
 .dialogBackdrop {
   position: fixed;
   inset: 0;
-  background: rgba(4, 5, 8, 0.7);
+  background: var(--overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -628,4 +632,10 @@ textarea.input {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Uygulama içi "Hareketi azalt" ayarı (sistem tercihinden bağımsız). */
+body.reduced-motion * {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
 }

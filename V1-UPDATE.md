@@ -3,8 +3,8 @@
 > v1 sürümüne kadar yapılacak tüm işlerin tek listesi. İki kaynaktan birleştirildi:
 > **👤 kullanıcı bildirimleri (Tur 7)** + **🔧 geliştirici tespitleri (v1 öncelik analizi)**.
 > Durum: ⬜ başlanmadı · 🟡 devam ediyor · ✅ bitti. Bir madde bitince `EKSIKLER.md`’nin ✅ bölümüne de işlenir.
-> **Son güncelleme:** 16.10.2026
-> **Önerilen başlangıç:** A paketi (mikrofon — senin önceliğin ve bağımsız çalışılabilir), hemen ardından V1-10 (konuşma bağlamı). Kesin sıra birlikte netleştirilecek.
+> **Son güncelleme:** 16.10.2026 (Tur 9)
+> **Durum:** Kullanıcı E paketinden başladı — V1-15 tema sistemi 🟡 denemede (7 tema), V1-16 konseptleri hazır. Önerilen sonraki: A paketi (mikrofon) → V1-10 (konuşma bağlamı).
 
 ---
 
@@ -31,8 +31,8 @@
 - ⬜ **V1-14 · Windows açılışında otomatik başlatma** — bilgisayar kapanıp açıldığında Quatra kendiliğinden başlar; Ayarlar’dan aç/kapat. 👤🔧
 
 ## E. Görsel & Kişiselleştirme *(karar birlikte)*
-- ⬜ **V1-15 · Tema sistemi** — hazır temalar/paletler (şu an: koyu tema + tek vurgu rengi). İçerik ve tarz birlikte tartışılacak. 👤
-- ⬜ **V1-16 · Mikrofon kapatma simgesi yenilenmeli** — mevcut MIC rozeti beğenilmedi; tasarım birlikte tartışılacak. 👤
+- 🟡 **V1-15 · Tema sistemi** — 7 hazır tema uygulandı (Gece Moru, Okyanus, Zümrüt, Gün Batımı, Gül, Grafit, Şafak); Ayarlar → Görünüm'den canlı deneniyor. Kalan: senin turun + ince ayar (favoriler kalır, istemediklerin çıkar). 👤
+- 🟡 **V1-16 · Mikrofon kapatma simgesi yenilenmeli** — 4 animasyonlu konsept hazır: `docs/mic-onerileri.html`; seçimin bekleniyor (seçim sonrası gerçek düğmeye uygulanır). 👤
 
 ## F. Güvenlik & Güven
 - ⬜ **V1-17 · İşlem günlüğü (audit)** — Quatra’nın yaptığı işlerin kalıcı ve görüntülenebilir kaydı. 🔧

@@ -82,12 +82,12 @@ _Bu sıralama §9’daki kullanıcı maddeleriyle birleştirilip **`V1-UPDATE.md
 2. ⬜ **Kademeli ayarlar** — kazanç ve gürültü engelleme gibi seçenekler yalnız açık/kapalı değil, seviyeli olsun (ör. zayıf/orta/güçlü). *Teknik not:* tarayıcı filtreleri temelde açık/kapalı; kademe, yazılım katmanıyla (kazanç düğümü + eşikli gürültü kapısı) sağlanabilir.
 3. ⬜ **Mikrofon davranışı** — mikrofon fiziksel olarak hep açık kalsın (konuşsak da konuşmasak da); Quatra yalnız “Quatra” kelimesine tepki versin; mikrofon açık diye uykuya geçmeyi reddetmesin.
 4. ⬜ **Uyku süresi ayarı** — kullanıcıdan X saniye ses gelmezse uykuya dönülsün (**varsayılan 5 sn**); bu süre Ayarlar’dan her kullanıcı kendine göre değiştirebilsin.
-5. ⬜ **Daha fazla tema** — hazır renk temaları/paletler; *birlikte tartışılacak*.
-6. ⬜ **Mikrofon kapatma simgesi yenilenmeli** — mevcut MIC rozeti beğenilmedi; *tasarım birlikte tartışılacak*.
+5. 🟡 **Daha fazla tema** — hazır renk temaları/paletler. _(Tur 9: tema motoru yazıldı; 7 hazır tema Ayarlar → Görünüm'den canlı deneniyor; ince ayar sende → V1-15)_
+6. 🟡 **Mikrofon kapatma simgesi yenilenmeli** — mevcut MIC rozeti beğenilmedi. _(Tur 9: 4 animasyonlu konsept hazır — `docs/mic-onerileri.html`; seçimini bekliyor → V1-16)_
 7. ⬜ **Windows açılışında otomatik başlatma** — bilgisayar kapanıp açıldığında Quatra kendiliğinden başlasın; Ayarlar’dan aç/kapat edilebilsin.
 8. ⬜ **İzin istekleri sözlü olsun** — izin gerektiğinde ekranda baloncuk/görev kartı çıkmasın; Quatra sözlü sorsun (ör. “Not alayım mı?”) ve sesli “evet/hayır” ile onay alsın.
 
 _(Yeni bildirim geldikçe buraya eklenir.)_
 
 ## ✅ Çözülenler
-- _(henüz boş)_
+- ✅ **(Tur 9, 16.10) Ölü görünüm kontrolleri gerçek oldu** — vurgu rengi artık tüm arayüze uygulanıyor (eskiden yalnızca visualizer çizimine gidiyordu); "Arayüz ölçeği" ve "Hareketi azalt" artık gerçekten etkili; tema altyapısı eklendi (7 tema) → V1-15.
