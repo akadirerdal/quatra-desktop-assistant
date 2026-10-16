@@ -83,7 +83,7 @@ _Bu sıralama §9’daki kullanıcı maddeleriyle birleştirilip **`V1-UPDATE.md
 3. ⬜ **Mikrofon davranışı** — mikrofon fiziksel olarak hep açık kalsın (konuşsak da konuşmasak da); Quatra yalnız “Quatra” kelimesine tepki versin; mikrofon açık diye uykuya geçmeyi reddetmesin.
 4. ⬜ **Uyku süresi ayarı** — kullanıcıdan X saniye ses gelmezse uykuya dönülsün (**varsayılan 5 sn**); bu süre Ayarlar’dan her kullanıcı kendine göre değiştirebilsin.
 5. 🟡 **Daha fazla tema** — hazır renk temaları/paletler. _(Tur 9: tema motoru yazıldı; 7 hazır tema Ayarlar → Görünüm'den canlı deneniyor; ince ayar sende → V1-15)_
-6. 🟡 **Mikrofon kapatma simgesi yenilenmeli** — mevcut MIC rozeti beğenilmedi. _(Tur 9: C · Ekolayzır seçildi ve uygulandı; beğeni turu bekleniyor → V1-16)_
+6. 🟡 **Mikrofon kapatma simgesi yenilenmeli** — mevcut MIC rozeti beğenilmedi. _(Tur 9: C · Ekolayzır seçildi, uygulandı ve beğenildi; asıl kastedilen ortadaki kırmızı çapraz çizgi (muted görseli) kaldırıldı → V1-16)_
 7. ⬜ **Windows açılışında otomatik başlatma** — bilgisayar kapanıp açıldığında Quatra kendiliğinden başlasın; Ayarlar’dan aç/kapat edilebilsin.
 8. ⬜ **İzin istekleri sözlü olsun** — izin gerektiğinde ekranda baloncuk/görev kartı çıkmasın; Quatra sözlü sorsun (ör. “Not alayım mı?”) ve sesli “evet/hayır” ile onay alsın.
 

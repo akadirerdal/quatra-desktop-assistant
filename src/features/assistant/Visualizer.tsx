@@ -155,23 +155,18 @@ export function Visualizer(props: { width?: number; height?: number }): React.JS
           break;
         }
         case 'muted': {
-          // Sabit, aktif olmayan görsel.
+          // Sade duraklama: kesikli, soluk çizgi. Kırmızı çapraz işaret kaldırıldı —
+          // amatör duruyordu; "kapalı" bilgisi MIC düğmesi + durum metninde yaşıyor.
           const half = 80;
           ctx.save();
-          ctx.globalAlpha = 0.5;
+          ctx.globalAlpha = 0.45;
           ctx.strokeStyle = mutedColor;
           ctx.lineWidth = 2;
+          ctx.lineCap = 'round';
+          ctx.setLineDash([5, 9]);
           ctx.beginPath();
           ctx.moveTo(cx - half, cy);
           ctx.lineTo(cx + half, cy);
-          ctx.stroke();
-          // kırmızı mikrofon-kapalı işareti (ince)
-          ctx.globalAlpha = 0.8;
-          ctx.strokeStyle = '#f06a6a';
-          ctx.lineWidth = 1.6;
-          ctx.beginPath();
-          ctx.moveTo(cx - 26, cy + 14);
-          ctx.lineTo(cx + 26, cy - 14);
           ctx.stroke();
           ctx.restore();
           break;

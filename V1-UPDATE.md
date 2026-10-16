@@ -32,7 +32,7 @@
 
 ## E. Görsel & Kişiselleştirme *(karar birlikte)*
 - 🟡 **V1-15 · Tema sistemi** — 7 hazır tema uygulandı (Gece Moru, Okyanus, Zümrüt, Gün Batımı, Gül, Grafit, Şafak); Ayarlar → Görünüm'den canlı deneniyor. Kalan: senin turun + ince ayar (favoriler kalır, istemediklerin çıkar). 👤
-- 🟡 **V1-16 · Mikrofon kapatma simgesi yenilenmeli** — kullanıcı **C · Ekolayzır** konseptini seçti; düğme yenilendi (4 çubuk gerçek mikrofon seviyesiyle oynar). Uygulamada canlı — beğeni turunda ince ayar/onay. 👤
+- 🟡 **V1-16 · Mikrofon kapatma simgesi yenilenmeli** — kullanıcı **C · Ekolayzır** konseptini seçti; düğme yenilendi ve beğenildi. Ayrıca asıl rahatsızlık olan ortadaki **kırmızı çapraz çizgi** (muted görseli) kaldırıldı — yerine sakin, kesikli çizgi geldi. Beğeni turunda ince ayar sürüyor. 👤
 
 ## F. Güvenlik & Güven
 - ⬜ **V1-17 · İşlem günlüğü (audit)** — Quatra’nın yaptığı işlerin kalıcı ve görüntülenebilir kaydı. 🔧
