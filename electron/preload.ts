@@ -66,6 +66,8 @@ const quatra = {
     run: (req: { text: string; model: string; temperature?: number; maxTokens?: number; personality?: string }): Promise<{ started: boolean }> =>
       ipcRenderer.invoke('agent:run', req),
     cancel: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('agent:cancel'),
+    confirm: (requestId: string, approved: boolean): Promise<{ ok: boolean; handled: boolean }> =>
+      ipcRenderer.invoke('agent:confirm', requestId, approved),
     onEvent: (handler: (event: unknown) => void): (() => void) => {
       const listener = (_e: unknown, payload: unknown) => handler(payload);
       ipcRenderer.on('agent:event', listener);

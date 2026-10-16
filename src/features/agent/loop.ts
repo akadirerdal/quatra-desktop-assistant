@@ -10,6 +10,7 @@ import type { ToolContext, ToolResult } from '../tools/types';
 import type { ToolRegistry } from '../tools/registry';
 import type { PermissionManager } from '../tools/permissions';
 import { appLogger } from '../../services/log/logger';
+import { takeSentences } from './sentences';
 
 export interface AgentOptions {
   provider: ProviderAdapter;
@@ -22,6 +23,8 @@ export interface AgentOptions {
   temperature?: number;
   maxTokens?: number;
   signal?: AbortSignal;
+  /** Verilirse akış (streaming) kullanılır: TAMAMLANAN her cümle buraya verilir (TTS için). */
+  onSentence?: (text: string) => void;
 }
 
 export interface AgentRunResult {
@@ -54,16 +57,30 @@ export class AgentLoop {
       iterations += 1;
       log.info(`iterasyon ${iterations}`);
 
-      const resp = await this.options.provider.chat({
+      const req = {
         model: this.options.model,
         messages,
         tools: this.options.registry.toProviderDefinitions(),
         temperature: this.options.temperature,
         maxTokens: this.options.maxTokens,
         signal: this.options.signal,
-      });
+      };
+      let streamBuffer = '';
+      const flushSentences = (force: boolean) => {
+        if (!this.options.onSentence) return;
+        const { sentences, rest } = takeSentences(streamBuffer, force);
+        streamBuffer = rest;
+        for (const s of sentences) this.options.onSentence(s);
+      };
+      const resp = this.options.onSentence
+        ? await this.options.provider.chatStream(req, (delta) => {
+            streamBuffer += delta;
+            flushSentences(false);
+          })
+        : await this.options.provider.chat(req);
 
       if (!resp.toolCalls || resp.toolCalls.length === 0) {
+        flushSentences(true); // akış bitti — kalan yarım cümleyi de TTS'e ver
         const text = resp.content.trim();
         if (!text) throw new Error('Model boş cevap döndü.');
         return { text, iterations, toolCalls: toolCallsTotal, stoppedByLimit: false };

@@ -17,12 +17,12 @@
 
 6. **Kurulum + güncelleme (V1-20/V1-21)** — kural "NSIS ürün bitince". Liste bitince kurulum dosyasını üretelim mi? Otomatik güncelleme gerçek bir dağıtım sunucusu ister; sunucu planın yoksa "manuel güncelleme" dürüst seçeneğinde kalırız.
 
-7. **"Sus" komutu (V1-07)** — varsayılan kelimeler: "sus", "kes sesini", "dur", "yeter". Senin kullanacağın kelimeler farklıysa söyle.
+7. **"Sus" komutu (V1-07)** — uygulandı; varsayılan kelimeler: "sus / sussana / sus bakalım / sus artık / artık sus / kes sesini / sesini kes / sessiz ol / konuşma / dur / yeter / yeter artık". Senin kullanacağın kelimeler farklıysa söyle.
 
 8. **Hatırlatıcı sesi (V1-11)** — hatırlatma gelince yalnız sesli mi ("Efendim, hatırlatman var: …") yoksa kısa bir zil + ses mi?
 
 9. **Tepsi davranışı (V1-13)** — pencere kapatılınca arka planda dinlemeye devam etsin mi, yoksa "kapalı sayıl" (yalnız tepside beklesin, sen açınca dinlesin) mi? Varsayılanı uyguluyorum: tepside yaşar + dinleme **kapalı** başlar, tek tıkla açılır (gizlilik tarafı güvenli olan).
 
-10. **İzin istekleri (V1-09)** — sesli onay "evet/hayır" ile çalışacak; "onay için süre sınırı" (ör. 10 sn cevap gelmezse iptal) sence uygun mu?
+10. **İzin istekleri (V1-09)** — sözlü onay "evet/hayır" ile çalışıyor; **20 sn** cevap gelmezse işlem yapılmaz (güvenli varsayılan). İki kez anlaşılmayan yanıtta da güvenli ret. Süre sence uygun mu?
 
 > Not: Bu dosyaya geliştirme sırasında yeni sorular eklenir; **hiçbir soru geliştirmeyi durdurmaz** — makul varsayımla ilerlerim, varsayım burada listelenir.

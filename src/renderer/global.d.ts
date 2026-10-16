@@ -53,6 +53,7 @@ export interface QuatraBridge {
       autoLearn?: boolean;
     }): Promise<{ started: boolean }>;
     cancel(): Promise<{ ok: boolean }>;
+    confirm(requestId: string, approved: boolean): Promise<{ ok: boolean; handled: boolean }>;
     onEvent(handler: (event: AgentEvent) => void): () => void;
   };
   tools: {
@@ -86,6 +87,8 @@ export interface QuatraBridge {
 
 export type AgentEvent =
   | { type: 'start'; requestId: string }
+  | { type: 'sentence'; requestId: string; text: string }
+  | { type: 'confirm'; requestId: string; tool: string }
   | { type: 'caption'; requestId: string; text: string }
   | { type: 'done'; requestId: string; text: string; iterations: number; toolCalls: number }
   | { type: 'error'; requestId: string; category: string; message: string };

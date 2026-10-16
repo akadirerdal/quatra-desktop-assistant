@@ -94,6 +94,7 @@ export class AudioService {
   private playingSource: AudioBufferSourceNode | null = null;
   private speakRaf = 0;
   private speakSeq = 0;
+  private speakQueue: Array<{ text: string; rate: number; pitch: number; voiceName: string }> = [];
   private pendingPlay = false;
   private playStartedAt = 0;
   private burstMs = 0;
@@ -410,8 +411,17 @@ export class AudioService {
 
   // ---------------------------------------------------------------- TTS
 
-  /** Motor dağıtıcı: Edge Neural (önerilen) veya sistem TTS'i. */
+  /** Motor dağıtıcı: Edge Neural (önerilen) veya sistem TTS'i.
+   *  Konuşma sürerken gelen metinler SIRAYA alınır → streaming cümleleri akıcı okunur. */
   speak(text: string, rate: number, pitch: number, voiceName: string): void {
+    if (this.isSpeaking() || this.pendingPlay) {
+      this.speakQueue.push({ text, rate, pitch, voiceName });
+      return;
+    }
+    this.startSpeak(text, rate, pitch, voiceName);
+  }
+
+  private startSpeak(text: string, rate: number, pitch: number, voiceName: string): void {
     // Durum HEMEN 'speaking' olur; barge-in sentez beklerken de çalışır.
     const seq = ++this.speakSeq;
     this.pendingPlay = true;
@@ -426,6 +436,16 @@ export class AudioService {
       return;
     }
     this.speakSystem(text, rate, pitch, voiceName, seq);
+  }
+
+  /** Sıradaki cümleye geç; kuyruk bittiyse konuşma turu KAPANIR (onTtsEnd). */
+  private nextSpeak(): void {
+    const next = this.speakQueue.shift();
+    if (next) {
+      this.startSpeak(next.text, next.rate, next.pitch, next.voiceName);
+      return;
+    }
+    this.onTtsEnd();
   }
 
   /**
@@ -498,7 +518,7 @@ export class AudioService {
         this.playCtx = null;
         const st = useAssistantStore.getState();
         st.setLevels(st.micLevel, 0);
-        this.onTtsEnd();
+        this.nextSpeak();
       };
       source.onended = finish;
       source.start();
@@ -512,6 +532,7 @@ export class AudioService {
   private speakSystem(text: string, rate: number, pitch: number, voiceName: string, seq: number): void {
     if (!('speechSynthesis' in window)) {
       this.onError('Bu sistemde ses çıkışı (TTS) yok. Cevap yazılı olarak gösterildi.');
+      this.nextSpeak(); // kuyruk kilitli kalmasın
       return;
     }
     window.speechSynthesis.cancel();
@@ -529,20 +550,21 @@ export class AudioService {
     utterance.onend = () => {
       this.pendingPlay = false;
       if (seq !== this.speakSeq) return;
-      this.onTtsEnd();
+      this.nextSpeak();
     };
     utterance.onerror = () => {
       this.pendingPlay = false;
       if (seq !== this.speakSeq) return;
       useAssistantStore.getState().setStatus('idle');
       this.onError('Ses çalınamadı — cevap ekranda gösterildi.');
-      this.onTtsEnd();
+      this.nextSpeak();
     };
     window.speechSynthesis.speak(utterance);
   }
 
   stopSpeaking(): void {
     this.speakSeq += 1; // devam eden/gelmekte olan oynatmayı iptal et
+    this.speakQueue = []; // sırada bekleyen (streaming) cümleler de iptal
     this.pendingPlay = false;
     this.bargeFired = true; // bu konuşma turu için tekrar tetikleme
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();

@@ -2,7 +2,7 @@
  * Agent servisi — renderer isteğini alır, main süreçte güvenle yürütür.
  * API anahtarı yalnızca burada okunur (renderer'a gitmez).
  */
-import { app, BrowserWindow, dialog } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
 import { z } from 'zod';
 import { DeepSeekClient } from '../src/providers/deepseek/client';
@@ -42,15 +42,35 @@ export interface AgentRunRequest {
 
 export type AgentEvent =
   | { type: 'start'; requestId: string }
+  | { type: 'sentence'; requestId: string; text: string }
+  | { type: 'confirm'; requestId: string; tool: string }
   | { type: 'caption'; requestId: string; text: string }
   | { type: 'done'; requestId: string; text: string; iterations: number; toolCalls: number }
   | { type: 'error'; requestId: string; category: string; message: string };
 
 let activeAbort: AbortController | null = null;
 
+interface PendingConfirm {
+  requestId: string;
+  resolve: (approved: boolean) => void;
+}
+
+let pendingConfirm: PendingConfirm | null = null;
+
 export function cancelActiveAgent(): void {
   activeAbort?.abort();
   activeAbort = null;
+  pendingConfirm?.resolve(false); // bekleyen sözlü onay iptal → model reddedildi görür
+  pendingConfirm = null;
+}
+
+/** Sözlü izin yanıtı (V1-09). Eşleşen bekleyiş yoksa handled=false. */
+export function resolveAgentConfirm(requestId: string, approved: boolean): boolean {
+  if (!pendingConfirm || pendingConfirm.requestId !== requestId) return false;
+  const p = pendingConfirm;
+  pendingConfirm = null;
+  p.resolve(approved);
+  return true;
 }
 
 export async function runAgent(
@@ -88,17 +108,24 @@ export async function runAgent(
     });
 
     const permissions = new PermissionManager({
-      confirm: async (toolName) => {
-        const res = await dialog.showMessageBox(win, {
-          type: 'question',
-          buttons: ['İzin ver', 'Reddet'],
-          defaultId: 1,
-          cancelId: 1,
-          title: 'Quatra — İzin gerekli',
-          message: `"${toolName}" görevi için izin veriyor musun?`,
-          detail: 'Bu işlem yalnızca sen onaylarsan çalışır.',
+      // V1-09: ekran kutusu YOK — Quatra sesle sorar ("Evet mi, hayır mı?"); yanıt bu Promise'i çözer.
+      confirm: (toolName) => {
+        emit({ type: 'confirm', requestId, tool: toolName });
+        return new Promise<boolean>((resolve) => {
+          const state: { timer?: ReturnType<typeof setTimeout> } = {};
+          const wrapped = (approved: boolean) => {
+            if (state.timer) clearTimeout(state.timer);
+            resolve(approved);
+          };
+          state.timer = setTimeout(() => {
+            if (pendingConfirm?.resolve === wrapped) {
+              pendingConfirm = null;
+              resolve(false);
+              emit({ type: 'caption', requestId, text: 'Onay gelmediği için işlemi yapmadım.' });
+            }
+          }, 20_000);
+          pendingConfirm = { requestId, resolve: wrapped };
         });
-        return res.response === 0;
       },
     });
 
@@ -176,6 +203,7 @@ export async function runAgent(
       temperature: req.temperature,
       maxTokens: req.maxTokens,
       signal: abort.signal,
+      onSentence: (text) => emit({ type: 'sentence', requestId, text }),
     });
 
     const result = await loop.run(req.text);

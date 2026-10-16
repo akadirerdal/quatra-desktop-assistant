@@ -13,9 +13,26 @@ import {
   isNameQuestion,
   isDetailRequest,
   detectSleepCommand,
+  detectStopSpeakingCommand,
+  parseConfirmAnswer,
 } from './commands';
 import { strings } from '../../renderer/strings';
 import type { AgentEvent } from '../../renderer/global';
+
+/** Araç adlarının kullanıcıya dönük Türkçe etiketleri (sözlü izin sorusu için). */
+const TOOL_LABELS: Record<string, string> = {
+  not_al: 'not yazma',
+  open_app: 'uygulama açma',
+  open_url: 'bağlantı açma',
+  clipboard_yaz: 'panoya yazma',
+  clipboard_oku: 'pano okuma',
+  sysinfo: 'sistem bilgisi',
+  hafiza_kaydet: 'hafızaya kaydetme',
+};
+
+function toolLabel(name: string): string {
+  return TOOL_LABELS[name] ?? name;
+}
 
 export class AssistantController {
   private audio: AudioService;
@@ -31,6 +48,12 @@ export class AssistantController {
   private pendingWakeCapture = false;
   private pendingSleep = false;
   private greetingIndex = 0;
+  private currentRequestId: string | null = null;
+  private streamedSpeech = false;
+  private pendingConfirmActive = false;
+  private pendingConfirmRetries = 0;
+  private pendingConfirmTool = '';
+  private pendingConfirmRequestId: string | null = null;
 
   constructor() {
     this.audio = new AudioService(
@@ -296,6 +319,46 @@ export class AssistantController {
     }
   }
 
+  /** Sözlü izin sorusu (V1-09) — araç adı Türkçe etikete çevrilir. */
+  private confirmQuestion(tool: string): string {
+    return `${strings.confirmAsk} ${toolLabel(tool)}. ${strings.confirmYesNo}`;
+  }
+
+  /** Anlaşılmayan onay yanıtı → bir kez daha sor; ikinci kez anlaşılmazsa güvenli taraf: yapma. */
+  private askConfirmAgain(): void {
+    this.pendingConfirmRetries += 1;
+    if (this.pendingConfirmRetries >= 2) {
+      this.resolvePendingConfirm(false);
+      return;
+    }
+    const question = this.confirmQuestion(this.pendingConfirmTool);
+    useAssistantStore.getState().setCaption(question);
+    if (useSettingsStore.getState().settings.voice.autoSpeak) {
+      this.speakText(question);
+    } else {
+      this.scheduleFollowUp();
+    }
+  }
+
+  /** Onay kararını ana sürece iletir; bekleyiş durumunu kapatır. */
+  private resolvePendingConfirm(approved: boolean): void {
+    const requestId = this.pendingConfirmRequestId;
+    this.pendingConfirmActive = false;
+    this.pendingConfirmRetries = 0;
+    this.pendingConfirmTool = '';
+    this.pendingConfirmRequestId = null;
+    if (!requestId) return;
+    const store = useAssistantStore.getState();
+    store.setCaption(approved ? strings.confirmApproved : strings.confirmDenied);
+    store.setStatus('processing');
+    const res = window.quatra?.agent.confirm(requestId, approved);
+    void res?.then((r) => {
+      if (!r?.handled) {
+        useAssistantStore.getState().setCaption(strings.confirmNoResponse);
+      }
+    });
+  }
+
   /** Kullanıcı "dinle" dedi (buton). */
   toggleListening(): void {
     const st = useAssistantStore.getState();
@@ -371,6 +434,31 @@ export class AssistantController {
     // Uyku komutu: sohbeti bitir, «Quatra» beklemeye dön (mikrofon açık kalır).
     if (detectSleepCommand(text)) {
       this.goToSleep();
+      return;
+    }
+
+    // Sözlü izin yanıtı ("evet"/"hayır") — bekleyen onaya bağlanır (V1-09).
+    if (this.pendingConfirmActive) {
+      const answer = parseConfirmAnswer(text);
+      if (answer) {
+        this.resolvePendingConfirm(answer === 'yes');
+      } else {
+        this.askConfirmAgain();
+      }
+      return;
+    }
+
+    // "Sus" — sesli durdurma (V1-07): konuşmayı kes; sohbet sürüyorsa dinlemeye dön.
+    if (detectStopSpeakingCommand(text)) {
+      const st0 = useAssistantStore.getState();
+      const wasSpeaking = st0.status === 'speaking' || this.audio.isSpeaking();
+      this.stopSpeaking();
+      useAssistantStore.getState().setCaption(
+        wasSpeaking ? strings.stoppedSpeaking : strings.alreadySilent,
+      );
+      if (this.conversationActive && !useAssistantStore.getState().mutedByUser) {
+        this.scheduleFollowUp();
+      }
       return;
     }
 
@@ -474,29 +562,67 @@ export class AssistantController {
     const store = useAssistantStore.getState();
     switch (event.type) {
       case 'start':
+        this.currentRequestId = event.requestId;
+        this.streamedSpeech = false;
         store.setStatus('processing');
         break;
       case 'caption':
         store.setCaption(event.text);
         break;
+      case 'sentence': {
+        // Akış cümlesi (V1-06): yalnız GÜNCEL istek ve aktif akış sırasında okunur.
+        if (event.requestId !== this.currentRequestId) break;
+        const status = useAssistantStore.getState().status;
+        if (status !== 'processing' && status !== 'speaking') break;
+        if (!useSettingsStore.getState().settings.voice.autoSpeak) break;
+        this.streamedSpeech = true;
+        this.wake?.pause();
+        useAssistantStore.getState().setCaption(event.text);
+        this.speakText(event.text); // çalma sırasına girer — cümleler akıcı okunur
+        break;
+      }
+      case 'confirm': {
+        // Sözlü izin (V1-09): ekranda kutu YOK; Quatra sesle sorar, cevabı sesle dinler.
+        this.currentRequestId = event.requestId;
+        this.pendingConfirmActive = true;
+        this.pendingConfirmRetries = 0;
+        this.pendingConfirmTool = event.tool;
+        this.pendingConfirmRequestId = event.requestId;
+        this.conversationActive = true; // onay turu sohbetin parçasıdır
+        const question = this.confirmQuestion(event.tool);
+        store.setCaption(question);
+        this.wake?.pause();
+        if (useSettingsStore.getState().settings.voice.autoSpeak) {
+          this.speakText(question); // bitince onTtsEnd → takip dinlemesi (yanıtı bekler)
+        } else {
+          this.scheduleFollowUp();
+        }
+        break;
+      }
       case 'done': {
         store.setCaption(event.text);
-        store.setStatus('idle');
         const task = store.tasks.find((t) => t.state === 'running');
         if (task) {
           store.updateTask(task.id, { state: 'done', detail: strings.taskDone });
           setTimeout(() => store.removeTask(task.id), TASK_DONE_LINGER_MS);
         }
         const settings = useSettingsStore.getState().settings;
-        if (settings.voice.autoSpeak) {
+        if (settings.voice.autoSpeak && !this.streamedSpeech) {
+          store.setStatus('idle');
           this.wake?.pause();
           this.speakText(event.text);
-        } else {
+        } else if (!settings.voice.autoSpeak) {
+          store.setStatus('idle');
           this.scheduleFollowUp();
         }
+        // Otomatik okuma + akış: cümleler çalıyor/sırada — durum 'speaking' kalır,
+        // ses bitince onTtsEnd takip dinlemesini başlatır.
+        this.streamedSpeech = false;
         break;
       }
       case 'error': {
+        this.streamedSpeech = false;
+        this.audio.stopSpeaking(); // akıştan kalan cümleler de sussun
         store.setConnection('failed', event.message);
         store.setStatus('error');
         this.conversationActive = false;

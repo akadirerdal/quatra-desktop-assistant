@@ -25,9 +25,7 @@ _Bu sıralama §9’daki kullanıcı maddeleriyle birleştirilip **`V1-UPDATE.md
 ---
 
 ## 1. Sesli deneyim
-- ⬜ **Uyandırma kelimesi buluta bağlı** — “Quatra” tespiti bile Groq Whisper’a gidip gelir; internet yokken uyandırma çalışmaz. (Çözüm yolu: yerel küçük uyandırma modeli.)
-- ⬜ **Yanıtlar canlı akıtılmıyor** — cevabın tamamı üretilmeden seslendirme başlamaz; uzun yanıtta ilk ses gecikmesi büyür. (Cümle cümle akış planlı.)
-- ⬜ **“Sus / kes sesini” komutu yok** — Quatra ancak üstüne konuşunca susar (barge-in); açık bir durdurma komutu eklenebilir.
+- ⬜ **Uyandırma kelimesi buluta bağlı** — “Quatra” tespiti bile Groq Whisper’a gidip gelir; internet yokken uyandırma çalışmaz. (Tur 10 notu: yerel KWS model gömülmesi gerektirir → paketleme aşamasına bırakıldı; SORULAR #5.)
 - ⬜ **Sistem ses seviyesi / medya kontrolü yok** — “sesi kıs”, “şarkı değiştir” desteklenmiyor.
 - ⬜ **Yalnızca Türkçe** — başka dilde konuşma/arayüz yok.
 
@@ -94,3 +92,6 @@ _(Yeni bildirim geldikçe buraya eklenir.)_
 - ✅ **(Tur 10, 16.10) Hafıza silme koruması** — `remove`/`clear` artık dosyayı silmeden önce `memory.json.bak` yedeği bırakıyor; silme olayları log’a düşüyor (sessiz veri kaybı bitti). Ayrıca 16.10’da sessizce boşaltılan hafıza geri yüklendi (6 kayıt).
 - ✅ **(Tur 10, 16.10) Not (`not_al`) klasör dayanıklılığı** — modelin uydurduğu var olmayan klasör yok sayılır; hatırlanan klasör (notes-dir.txt) otomatik kullanılır; yoksa kullanıcıya seçtirilir ve seçim hatırlanır. “Hedef klasör mevcut değil.” hatası bitti.
 - ✅ **(Tur 10, 16.10) A paketi — mikrofon & ses girişi (V1-01…V1-05)** — mikrofon testi (canlı seviye + test kaydı + dinleme + aktif cihaz adı), cihaz seçimi (devicechange ile yenileme; kayıp cihazda varsayılana düşme), kademeli yazılım katmanı (ek kazanç + gürültü kapısı — gerçek kayda uygulanır), “uyu” sesli komutu + yapılandırılabilir uyku süresi (varsayılan 5 sn).
+- ✅ **(Tur 10, 16.10) Yanıt akışı — streaming + cümle cümle seslendirme (V1-06)** — yanıt üretilirken tamamlanan her cümle anında TTS kuyruğuna girer; ilk ses gecikmesi düşer. “sus” bu kuyruktaki cümleleri de iptal eder.
+- ✅ **(Tur 10, 16.10) “Sus” komutu (V1-07)** — “sus / kes sesini / sessiz ol / konuşma / dur / yeter” sesli durdurma; okuma sırasında söylenirse barge-in ile zincirlenir; sohbet bağlamı korunur.
+- ✅ **(Tur 10, 16.10) Sözlü izin akışı (V1-09)** — ekran onay kutusu kaldırıldı; Quatra sesle sorar (“Şunun için izin gerekiyor: … Evet mi, hayır mı?”); “evet/hayır” sesle yanıtlanır; 20 sn cevap gelmezse işlem yapılmaz (SORULAR #10).

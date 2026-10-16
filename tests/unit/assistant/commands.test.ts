@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   detectModeCommand,
   detectSleepCommand,
+  detectStopSpeakingCommand,
   isDetailRequest,
   isNameQuestion,
+  parseConfirmAnswer,
   parseMemoryIntent,
 } from '../../../src/features/assistant/commands';
 
@@ -88,5 +90,42 @@ describe('detectSleepCommand', () => {
   it('normal cümleyi uyku sanmaz', () => {
     expect(detectSleepCommand('saat kaç')).toBe(false);
     expect(detectSleepCommand('bugün hava nasıl')).toBe(false);
+  });
+});
+
+describe('detectStopSpeakingCommand', () => {
+  it('durdurma komutlarını tanır', () => {
+    expect(detectStopSpeakingCommand('sus')).toBe(true);
+    expect(detectStopSpeakingCommand('Kes sesini!')).toBe(true);
+    expect(detectStopSpeakingCommand('sessiz ol')).toBe(true);
+    expect(detectStopSpeakingCommand('dur')).toBe(true);
+    expect(detectStopSpeakingCommand('yeter artık')).toBe(true);
+  });
+
+  it('normal cümleyi durdurma sanmaz', () => {
+    expect(detectStopSpeakingCommand('durum nedir')).toBe(false);
+    expect(detectStopSpeakingCommand('susuz kaldım')).toBe(false);
+    expect(detectStopSpeakingCommand('saat kaç')).toBe(false);
+  });
+});
+
+describe('parseConfirmAnswer', () => {
+  it('evet ailesini tanır', () => {
+    expect(parseConfirmAnswer('evet')).toBe('yes');
+    expect(parseConfirmAnswer('Evet, not al')).toBe('yes');
+    expect(parseConfirmAnswer('tamam')).toBe('yes');
+    expect(parseConfirmAnswer('onaylıyorum')).toBe('yes');
+  });
+
+  it('hayır ailesini tanır', () => {
+    expect(parseConfirmAnswer('hayır')).toBe('no');
+    expect(parseConfirmAnswer('Hayır!')).toBe('no');
+    expect(parseConfirmAnswer('vazgeç')).toBe('no');
+    expect(parseConfirmAnswer('istemiyorum')).toBe('no');
+  });
+
+  it('anlaşılmayan yanıtta null döner', () => {
+    expect(parseConfirmAnswer('bugün hava nasıl')).toBeNull();
+    expect(parseConfirmAnswer('not al')).toBeNull();
   });
 });

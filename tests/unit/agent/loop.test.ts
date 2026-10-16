@@ -300,3 +300,79 @@ describe('AgentLoop — tool çağrısı', () => {
     await expect(p).rejects.toThrow(/iptal/i);
   });
 });
+
+describe('AgentLoop — akış (streaming) cümleleri', () => {
+  function streamingProvider(
+    steps: Array<{ deltas: string[]; response: ProviderChatResponse }>,
+  ): ProviderAdapter {
+    let i = 0;
+    return {
+      chat: vi.fn(async () => {
+        throw new Error('bu testte chat kullanılmaz');
+      }),
+      chatStream: vi.fn(async (_req: ProviderChatRequest, onDelta: (t: string) => void) => {
+        const step = steps[Math.min(i, steps.length - 1)]!;
+        i += 1;
+        for (const d of step.deltas) onDelta(d);
+        return step.response;
+      }),
+      listModels: vi.fn(async () => []),
+      testConnection: vi.fn(async () => ({ ok: true as const, model: 'x', latencyMs: 1 })),
+    };
+  }
+
+  it('tamamlanan cümleleri sırayla onSentence ile bildirir', async () => {
+    const provider = streamingProvider([
+      {
+        deltas: ['Merhaba dünya. ', 'Nasılsın bugün bakalım', '? İyiyim'],
+        response: {
+          content: 'Merhaba dünya. Nasılsın bugün bakalım? İyiyim',
+          finishReason: 'stop',
+        },
+      },
+    ]);
+    const sentences: string[] = [];
+    const loop = new AgentLoop({
+      provider,
+      registry: makeRegistry(),
+      permissions,
+      native,
+      model: 'x',
+      systemPrompt: 'test',
+      onSentence: (s) => sentences.push(s),
+    });
+    const res = await loop.run('merhaba de');
+    expect(sentences).toEqual(['Merhaba dünya.', 'Nasılsın bugün bakalım?', 'İyiyim']);
+    expect(res.text).toBe('Merhaba dünya. Nasılsın bugün bakalım? İyiyim');
+  });
+
+  it('tool turunda yarım cümleyi AKTARMAZ, final turda akar', async () => {
+    const provider = streamingProvider([
+      {
+        deltas: ['Bakıyorum'],
+        response: {
+          content: 'Bakıyorum',
+          toolCalls: [{ id: 'c1', name: 'echo', arguments: '{"text":"x"}' }],
+          finishReason: 'tool_calls',
+        },
+      },
+      {
+        deltas: ['Tamam'],
+        response: { content: 'Tamam.', finishReason: 'stop' },
+      },
+    ]);
+    const sentences: string[] = [];
+    const loop = new AgentLoop({
+      provider,
+      registry: makeRegistry(),
+      permissions,
+      native,
+      model: 'x',
+      systemPrompt: 'test',
+      onSentence: (s) => sentences.push(s),
+    });
+    const res = await loop.run('echo yap');
+    expect(sentences).toEqual(['Tamam']);
+    expect(res.text).toBe('Tamam.');
+  });
+});

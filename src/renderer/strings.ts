@@ -161,6 +161,13 @@ export const strings = {
   sleepAfterHint:
     'Sohbet sırasında bu süre boyunca hiç konuşmazsan beklemeye geçer; «Quatra» deyince geri döner.',
   sleepAck: 'Tamam, beklemeye geçiyorum. «Quatra» deyince buradayım.',
+  stoppedSpeaking: 'Sustum.',
+  alreadySilent: 'Ben zaten susuyordum.',
+  confirmAsk: 'Şunun için izin gerekiyor:',
+  confirmYesNo: 'Evet mi, hayır mı?',
+  confirmApproved: 'Tamam, yapıyorum.',
+  confirmDenied: 'Peki, yapmıyorum.',
+  confirmNoResponse: 'Onay süresi geçmişti; işlem yapılmadı.',
   micTestTitle: 'Mikrofonu test et',
   micTestHint:
     'Canlı seviyeyi gör, 3 sn kaydet, dinle — test mevcut ayarlarla (cihaz + kazanç + kapı) çalışır.',

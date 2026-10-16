@@ -10,7 +10,7 @@ import { createNativeBridge } from './native';
 import { DeepSeekClient } from '../src/providers/deepseek/client';
 import { transcribeAudio } from '../src/providers/groq/transcribe';
 import { ProviderError } from '../src/providers/types';
-import { cancelActiveAgent, runAgent } from './agent-service';
+import { cancelActiveAgent, resolveAgentConfirm, runAgent } from './agent-service';
 import { listEdgeVoices, synthesizeEdge } from './tts-service';
 import { logDir, logFilePath, openLogsFolder } from './log-file';
 import { registerMemoryIpc } from './memory';
@@ -121,6 +121,10 @@ export function registerIpc(win: BrowserWindow): void {
   ipcMain.handle('agent:cancel', async () => {
     cancelActiveAgent();
     return { ok: true };
+  });
+  ipcMain.handle('agent:confirm', async (_e, requestId: string, approved: boolean) => {
+    // Sözlü izin akışı (V1-09): bekleyen onayı çözer; eşleşme yoksa sessizce yok sayar.
+    return { ok: true, handled: resolveAgentConfirm(String(requestId ?? ''), approved === true) };
   });
 
   // ---------------------------------------------------------------- global bas-konuş

@@ -26,6 +26,28 @@ export function detectSleepCommand(text: string): boolean {
   );
 }
 
+/** Sesli durdurma komutu — Quatra susar, sohbet bağlamı korunur (V1-07). */
+export function detectStopSpeakingCommand(text: string): boolean {
+  const t = text.toLowerCase().trim().replace(/[.!?…]+$/u, '');
+  return /^(sus|sussana|sus bakalım|sus artık|artık sus|kes sesini|sesini kes|sessiz ol|konuşma|yeter|yeter artık|dur)(?:[\s,.!;:]|$)/.test(
+    t,
+  );
+}
+
+/** Sözlü izin yanıtı — "evet"/"hayır" ailesini çözer (V1-09). Anlaşılmazsa null. */
+export function parseConfirmAnswer(text: string): 'yes' | 'no' | null {
+  const t = text.toLowerCase().trim().replace(/[.!?…]+$/u, '');
+  if (/^(evet|onaylıyorum|onaylarım|onayla|tamam|olur|kabul|izin ver|tabii|elbette)(?:[\s,.!;:]|$)/.test(t)) {
+    return 'yes';
+  }
+  if (
+    /^(hayır|yok|iptal|reddet|reddediyorum|vazgeç|istemiyorum|izin verme|olmasın)(?:[\s,.!;:]|$)/.test(t)
+  ) {
+    return 'no';
+  }
+  return null;
+}
+
 /** "benim adım X" / "hatırla: Y" kalıplarını tanır (sorular hariç). */
 export function parseMemoryIntent(text: string): MemoryIntent {
   const t = text.trim();

@@ -4,7 +4,7 @@
 > **👤 kullanıcı bildirimleri (Tur 7)** + **🔧 geliştirici tespitleri (v1 öncelik analizi)**.
 > Durum: ⬜ başlanmadı · 🟡 devam ediyor · ✅ bitti. Bir madde bitince `EKSIKLER.md`’nin ✅ bölümüne de işlenir.
 > **Son güncelleme:** 16.10.2026 (Tur 10)
-> **Durum:** A paketi ✅ kapandı (V1-01…V1-05). E paketinden V1-15 tema 🟡 (ince ayar kullanıcıda), V1-16 ✅. Önerilen sonraki: B paketi (V1-06 streaming, V1-07 “sus”).
+> **Durum:** A ✅ (V1-01…05), B ✅ (V1-06 streaming, V1-07 “sus”, V1-09 sözlü izin); V1-08 yerel uyandırma → paketleme aşamasına bırakıldı (SORULAR #5). E: V1-15 🟡 (favori/eleme sende), V1-16 ✅. Sıradaki: C paketi (V1-10 bağlam, V1-11 hatırlatıcı).
 
 ---
 
@@ -16,10 +16,10 @@
 - ✅ **V1-05 · Uyku süresi ayarı** — yeni ayar `sleepAfterSec` (2–30 sn, varsayılan 5 sn); sohbet içi sessizlikte bu süre sonunda uyku; Ayarlar → Ses ve Giriş’te kaydırıcı. 👤 → (Tur 10)
 
 ## B. Sesli Deneyim Çekirdeği
-- ⬜ **V1-06 · Yanıt akışı (streaming)** — cevap cümle cümle seslendirilir; uzun yanıtta ilk ses gecikmesi büyük ölçüde düşer. 🔧
-- ⬜ **V1-07 · “Sus” komutu** — sesli durdurma (“sus”, “kes sesini”, “dur”); barge-in’i tamamlar. 🔧
-- ⬜ **V1-08 · Yerel uyandırma kelimesi** — “Quatra” tespiti internet olmadan cihazda çalışsın; V1-04’ün ön şartı, gecikmeyi ve internet bağımlılığını bitirir. 🔧
-- ⬜ **V1-09 · Sözlü izin akışı** — izin gerektiğinde ekranda baloncuk/görev kartı YOK; Quatra sesle sorar (“Not alayım mı?”), “evet/hayır” ile onay alınır. 👤
+- ✅ **V1-06 · Yanıt akışı (streaming)** — agent SSE ile akışı okur; tamamlanan her cümle anında TTS kuyruğuna girer (MediaStream sırası), ilk ses gecikmesi düşer. Yarım cümle zorla bölünmez (“3.5” korunur); tool turlarında asılı metin TTS’e verilmez. 🔧 → (Tur 10)
+- ✅ **V1-07 · “Sus” komutu** — “sus / sussana / kes sesini / sesini kes / sessiz ol / konuşma / dur / yeter (artık)” sesli durdurma; konuşma sürerken barge-in ile zincirlenir; TTS kuyruğu temizlenir, bağlam korunur. 🔧 → (Tur 10)
+- 🟡 **V1-08 · Yerel uyandırma kelimesi** — yerel model (KWS/whisper.cpp) gömülmesi ~MB’larca paket + yeni bağımlılık ister; mevcut sistem internetli çalışıyor. Paketleme aşamasında değerlendirilecek (SORULAR #5). 🔧
+- ✅ **V1-09 · Sözlü izin akışı** — ekran kutusu YOK: `agent:confirm` olayı → Quatra sesle sorar, “evet/hayır” sesle yanıtlanır (20 sn sınır; 2 anlaşılmaz yanıtta güvenli ret); araç adları Türkçe etiketlenir. 👤 → (Tur 10)
 
 ## C. Zeka & Konuşma
 - ⬜ **V1-10 · Kısa süreli konuşma bağlamı** — son konuşma turları hatırlanır; takip soruları (“peki ya yarın?”) anlaşılır; token bütçesi sınırlı tutulur. 🔧
