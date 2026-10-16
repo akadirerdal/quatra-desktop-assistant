@@ -33,6 +33,7 @@ export interface RecordOptions {
 export type RecordOutcome =
   | { kind: 'ok'; result: RecordedCommand }
   | { kind: 'silence' } // hiç konuşma algılanmadı
+  | { kind: 'busy' } // başka bir kayıt sürüyor (hata değil; caller bekler/atlar)
   | { kind: 'error'; message: string };
 
 const DEFAULT_THRESHOLD = 0.05;
@@ -53,6 +54,7 @@ export class AudioService {
   private raf = 0;
   private currentLevel = 0;
   private recording = false;
+  private cancelRequested = false;
   private playCtx: AudioContext | null = null;
   private playingSource: AudioBufferSourceNode | null = null;
   private speakRaf = 0;
@@ -122,7 +124,7 @@ export class AudioService {
     const waitStartMs = options.waitStartMs ?? 6000;
     const threshold = options.threshold ?? DEFAULT_THRESHOLD;
 
-    if (this.recording) return { kind: 'error', message: 'Zaten kayıt var.' };
+    if (this.recording) return { kind: 'busy' };
     if (!(await this.ensureMic())) return { kind: 'error', message: 'Mikrofon açılamadı.' };
     if (typeof MediaRecorder === 'undefined') {
       return { kind: 'error', message: 'Bu ortamda ses kaydı desteklenmiyor.' };
@@ -143,6 +145,7 @@ export class AudioService {
 
     const started = performance.now();
     this.recording = true;
+    this.cancelRequested = false;
     let sawSpeech = false;
     let peak = 0;
     let lastVoiceAt = started;
@@ -160,7 +163,8 @@ export class AudioService {
       };
 
       recorder.onstop = () => {
-        if (!sawSpeech || chunks.length === 0) {
+        if (this.cancelRequested || !sawSpeech || chunks.length === 0) {
+          this.cancelRequested = false;
           settle({ kind: 'silence' });
           return;
         }
@@ -186,6 +190,10 @@ export class AudioService {
             settle({ kind: 'error', message: 'Kayıt durdurulamadı.' });
           }
         };
+        if (this.cancelRequested) {
+          stopRecorder();
+          return;
+        }
         if (!sawSpeech && now - started > waitStartMs) {
           stopRecorder();
           return;
@@ -206,6 +214,18 @@ export class AudioService {
         settle({ kind: 'error', message: 'Ses kaydı başlatılamadı.' });
       }
     });
+  }
+
+  /** Devam eden kaydı nazikçe iptal et (uyandırma → PTT geçişi gibi). */
+  cancelRecording(): void {
+    if (!this.recording) return;
+    this.cancelRequested = true;
+    // watch döngüsü 60ms'de bir çalışır; recorder'ı hemen durduracak bir işaret yeterli değil,
+    // bu yüzden stop'u doğrudan tetiklemek için kısa bir yol: recording bayrağını bırakma onstop'ta olur.
+  }
+
+  isRecording(): boolean {
+    return this.recording;
   }
 
   /** Kaydı Groq Whisper ile metne çevirir (main süreç üzerinden). */

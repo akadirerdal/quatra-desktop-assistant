@@ -12,6 +12,7 @@ import { transcribeAudio } from '../src/providers/groq/transcribe';
 import { ProviderError } from '../src/providers/types';
 import { cancelActiveAgent, runAgent } from './agent-service';
 import { listEdgeVoices, synthesizeEdge } from './tts-service';
+import { logDir, logFilePath, openLogsFolder } from './log-file';
 import { appLogger } from '../src/services/log/logger';
 import type { AgentRunRequest } from './agent-service';
 
@@ -143,6 +144,16 @@ export function registerIpc(win: BrowserWindow): void {
     } catch {
       return { ok: false, message: 'Kısayol kaydedilemedi.' };
     }
+  });
+
+  // ---------------------------------------------------------------- günlükler
+  ipcMain.handle('log:open', async () => openLogsFolder());
+  ipcMain.handle('log:path', async () => ({ ok: true, path: logFilePath(), dir: logDir() }));
+  ipcMain.on('log:renderer', (_e, level: unknown, message: unknown) => {
+    const logger = appLogger.scoped('renderer');
+    const msg = String(message ?? '');
+    if (level === 'error') logger.error(msg);
+    else logger.warn(msg);
   });
 
   // ---------------------------------------------------------------- pencere kontrolleri (özel başlık çubuğu)

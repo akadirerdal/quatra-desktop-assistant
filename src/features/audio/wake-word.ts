@@ -134,6 +134,11 @@ export class WakeWordService {
         await sleep(2000);
         continue;
       }
+      if (outcome.kind === 'busy') {
+        // Başka bir kayıt sürüyor (komut/sohbet) — hata değil; sessizce bekle.
+        await sleep(400);
+        continue;
+      }
       if (outcome.kind === 'silence') {
         await sleep(150);
         continue;

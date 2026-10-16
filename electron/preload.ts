@@ -82,6 +82,14 @@ const quatra = {
     rendererReady: (): void => ipcRenderer.send('app:renderer-ready'),
   },
 
+  log: {
+    openLogs: (): Promise<{ ok: boolean; path?: string; message?: string }> =>
+      ipcRenderer.invoke('log:open'),
+    path: (): Promise<{ ok: boolean; path?: string; dir?: string }> => ipcRenderer.invoke('log:path'),
+    rendererError: (level: 'warn' | 'error', message: string): void =>
+      ipcRenderer.send('log:renderer', level, message),
+  },
+
   window: {
     minimize: (): void => ipcRenderer.send('window:minimize'),
     toggleMaximize: (): void => ipcRenderer.send('window:toggle-maximize'),

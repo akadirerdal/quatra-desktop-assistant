@@ -58,6 +58,11 @@ export interface QuatraBridge {
     version(): Promise<string>;
     rendererReady(): void;
   };
+  log: {
+    openLogs(): Promise<{ ok: boolean; path?: string; message?: string }>;
+    path(): Promise<{ ok: boolean; path?: string; dir?: string }>;
+    rendererError(level: 'warn' | 'error', message: string): void;
+  };
   window: {
     minimize(): void;
     toggleMaximize(): void;

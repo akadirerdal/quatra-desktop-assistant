@@ -27,10 +27,19 @@ export class Logger {
   private readonly minLevel: LogLevel;
   private readonly ringSize: number;
   private readonly ring: LogEntry[] = [];
+  private sinks: Array<(entry: LogEntry) => void> = [];
 
   constructor(options: LoggerOptions = {}) {
     this.minLevel = options.minLevel ?? 'info';
     this.ringSize = options.ringSize ?? 200;
+  }
+
+  /** Ek çıkışlar (dosya vb.). Dönen fonksiyon sink'i kaldırır. */
+  addSink(fn: (entry: LogEntry) => void): () => void {
+    this.sinks.push(fn);
+    return () => {
+      this.sinks = this.sinks.filter((s) => s !== fn);
+    };
   }
 
   scoped(scope: string): ScopedLogger {
@@ -43,6 +52,14 @@ export class Logger {
     const entry: LogEntry = { ts: new Date().toISOString(), level, scope, message: safe };
     this.ring.push(entry);
     if (this.ring.length > this.ringSize) this.ring.splice(0, this.ring.length - this.ringSize);
+    // Sink'ler (dosya vb.) — biri patlarsa diğerleri devam eder.
+    for (const sink of this.sinks) {
+      try {
+        sink(entry);
+      } catch {
+        // sink hatası loglamayı bozmaz
+      }
+    }
     // Console çıktısı da redact'lı metni kullanır.
     const line = `[${entry.ts}] [${level.toUpperCase()}] [${scope}] ${safe}`;
     if (level === 'error') console.error(line);

@@ -655,7 +655,19 @@ function DiagnosticsSection(): React.JSX.Element {
         ))}
       </div>
       <div className="field" style={{ marginTop: 14 }}>
-        <Button onClick={refresh}>{strings.clearLogs}</Button>
+        <div className="row">
+          <Button onClick={refresh}>{strings.clearLogs}</Button>
+          <Button
+            variant="primary"
+            onClick={() => void window.quatra?.log.openLogs()}
+            title="Günlük dosyalarının klasörünü açar"
+          >
+            Günlük dosyasını aç
+          </Button>
+        </div>
+        <div className="hint">
+          Hata günlükleri kalıcı olarak tutulur: %APPDATA%\\Quatra\\logs\\quatra.log (1MB'da rotasyon).
+        </div>
       </div>
       <div className="statusHint">Sahte sağlık puanı yoktur; gösterilen her şey gerçek durumdur.</div>
     </>

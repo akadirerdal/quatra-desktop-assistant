@@ -20,6 +20,7 @@ export class AssistantController {
   private lastPttAt = 0;
   private registeredCombo: string | null = null;
   private followToken = 0;
+  private conversationActive = false;
 
   constructor() {
     this.audio = new AudioService(
@@ -115,7 +116,21 @@ export class AssistantController {
     if (st.status === 'speaking') {
       this.interrupt();
     }
+
+    // Mikrofon meşgulse (örn. uyandırma servisi bekliyorsa) nazikçe devral.
+    if (this.audio.isRecording()) {
+      this.wake?.pause();
+      this.audio.cancelRecording();
+      await new Promise((r) => setTimeout(r, 180));
+    }
+    if (this.audio.isRecording()) {
+      // Hâlâ meşgul — hata göstermeden kısa süre sonra tekrar denenebilir.
+      st.setCaption('Bir saniye… mikrofon hazırlanıyor.');
+      return;
+    }
+
     this.followToken += 1; // bekleyen takip zamanlayıcısını iptal et
+    this.conversationActive = true;
     this.listening = true;
     this.wake?.pause();
     this.audio.stopSpeaking();
@@ -134,18 +149,27 @@ export class AssistantController {
         silenceMs: source === 'followup' ? 1000 : 1100,
         waitStartMs: source === 'wake' ? 8000 : source === 'followup' ? 5000 : 6000,
       });
+      if (outcome.kind === 'busy') {
+        st.setStatus('idle');
+        return; // sessizce çık — hata değil
+      }
       if (outcome.kind === 'silence') {
         st.setStatus('idle');
-        st.setCaption(
-          source === 'followup'
-            ? ''
-            : source === 'wake'
-              ? strings.wakeHeardNothing
-              : strings.sttFailed,
-        );
+        if (source === 'followup') {
+          // Sessizlik = sohbet bitti; uyandırma beklemeye dön.
+          this.conversationActive = false;
+          st.setCaption('');
+        } else if (source === 'wake') {
+          this.conversationActive = false;
+          st.setCaption(strings.wakeHeardNothing);
+        } else {
+          this.conversationActive = false;
+          st.setCaption(strings.sttFailed);
+        }
         return;
       }
       if (outcome.kind === 'error') {
+        this.conversationActive = false;
         this.onAudioError(outcome.message);
         return;
       }
@@ -153,6 +177,7 @@ export class AssistantController {
       st.setCaption(strings.transcribing);
       const res = await this.audio.transcribe(outcome.result.audio);
       if (!res.ok) {
+        this.conversationActive = false;
         this.onAudioError(res.message);
         return;
       }
@@ -160,7 +185,9 @@ export class AssistantController {
       this.send(res.text);
     } finally {
       this.listening = false;
-      if (this.wake?.isRunning()) this.wake.resume();
+      // Sohbet sürüyorsa uyandırma servisi bekler (çakışma olmaz);
+      // sohbet bittiyse "Quatra" beklemeye geri döner.
+      if (!this.conversationActive && this.wake?.isRunning()) this.wake.resume();
     }
   }
 
@@ -174,8 +201,13 @@ export class AssistantController {
       if (token !== this.followToken) return;
       const st = useAssistantStore.getState();
       const settings = useSettingsStore.getState().settings;
-      if (!settings.voice.continuous) return;
+      if (!settings.voice.continuous) {
+        this.conversationActive = false;
+        if (this.wake?.isRunning()) this.wake.resume();
+        return;
+      }
       if (st.mutedByUser || st.status !== 'idle') return;
+      if (this.audio.isRecording()) return; // mikrofon meşgulse bu tur atla
       void this.startCommandCapture('followup');
     }, 500);
   }
@@ -196,10 +228,13 @@ export class AssistantController {
 
   interrupt(): void {
     this.followToken += 1; // takip döngüsünü durdur
+    this.conversationActive = false;
+    this.audio.cancelRecording();
     this.audio.stopSpeaking();
     void window.quatra?.agent.cancel();
     const st = useAssistantStore.getState();
     st.setStatus('idle');
+    if (this.wake?.isRunning()) this.wake.resume();
   }
 
   setMuted(muted: boolean): void {
@@ -207,6 +242,7 @@ export class AssistantController {
     st.setMuted(muted);
     if (muted) {
       this.followToken += 1;
+      this.conversationActive = false;
       this.wake?.pause();
       this.audio.stopAll();
       this.listening = false;
@@ -306,6 +342,8 @@ export class AssistantController {
       case 'error': {
         store.setConnection('failed', event.message);
         store.setStatus('error');
+        this.conversationActive = false;
+        if (this.wake?.isRunning()) this.wake.resume();
         const task = store.tasks.find((t) => t.state === 'running');
         if (task) {
           store.updateTask(task.id, { state: 'error', detail: event.message });
@@ -319,6 +357,7 @@ export class AssistantController {
 
   private onAudioError(message: string): void {
     const store = useAssistantStore.getState();
+    this.conversationActive = false;
     store.setCaption(message);
     store.setStatus('error');
     setTimeout(() => {
@@ -329,6 +368,7 @@ export class AssistantController {
       }
     }, 4500);
     this.listening = false;
+    if (this.wake?.isRunning()) this.wake.resume();
   }
 
   private onTtsEnd(): void {

@@ -8,9 +8,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { registerIpc } from './ipc';
 import { appLogger } from '../src/services/log/logger';
+import { appendLogLine, logFilePath } from './log-file';
 
 // esbuild main'i CJS olarak üretir; __dirname doğrudan kullanılabilir.
 const log = appLogger.scoped('main');
+
+// Kalıcı günlük dosyası: tüm loglar redact'lı olarak dosyaya da yazılır.
+appLogger.addSink((entry) => {
+  appendLogLine(`[${entry.ts}] [${entry.level.toUpperCase()}] [${entry.scope}] ${entry.message}`);
+});
 
 /**
  * Kalıcı veri yolu — sürümden/güncellemeden bağımsız SABİT konum (%APPDATA%\Quatra).
@@ -154,6 +160,7 @@ function createWindow(): void {
 
 // CSP: yalnızca kendi kaynaklarımız; harici ağ yok (renderer'da).
 void app.whenReady().then(() => {
+  log.info(`Quatra başladı — v${app.getVersion()} · ${process.platform} · log: ${logFilePath()}`);
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({
       responseHeaders: {
