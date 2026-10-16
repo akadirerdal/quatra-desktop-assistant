@@ -54,10 +54,16 @@ export class MemoryStore {
 
   async remove(id: string): Promise<void> {
     const entries = await this.load();
-    await this.save(entries.filter((e) => e.id !== id));
+    const next = entries.filter((e) => e.id !== id);
+    if (next.length === entries.length) return; // kayıt zaten yok — dosyaya dokunma
+    await this.backup();
+    await this.save(next);
   }
 
   async clear(): Promise<void> {
+    const entries = await this.load();
+    if (entries.length === 0) return;
+    await this.backup();
     await this.save([]);
   }
 
@@ -90,6 +96,17 @@ export class MemoryStore {
       if (block.length > maxChars) break;
     }
     return block;
+  }
+
+  /** Silme öncesi dosyanın son halini yedekler — yanlışlıkla silinen kayıt geri alınabilsin. */
+  private async backup(): Promise<void> {
+    try {
+      if (fs.existsSync(this.file)) {
+        await fs.promises.copyFile(this.file, `${this.file}.bak`);
+      }
+    } catch {
+      // yedek alınamazsa silme yine de sürer
+    }
   }
 
   private async save(entries: MemoryEntry[]): Promise<void> {

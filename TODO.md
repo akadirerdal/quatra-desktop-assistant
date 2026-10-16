@@ -241,5 +241,14 @@ Durum etiketleri: ✅ tamam | 🟡 kısmi | ⛔ blocked | ⬜ başlanmadı.
 - **C konsepti uygulandı:** `mic-eq.ts` (saf seviye matematiği) + `MicButton.tsx` — dinlerken çubuklar gerçek mikrofon seviyesiyle oynar, konuşurken gerçek çıkış sinyali (yoksa sakin sabit desen), kapalıyken kırmızıya çöker; "Hareketi azalt" açıkken sabit desen. Eski `micPill`/`micDot` kaldırıldı; düğme etiketleri ("Mikrofonu sustur/aç") + aria-pressed eklendi.
 - **Kullanıcı geri bildirimi (aynı tur):** düğme beğenildi ("güzel"); asıl rahatsızlık ortadaki görselde sesize alınınca çıkan **kırmızı çapraz çizgi**ydi (muted çizimi) — kaldırıldı; muted artık sakin, kesikli, soluk bir çizgi; "kapalı" bilgisi MIC düğmesi + durum metninde yaşıyor.
 - **V1-16 kapandı ✅:** kullanıcı düğmeyi kabul etti ("tamam okey idare eder") — EKSIKLER §9/6 ✅ bölümüne taşındı, V1-UPDATE'te ✅ işaretlendi.
-- **Hafıza & not denetimi (kullanıcı sorusu üzerine):** (1) uygulama hafızası 16.10 sabah sessizce boşaltılmış bulundu — kodda yedeksiz/log'suz tek silme yolu Ayarlar → Hafıza'daki ✕ / "Tümünü sil"; sesli testlerdeki "hatırlamıyor" davranışının sebebi bu. Kayıtlar (kişisel alanlar) geri yüklenebilir; kullanıcı onayı bekleniyor. (2) Log'da `not_al` → "Hedef klasör mevcut değil." hatası tespit edildi (not yazılamamış). İkisi EKSIKLER §3/§4'e işlendi. Onaylanırsa: hafıza geri yükleme + silme öncesi otomatik yedek + not klasörü iyileştirmesi.
+- **Hafıza & not denetimi (kullanıcı sorusu üzerine):** (1) uygulama hafızası 16.10 sabah sessizce boşaltılmış bulundu — kodda yedeksiz/log'suz tek silme yolu Ayarlar → Hafıza'daki ✕ / "Tümünü sil"; sesli testlerdeki "hatırlamıyor" davranışının sebebi bu. (2) Log'da `not_al` → "Hedef klasör mevcut değil." hatası tespit edildi (not yazılamamış). İkisi EKSIKLER §3/§4'e işlendi → **Tur 10'da çözüldü.**
 - **Kanıt:** 168 test ✅ (themes +5, mic-eq +4, UI +2), `verify` yeşil, secret taraması temiz.
+
+## Tur 10 — Otomatik çalışma (kullanıcı talimatı: "tüm notları ve eksikleri bitir; en son konuşuruz")
+
+> Çalışma kuralı: soru sorulmaz; biriken sorular `SORULAR.md`'de tutulur. Her adım `verify` + commit ile kapanır.
+
+- **Hafıza kurtarma:** 16.10'da sessizce boşaltılan hafıza geri yüklendi (6 kayıt: kişisel kayıtlar (ayrıntılar yalnızca cihazdaki hafızada) · "efendim").
+- **Hafıza silme koruması:** silme öncesi otomatik `memory.json.bak` + silme olaylarının log'a düşmesi (MemoryStore.backup + IPC logları).
+- **Not (`not_al`) klasör dayanıklılığı:** modelin uydurduğu var olmayan klasör yok sayılır → hatırlanan klasör → kullanıcı seçimi (seçim `notes-dir.txt`'te hatırlanır). "Hedef klasör mevcut değil." hatası bitti.
+- **Kanıt:** 171 test ✅ (memory-store +1, tools +2), `verify` yeşil, secret taraması temiz.

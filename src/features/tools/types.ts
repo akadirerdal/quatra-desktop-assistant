@@ -15,6 +15,12 @@ export interface NativeBridge {
   clipboardWrite(text: string): Promise<void>;
   clipboardRead(): Promise<string>;
   pickDirectory(): Promise<string | null>;
+  /** Yol gerçek bir klasöre mi işaret ediyor? */
+  folderExists(dir: string): Promise<boolean>;
+  /** Notlar için son kullanılan klasör (yoksa ''). */
+  getNotesDirectory(): Promise<string>;
+  /** Notlar klasörünü hatırla — sonraki notlarda kullanıcıya sorulmaz. */
+  rememberNotesDirectory(dir: string): Promise<void>;
   getAppVersion(): string;
 }
 

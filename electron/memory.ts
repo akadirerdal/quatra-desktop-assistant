@@ -30,10 +30,13 @@ export function registerMemoryIpc(): void {
   });
   ipcMain.handle('memory:remove', async (_e, id: string) => {
     await store().remove(String(id));
+    appLogger.scoped('memory').info('kayıt silindi (yedek: memory.json.bak)');
     return { ok: true };
   });
   ipcMain.handle('memory:clear', async () => {
+    const count = (await store().load()).length;
     await store().clear();
+    appLogger.scoped('memory').info(`hafıza temizlendi (${count} kayıt) — yedek: memory.json.bak`);
     return { ok: true };
   });
 }

@@ -42,6 +42,22 @@ describe('MemoryStore', () => {
     expect(await s.load()).toHaveLength(0);
   });
 
+  it('silme öncesi yedek bırakır (memory.json.bak)', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'quatra-mem-'));
+    tempDirs.push(dir);
+    const file = path.join(dir, 'memory.json');
+    const s = new MemoryStore(file);
+    await s.add('bir', 'user');
+    const two = await s.add('iki', 'user');
+    await s.remove(two.id);
+    const bak1 = JSON.parse(fs.readFileSync(`${file}.bak`, 'utf8')) as { entries: Array<{ text: string }> };
+    expect(bak1.entries.map((e) => e.text).sort()).toEqual(['bir', 'iki']);
+    await s.clear();
+    const bak2 = JSON.parse(fs.readFileSync(`${file}.bak`, 'utf8')) as { entries: Array<{ text: string }> };
+    expect(bak2.entries.map((e) => e.text)).toEqual(['bir']);
+    expect(await s.load()).toHaveLength(0);
+  });
+
   it('boş kayıt eklemeyi reddeder', async () => {
     const s = store();
     await expect(s.add('   ', 'user')).rejects.toThrow();

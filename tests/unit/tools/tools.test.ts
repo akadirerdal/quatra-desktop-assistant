@@ -13,6 +13,9 @@ const native: NativeBridge = {
   clipboardWrite: vi.fn(async () => undefined),
   clipboardRead: vi.fn(async () => 'x'),
   pickDirectory: vi.fn(async () => '/secim'),
+  folderExists: vi.fn(async () => true),
+  getNotesDirectory: vi.fn(async () => ''),
+  rememberNotesDirectory: vi.fn(async () => undefined),
   getAppVersion: () => '0.1.0-test',
 };
 
@@ -161,6 +164,31 @@ describe('builtin tools', () => {
       expect.stringMatching(/^rapor_2026_10\.md$/),
       '/secim',
     );
+    expect(native.rememberNotesDirectory).toHaveBeenCalledWith('/secim');
+  });
+
+  it('not_al: modelin var olmayan klasörünü yok sayar, seçiciye düşer', async () => {
+    const reg = new ToolRegistry();
+    for (const t of createBuiltinTools()) reg.register(t);
+    vi.mocked(native.folderExists).mockResolvedValueOnce(false);
+    const r = await reg.execute(
+      'not_al',
+      '{"title":"a","content":"b","directory":"Z:/olmayan-yol"}',
+      { native },
+    );
+    expect(r.ok).toBe(true);
+    expect(native.writeNote).toHaveBeenCalledWith(expect.any(String), 'a.md', '/secim');
+  });
+
+  it('not_al: hatırlanan klasör varsa kullanıcıya sormaz', async () => {
+    const reg = new ToolRegistry();
+    for (const t of createBuiltinTools()) reg.register(t);
+    vi.mocked(native.getNotesDirectory).mockResolvedValueOnce('/hatir');
+    vi.mocked(native.pickDirectory).mockClear();
+    const r = await reg.execute('not_al', '{"title":"m","content":"n"}', { native });
+    expect(r.ok).toBe(true);
+    expect(native.writeNote).toHaveBeenCalledWith(expect.any(String), 'm.md', '/hatir');
+    expect(native.pickDirectory).not.toHaveBeenCalled();
   });
 });
 

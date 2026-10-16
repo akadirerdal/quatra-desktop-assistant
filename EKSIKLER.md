@@ -39,7 +39,6 @@ _Bu sıralama §9’daki kullanıcı maddeleriyle birleştirilip **`V1-UPDATE.md
 ## 3. Araçlar / yetenekler
 - ⬜ **Hatırlatıcı / zamanlayıcı / alarm yok** — “10 dakika sonra hatırlat” gibi klasik asistan istekleri şu an desteklenmiyor. (En belirgin eksik.)
 - ⬜ **Dosya işlemleri asgari** — yalnız not yazma var; okuma, arama, taşıma, silme yok.
-- ⬜ **Not hedef klasörü kırılgan** — `not_al` yalnız gerçekten var olan klasöre yazabiliyor; model var olmayan bir klasör verirse "Hedef klasör mevcut değil." hatasıyla başarısız oluyor (16.10: not kaydedilemedi). Öneri: klasör yoksa kullanıcıya seçtir + son seçimi hatırla.
 - ⬜ **Ekran görüntüsü alma yok.**
 - ⬜ **Web sayfası okuma/özetleme yok** — tarayıcı köprüsü gelince gelecek.
 - ⬜ **Uygulama açma 7 uygulamayla sınırlı** — not defteri, hesap makinesi, dosya gezgini, komut istemi, PowerShell, Paint, Görev Yöneticisi. Liste kullanıcı onayıyla genişletilebilir.
@@ -47,7 +46,6 @@ _Bu sıralama §9’daki kullanıcı maddeleriyle birleştirilip **`V1-UPDATE.md
 ## 4. Hafıza
 - ⬜ **Anlamsal tekrar yakalama yok** — aynı bilgi farklı kelimelerle iki kez kaydolabilir (ör. “efendim demesi” tercihi iki kayıt olarak duruyor). Çözüm: model tabanlı benzerlik kontrolü.
 - ⬜ **Tek kayıt silme sesli komutu yok** — “bunu unut” henüz yok; silme Ayarlar → Hafıza listesinden yapılıyor.
-- ⬜ **Silme yedeksiz ve sessiz** — kayıt silme (✕) ve “Tümünü sil” ne günlüğe yazılır ne yedek bırakır; 16.10’da dosya sessizce boşaltıldı ve geri dönüş yolu yoktu. Öneri: silme öncesi otomatik `memory.json.bak` (ayarlar dosyasındaki desen) + silme olayının log’a düşmesi.
 - ⬜ **Kayıt düzenleme yok** — metin değiştirmek için silip yeniden eklemek gerekiyor.
 - ⬜ **Hafızada arama/filtreleme yok** — kayıt sayısı artınca gerekli olacak.
 
@@ -94,3 +92,5 @@ _(Yeni bildirim geldikçe buraya eklenir.)_
 ## ✅ Çözülenler
 - ✅ **(Tur 9, 16.10) Ölü görünüm kontrolleri gerçek oldu** — vurgu rengi artık tüm arayüze uygulanıyor (eskiden yalnızca visualizer çizimine gidiyordu); "Arayüz ölçeği" ve "Hareketi azalt" artık gerçekten etkili; tema altyapısı eklendi (7 tema) → V1-15.
 - ✅ **(Tur 9, 16.10) Mikrofon düğmesi yenilendi (V1-16)** — eski MIC rozeti yerine “Ekolayzır” (C) düğmesi: 4 çubuk dinlerken gerçek mikrofon seviyesiyle oynar; muted görselindeki kırmızı çapraz çizgi kaldırıldı (sakin, kesikli çizgi). Kullanıcı kabul etti.
+- ✅ **(Tur 10, 16.10) Hafıza silme koruması** — `remove`/`clear` artık dosyayı silmeden önce `memory.json.bak` yedeği bırakıyor; silme olayları log’a düşüyor (sessiz veri kaybı bitti). Ayrıca 16.10’da sessizce boşaltılan hafıza geri yüklendi (6 kayıt).
+- ✅ **(Tur 10, 16.10) Not (`not_al`) klasör dayanıklılığı** — modelin uydurduğu var olmayan klasör yok sayılır; hatırlanan klasör (notes-dir.txt) otomatik kullanılır; yoksa kullanıcıya seçtirilir ve seçim hatırlanır. “Hedef klasör mevcut değil.” hatası bitti.

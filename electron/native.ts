@@ -69,6 +69,33 @@ export function createNativeBridge(win: BrowserWindow | null): NativeBridge {
       return result.filePaths[0];
     },
 
+    async folderExists(dir: string) {
+      try {
+        return fs.statSync(path.resolve(dir)).isDirectory();
+      } catch {
+        return false;
+      }
+    },
+
+    async getNotesDirectory() {
+      try {
+        const file = path.join(app.getPath('userData'), 'notes-dir.txt');
+        const dir = (await fs.promises.readFile(file, 'utf8')).trim();
+        return dir && fs.existsSync(dir) ? dir : '';
+      } catch {
+        return '';
+      }
+    },
+
+    async rememberNotesDirectory(dir: string) {
+      try {
+        const file = path.join(app.getPath('userData'), 'notes-dir.txt');
+        await fs.promises.writeFile(file, path.resolve(dir), 'utf8');
+      } catch {
+        // hatırlama kritik değil — not yine de yazıldı
+      }
+    },
+
     getAppVersion() {
       return app.getVersion();
     },

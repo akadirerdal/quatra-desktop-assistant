@@ -15,6 +15,9 @@ const native: NativeBridge = {
   clipboardWrite: vi.fn(async () => undefined),
   clipboardRead: vi.fn(async () => 'gizli-metin'),
   pickDirectory: vi.fn(async () => '/notes'),
+  folderExists: vi.fn(async () => true),
+  getNotesDirectory: vi.fn(async () => ''),
+  rememberNotesDirectory: vi.fn(async () => undefined),
   getAppVersion: () => '0.1.0-test',
 };
 
