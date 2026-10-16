@@ -20,7 +20,7 @@ Kullanıcının sorusu üzerine: bence v1’den önce çözülmesi gerekenler, �
 8. **İşlem günlüğü + dosya yedeği/geri alma** — yaptığı işlerin kaydı ve yanlış yazımda geri dönüş; güven için.
 9. **Maliyet/token görünürlüğü** — küçük ama şeffaflık sağlar.
 
-_Bu sıralama §9’daki kullanıcı maddeleriyle birleşince v1 kapsamı netleşir; kesin sıra birlikte belirlenecek._
+_Bu sıralama §9’daki kullanıcı maddeleriyle birleştirilip **`V1-UPDATE.md`** olarak ayrı listeye alındı — v1 kapsamının tek doğru kaynağı artık V1-UPDATE.md’dir._
 
 ---
 
@@ -74,6 +74,7 @@ _Bu sıralama §9’daki kullanıcı maddeleriyle birleşince v1 kapsamı netle�
 
 ## 9. Kullanıcı incelemesinden gelenler
 > İnceleme sırasında bildirdiğin eksikler buraya tarihiyle işlenir; çözülenler ✅ bölümüne taşınır.
+> **Not:** Tur 7’deki tüm maddeler v1 planına alındı → bkz. `V1-UPDATE.md`.
 
 ### Tur 7 — 16.10.2026 (kullanıcı bildirimleri — “şimdilik sadece not et”)
 

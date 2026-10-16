@@ -227,3 +227,8 @@ Durum etiketleri: ✅ tamam | 🟡 kısmi | ⛔ blocked | ⬜ başlanmadı.
 - Bildirimler (EKSIKLER.md §9'a işlendi): mikrofon ayarları artırılsın + mikrofon testi; kazanç/gürültü engelleme açık-kapalı yerine kademeli; mikrofon sürekli açık, yalnız "Quatra" tetiklesin, uykuya geçmeyi reddetmesin; sessizlikte uyku süresi ayarlanabilir olsun (varsayılan 5 sn); daha fazla tema (tartışma); mikrofon kapatma simgesi yenilenecek (tartışma); Windows açılışında otomatik başlatma (Ayarlar'dan aç/kapat); izin istekleri sözlü olsun — ekranda baloncuk çıkmasın.
 - Geliştirici v1 öncelik önerisi EKSIKLER.md başına eklendi: bağlam, hatırlatıcı, akış+sus, yerel uyandırma, yedek sağlayıcı, tepsi+otomatik başlatma, kurulum+güncelleme, audit+yedek, maliyet.
 - Doğrulanan mevcut durum: mikrofon cihazı seçimi yok (varsayılan cihaz); takip süreleri sabit kod içinde (ayarlanabilir değil).
+
+**Tur 8 (Vol 1 Update listesi):** kullanıcı "vol 1 update olarak bi liste oluştur ve burdaki tüm maddeleri ekle" dedi.
+- `V1-UPDATE.md` oluşturuldu: 21 numaralı madde, 7 paket halinde (A mikrofon, B sesli deneyim, C zeka, D arka plan, E görsel, F güvenlik, G dağıtım) + H "v1'de değerlendirilecek" + I "kapsam dışı".
+- Kaynak etiketleri: 👤 kullanıcı bildirimi, 🔧 geliştirici tespiti; her madde tamamlanınca ✅ + EKSIKLER.md ile senkron.
+- EKSIKLER.md v1 bölümü ve §9, V1-UPDATE.md'ye bağlandı (tek doğru kaynak).
