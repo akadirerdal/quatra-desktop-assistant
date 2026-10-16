@@ -32,3 +32,22 @@ export function gateThresholdOf(level: MicLevelStep): number {
       return 0;
   }
 }
+
+/** Kapı açıldıktan sonra kısa sessizliklerde açık kalma süresi (hece araları kapanmasın). */
+export const GATE_HOLD_MS = 400;
+
+/**
+ * Gürültü kapısının tek karelik kararı — yalnızca HAM seviye ile çağrılır.
+ * Kazançtan sonra ölçülürse kapı kapandığı an seviye ~0 okunur ve bir daha
+ * açılamaz (kendini kilitler). Ham seviye eşiği geçince tutuş penceresi yenilenir.
+ */
+export function gateDecision(
+  rawLevel: number,
+  gate: number,
+  nowMs: number,
+  openUntilMs: number,
+): { open: boolean; openUntilMs: number } {
+  if (gate === 0) return { open: true, openUntilMs: 0 };
+  if (rawLevel >= gate) return { open: true, openUntilMs: nowMs + GATE_HOLD_MS };
+  return { open: nowMs < openUntilMs, openUntilMs };
+}

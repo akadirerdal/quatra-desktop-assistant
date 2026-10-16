@@ -75,7 +75,9 @@ _Bu sıralama §9’daki kullanıcı maddeleriyle birleştirilip **`V1-UPDATE.md
 
 ### Tur 10 — 16.10.2026 akşamı (kullanıcı bildirimi)
 
-1. ⚠️ **ÖNEMLİ SORUN — ayrıntı bekleniyor:** “Bir sorun fark ettim, önemli sorun diye not et” (16.10 akşamı). Sorunun tanımı henüz paylaşılmadı; paylaşılır paylaşılmaz buraya işlenir ve **öncelikli** çözülür.
+1. ✅ **KRİTİK — uygulamada mikrofon “ölü”: ses hiç alınmıyordu** — bildirim (16.10): “Windows’ta ses temiz, uygulamada ses yok; test ettim, bazen alıyor ama çoğu zaman hiç almıyor.”
+   **Kök sebep:** gürültü kapısı (kullanıcıda “düşük” açık) seviyeyi kazanç düğümünden **sonra** ölçüyordu; kapı kapandığı anda seviye ~0 okunuyor ve kapı bir daha açılamıyordu (kendini kilitliyordu) → tüm kayıtlar sonsuza dek “sessizlik”. Log kanıtı: art arda `kayıt sonu: sessizlik`.
+   **Düzeltme (Tur 10 ek):** analyser ham kaynağa taşındı (kazançtan önce → kapı ham seviyeyle karar verir, kilitlenemez); askıya düşen AudioContext kendiliğinden resume ediliyor; kopan cihaz akışı (çıkarılan mikrofon) otomatik yeniden açılıyor. Regresyon testleri: kapı kararı (+4), zincir bağlantısı (+3). **Gerçek mikrofonla son doğrulama: kullanıcıda.**
 
 _(Yeni bildirim geldikçe buraya eklenir.)_
 

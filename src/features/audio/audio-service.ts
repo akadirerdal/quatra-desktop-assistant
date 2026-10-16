@@ -12,7 +12,7 @@
  */
 import { useAssistantStore } from '../../state/assistant-store';
 import { useSettingsStore } from '../../state/settings-store';
-import { gainValueOf, gateThresholdOf } from './mic-levels';
+import { gainValueOf, gateDecision, gateThresholdOf } from './mic-levels';
 
 export interface RecordedCommand {
   audio: Blob;
@@ -86,6 +86,7 @@ export class AudioService {
   private gainNode: GainNode | null = null;
   private processedStream: MediaStream | null = null;
   private gateOpenUntil = 0;
+  private lastResumeAt = 0;
   private raf = 0;
   private currentLevel = 0;
   private recording = false;
@@ -120,6 +121,12 @@ export class AudioService {
 
   /** Mikrofon erişimi — gerekirse açar; izin reddi dürüst hatayla bildirilir. */
   async ensureMic(): Promise<boolean> {
+    // Ölü akış: cihaz çıkarıldıysa/değiştiyse track 'ended' olur; o akışla kayıt
+    // sonsuza dek sessiz kalırdı → bırak ve yeniden aç.
+    if (this.stream && !this.stream.getAudioTracks().some((t) => t.readyState === 'live')) {
+      this.logEvent('mikrofon akışı koptu (cihaz değişimi) — yeniden açılıyor');
+      this.releaseMic();
+    }
     if (this.stream) return true;
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
@@ -157,21 +164,26 @@ export class AudioService {
     }
     try {
       this.audioCtx = new AudioContext();
+      // Askıya alınmış bağlam (cihaz değişimi, uyku/uyanma sonrası) sesi tümden keser.
+      if ((this.audioCtx.state as string) !== 'running') {
+        void this.audioCtx.resume().catch(() => undefined);
+      }
       const source = this.audioCtx.createMediaStreamSource(this.stream);
       this.analyser = this.audioCtx.createAnalyser();
       this.analyser.fftSize = 512;
-      // Yazılım katmanı: kaynak → kazanç → (ölçüm + kayıt çıkışı).
-      // Analyser HAM sinyali ölçer; gürültü kapısı kararı ham seviyeye göre verilir
-      // (kapı kendi çıkışını ölçerse kendini kilitleyebilirdi).
+      // Kayıt zinciri: kaynak → kazanç → kayıt çıkışı.
+      // Analyser HAM kaynağa bağlanır (kazançtan ÖNCE): VAD, barge-in ve gürültü
+      // kapısı kararı ham seviyeye göre verilir. Kazançtan SONRA ölçülseydi kapı
+      // kapandığı an seviye ~0 okunur ve kapı bir daha açılamazdı (kilitlenme).
       this.gainNode = this.audioCtx.createGain();
       const dest = this.audioCtx.createMediaStreamDestination();
+      source.connect(this.analyser);
       source.connect(this.gainNode);
-      this.gainNode.connect(this.analyser);
       this.gainNode.connect(dest);
       this.processedStream = dest.stream;
       this.startLevelLoop();
     } catch {
-      // Analyser kurulamazsa seviye 0 kalır — görsel dürüst nefes animasyonuna düşer.
+      // WebAudio kurulamazsa seviye 0 kalır — görsel dürüst nefes animasyonuna düşer.
     }
     return true;
   }
@@ -181,6 +193,17 @@ export class AudioService {
     let lastTick = performance.now();
     const tick = () => {
       if (this.analyser) {
+        const now = performance.now();
+        // Bağlam sonradan askıya düşerse (cihaz değişimi / uyku sonrası) kendiliğinden
+        // toparla — askıdaki bağlam tam sessizlik üretir, mikrofon "ölü" görünür.
+        if (
+          this.audioCtx &&
+          (this.audioCtx.state as string) !== 'running' &&
+          now - this.lastResumeAt > 1500
+        ) {
+          this.lastResumeAt = now;
+          void this.audioCtx.resume().catch(() => undefined);
+        }
         this.analyser.getByteTimeDomainData(data);
         let sum = 0;
         for (let i = 0; i < data.length; i++) {
@@ -190,20 +213,22 @@ export class AudioService {
         this.currentLevel = Math.sqrt(sum / data.length) * 3;
 
         // ---- Yazılım katmanı: kademeli ek kazanç + gürültü kapısı ----
+        // Karar HAM seviyeyle verilir (analyser kazançtan önce tap'li) — kapı kendini kilitleyemez.
         if (this.gainNode && this.audioCtx) {
           const voice = useSettingsStore.getState().settings.voice;
           const gain = gainValueOf(voice.micGainLevel);
           const gate = gateThresholdOf(voice.micGateLevel);
-          if (gate > 0 && this.currentLevel >= gate) {
-            this.gateOpenUntil = performance.now() + 400; // kısa tutuş — hece araları kapanmasın
-          }
-          const open = gate === 0 || performance.now() < this.gateOpenUntil;
-          this.gainNode.gain.setTargetAtTime(open ? gain : 0, this.audioCtx.currentTime, 0.04);
+          const decision = gateDecision(this.currentLevel, gate, now, this.gateOpenUntil);
+          this.gateOpenUntil = decision.openUntilMs;
+          this.gainNode.gain.setTargetAtTime(
+            decision.open ? gain : 0,
+            this.audioCtx.currentTime,
+            0.04,
+          );
         }
 
         // ---- Barge-in tespiti (söz kesme) ----
         // Bu döngü her karede çalıştığı için React durumundan bağımsız, kaçırılamaz.
-        const now = performance.now();
         const dt = Math.min(now - lastTick, 100);
         lastTick = now;
         if (
@@ -595,23 +620,33 @@ export class AudioService {
     return window.speechSynthesis.getVoices().map((v) => ({ name: v.name, lang: v.lang }));
   }
 
-  /** Watchdog: tüm kaynakları serbest bırak. */
-  stopAll(): void {
+  /** Mikrofon kaynaklarını serbest bırak (idempotent; gerekirse yeniden açılır). */
+  private releaseMic(): void {
     cancelAnimationFrame(this.raf);
     this.raf = 0;
-    this.stopSpeaking();
     for (const track of this.stream?.getTracks() ?? []) track.stop();
     this.stream = null;
-    this.analyser?.disconnect();
+    try {
+      this.analyser?.disconnect();
+      this.gainNode?.disconnect();
+    } catch {
+      // düğüm zaten kopuksa yok say
+    }
     this.analyser = null;
-    this.gainNode?.disconnect();
     this.gainNode = null;
     this.processedStream = null;
     this.gateOpenUntil = 0;
     void this.audioCtx?.close().catch(() => undefined);
     this.audioCtx = null;
-    this.recording = false;
+    this.currentLevel = 0;
     useAssistantStore.getState().setLevels(0, 0);
+  }
+
+  /** Watchdog: tüm kaynakları serbest bırak. */
+  stopAll(): void {
+    this.stopSpeaking();
+    this.releaseMic();
+    this.recording = false;
   }
 
   isMicOpen(): boolean {
