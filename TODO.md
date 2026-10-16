@@ -2,6 +2,7 @@
 
 > Asistan adı: **Quatra**. Bu doküman tek plan kaynağıdır.
 > Çalışma prensibi: sadece `verify` (typecheck+lint+test) geçen adım ✅ olur. Kırmızıyken sonraki adıma geçilmez.
+> **Çalışma modu (2026-10-16, kullanıcı kararı):** Geliştirme bundan sonra **kaynak koddan** yürür (`npm run dev:electron`) — her turda paketleme YOK. NSIS kurulum dosyası yalnızca ürün bitince üretilir. Tur döngüsü: kod → `npm run verify` → dev uygulamada kullanıcı testi.
 
 ---
 
