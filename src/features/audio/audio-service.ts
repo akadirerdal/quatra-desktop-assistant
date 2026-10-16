@@ -56,6 +56,12 @@ export function vadThresholdOf(sensitivity: number): number {
   return 0.03 + (10 - s) * 0.008; // 1 → 0.102 · 5 → 0.07 · 10 → 0.03
 }
 
+/** Hayalet transkript koruması: bu tepe seviyesinin altındaki kayıtlar sessizlik sayılır. */
+export function minPeakOf(sensitivity: number): number {
+  const s = Math.min(10, Math.max(1, sensitivity));
+  return 0.10 + (10 - s) * 0.012; // 5 → 0.16 · 10 → 0.10 · 1 → 0.208
+}
+
 export function pickRecorderMime(): string {
   if (typeof MediaRecorder === 'undefined') return '';
   const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
@@ -77,6 +83,16 @@ export class AudioService {
   private playingSource: AudioBufferSourceNode | null = null;
   private speakRaf = 0;
   private speakSeq = 0;
+  private pendingPlay = false;
+  private playStartedAt = 0;
+  private burstMs = 0;
+  private bargeFired = false;
+  private bargeCallback: (() => void) | null = null;
+
+  /** Söz kesme işleyicisi — mikrofon döngüsü kullanıcı konuşmasını yakalayınca çağırır. */
+  setBargeHandler(cb: (() => void) | null): void {
+    this.bargeCallback = cb;
+  }
 
   constructor(
     private readonly onError: (message: string) => void,
@@ -127,6 +143,7 @@ export class AudioService {
 
   private startLevelLoop(): void {
     const data = new Uint8Array(this.analyser?.frequencyBinCount ?? 256);
+    let lastTick = performance.now();
     const tick = () => {
       if (this.analyser) {
         this.analyser.getByteTimeDomainData(data);
@@ -136,6 +153,33 @@ export class AudioService {
           sum += v * v;
         }
         this.currentLevel = Math.sqrt(sum / data.length) * 3;
+
+        // ---- Barge-in tespiti (söz kesme) ----
+        // Bu döngü her karede çalıştığı için React durumundan bağımsız, kaçırılamaz.
+        const now = performance.now();
+        const dt = Math.min(now - lastTick, 100);
+        lastTick = now;
+        if (
+          this.bargeCallback &&
+          !this.bargeFired &&
+          (this.pendingPlay || this.playingSource !== null)
+        ) {
+          const voice = useSettingsStore.getState().settings.voice;
+          if (voice.bargeIn && now - this.playStartedAt > 800) {
+            const thr = vadThresholdOf(voice.vadSensitivity) * 0.85;
+            if (this.currentLevel > thr) {
+              this.burstMs += dt;
+            } else {
+              this.burstMs = 0;
+            }
+            if (this.burstMs > 350) {
+              this.bargeFired = true;
+              this.burstMs = 0;
+              this.logEvent('barge: kullanıcı konuşuyor — çalma durdurulacak');
+              this.bargeCallback();
+            }
+          }
+        }
       }
       useAssistantStore.getState().setLevels(this.currentLevel, useAssistantStore.getState().speakLevel);
       this.raf = requestAnimationFrame(tick);
@@ -151,8 +195,6 @@ export class AudioService {
     const maxMs = options.maxMs ?? 15_000;
     const silenceMs = options.silenceMs ?? 1100;
     const waitStartMs = options.waitStartMs ?? 6000;
-    const threshold =
-      options.threshold ?? vadThresholdOf(useSettingsStore.getState().settings.voice.vadSensitivity);
 
     if (this.recording) return { kind: 'busy' };
     if (!(await this.ensureMic())) return { kind: 'error', message: 'Mikrofon açılamadı.' };
@@ -179,6 +221,11 @@ export class AudioService {
     let sawSpeech = false;
     let peak = 0;
     let lastVoiceAt = started;
+    // Uyarlanabilir gürültü tabanı: sessiz ortam seviyesini ölçer, eşiği ona göre yükseltir.
+    let ambient = 0.04;
+    const baseThreshold =
+      options.threshold ?? vadThresholdOf(useSettingsStore.getState().settings.voice.vadSensitivity);
+    const minPeak = minPeakOf(useSettingsStore.getState().settings.voice.vadSensitivity);
 
     return await new Promise<RecordOutcome>((resolve) => {
       let settled = false;
@@ -193,9 +240,16 @@ export class AudioService {
       };
 
       recorder.onstop = () => {
-        if (this.cancelRequested || !sawSpeech || chunks.length === 0) {
+        const effectiveOutcome = this.cancelRequested
+          ? 'iptal'
+          : !sawSpeech
+            ? 'sessizlik'
+            : peak < minPeak
+              ? `çok-sessiz(tepe=${peak.toFixed(2)}<${minPeak.toFixed(2)})`
+              : null;
+        if (this.cancelRequested || !sawSpeech || chunks.length === 0 || peak < minPeak) {
           this.cancelRequested = false;
-          this.logEvent(`kayıt sonu: ${this.cancelRequested ? 'iptal' : sawSpeech ? 'boş' : 'sessizlik'}`);
+          this.logEvent(`kayıt sonu: ${effectiveOutcome ?? 'sessizlik'}`);
           settle({ kind: 'silence' });
           return;
         }
@@ -212,9 +266,13 @@ export class AudioService {
       const watchId = setInterval(() => {
         const now = performance.now();
         peak = Math.max(peak, this.currentLevel);
-        if (this.currentLevel >= threshold) {
+        // Uyarlanabilir eşik: ortam gürültüsü yükselirse hayalet tetikleme engellenir.
+        const effectiveThreshold = Math.max(baseThreshold, ambient * 2.8);
+        if (this.currentLevel >= effectiveThreshold) {
           sawSpeech = true;
           lastVoiceAt = now;
+        } else if (this.currentLevel < baseThreshold) {
+          ambient = ambient * 0.92 + this.currentLevel * 0.08;
         }
         const stopRecorder = () => {
           try {
@@ -286,8 +344,11 @@ export class AudioService {
 
   /** Motor dağıtıcı: Edge Neural (önerilen) veya sistem TTS'i. */
   speak(text: string, rate: number, pitch: number, voiceName: string): void {
-    // Durum HEMEN 'speaking' olur — barge-in izlemesi sentez beklerken de ayakta kalır.
+    // Durum HEMEN 'speaking' olur; barge-in sentez beklerken de çalışır.
     const seq = ++this.speakSeq;
+    this.pendingPlay = true;
+    this.bargeFired = false;
+    this.playStartedAt = Date.now();
     useAssistantStore.getState().setStatus('speaking');
     const engine = useSettingsStore.getState().settings.voice.ttsEngine;
     if (engine === 'edge' && window.quatra) {
@@ -310,7 +371,10 @@ export class AudioService {
   ): Promise<void> {
     this.logEvent(`TTS: Edge (${voiceName || 'otomatik'})`);
     const res = await window.quatra?.tts.synthesize(text, voiceName, rate, pitch);
-    if (seq !== this.speakSeq) return; // araya yeni komut/işlem girdi — çalma
+    if (seq !== this.speakSeq) {
+      this.pendingPlay = false;
+      return; // araya yeni komut/işlem girdi — çalma
+    }
     if (!res || !res.ok || !res.audio) {
       this.logEvent(`TTS Edge HATA: ${res?.message ?? 'boş'} → sistem sesine düşüldü`);
       this.onError(
@@ -325,6 +389,7 @@ export class AudioService {
       const ctx = new AudioContext();
       const buffer = await ctx.decodeAudioData(res.audio.slice(0));
       if (seq !== this.speakSeq) {
+        this.pendingPlay = false;
         void ctx.close().catch(() => undefined);
         return; // iptal edildi — çalma
       }
@@ -336,6 +401,7 @@ export class AudioService {
       outAnalyser.connect(ctx.destination);
       this.playCtx = ctx;
       this.playingSource = source;
+      this.pendingPlay = false; // gerçek çalma başladı — barge playingSource üzerinden izlenir
 
       const data = new Uint8Array(outAnalyser.frequencyBinCount);
       useAssistantStore.getState().setStatus('speaking');
@@ -357,6 +423,7 @@ export class AudioService {
         cancelAnimationFrame(this.speakRaf);
         this.speakRaf = 0;
         this.playingSource = null;
+        this.pendingPlay = false;
         void ctx.close().catch(() => undefined);
         this.playCtx = null;
         const st = useAssistantStore.getState();
@@ -390,10 +457,12 @@ export class AudioService {
       useAssistantStore.getState().setStatus('speaking');
     };
     utterance.onend = () => {
+      this.pendingPlay = false;
       if (seq !== this.speakSeq) return;
       this.onTtsEnd();
     };
     utterance.onerror = () => {
+      this.pendingPlay = false;
       if (seq !== this.speakSeq) return;
       useAssistantStore.getState().setStatus('idle');
       this.onError('Ses çalınamadı — cevap ekranda gösterildi.');
@@ -404,6 +473,8 @@ export class AudioService {
 
   stopSpeaking(): void {
     this.speakSeq += 1; // devam eden/gelmekte olan oynatmayı iptal et
+    this.pendingPlay = false;
+    this.bargeFired = true; // bu konuşma turu için tekrar tetikleme
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     try {
       if (this.playingSource) {

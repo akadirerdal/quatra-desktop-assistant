@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildMicConstraints, vadThresholdOf } from '../../../src/features/audio/audio-service';
+import {
+  buildMicConstraints,
+  minPeakOf,
+  vadThresholdOf,
+} from '../../../src/features/audio/audio-service';
 import { sanitizeSettings } from '../../../src/state/settings-schema';
 
 describe('mikrofon filtreleri ve VAD', () => {
@@ -28,5 +32,11 @@ describe('mikrofon filtreleri ve VAD', () => {
   it('hassasiyet arttıkça VAD eşiği düşer (daha kolay tetiklenir)', () => {
     expect(vadThresholdOf(1)).toBeGreaterThan(vadThresholdOf(10));
     expect(vadThresholdOf(5)).toBeCloseTo(0.07, 2);
+  });
+
+  it('hayalet koruması: minPeak hassasiyetle ters orantılı ve 0.1-0.22 aralığında', () => {
+    expect(minPeakOf(1)).toBeGreaterThan(minPeakOf(10));
+    expect(minPeakOf(5)).toBeCloseTo(0.16, 2);
+    expect(minPeakOf(10)).toBeCloseTo(0.1, 2);
   });
 });

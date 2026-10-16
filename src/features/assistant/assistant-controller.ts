@@ -5,8 +5,9 @@
  */
 import { useAssistantStore, TASK_DONE_LINGER_MS } from '../../state/assistant-store';
 import { useSettingsStore, activeModel } from '../../state/settings-store';
-import { AudioService, vadThresholdOf } from '../audio/audio-service';
-import { WakeWordService, matchesWakeWord } from '../audio/wake-word';
+import { AudioService } from '../audio/audio-service';
+import { WakeWordService, matchesWakeWord, extractCommandAfterWake } from '../audio/wake-word';
+import { parseMemoryIntent, detectModeCommand } from './commands';
 import { strings } from '../../renderer/strings';
 import type { AgentEvent } from '../../renderer/global';
 
@@ -21,9 +22,6 @@ export class AssistantController {
   private registeredCombo: string | null = null;
   private followToken = 0;
   private conversationActive = false;
-  private bargeToken = 0;
-  private bargeArmed = false;
-  private speakStartedAt = 0;
 
   constructor() {
     this.audio = new AudioService(
@@ -31,6 +29,8 @@ export class AssistantController {
       () => this.onTtsEnd(),
       (msg) => window.quatra?.log.info('audio', msg),
     );
+    // Söz kesme: mikrofon döngüsü kullanıcının konuştuğunu yakalarsa buraya gelir.
+    this.audio.setBargeHandler(() => this.onBarge());
     this.detachAgent = window.quatra?.agent.onEvent((e) => this.onAgentEvent(e)) ?? null;
     this.detachShortcut =
       window.quatra?.shortcut.onTrigger(() => {
@@ -94,10 +94,7 @@ export class AssistantController {
           this.audio,
           { wakeWord: s.activation.wakeWord },
           {
-            onWake: () => {
-              useAssistantStore.getState().setCaption(strings.wakeDetected);
-              void this.startCommandCapture('wake');
-            },
+            onWake: (transcript) => this.onWakeDetected(transcript),
             onError: (msg) => {
               const st = useAssistantStore.getState();
               if (st.status === 'idle') st.setCaption(msg);
@@ -113,61 +110,41 @@ export class AssistantController {
     }
   }
 
-  /** TTS başlat + söz kesme (barge-in) izlemesini kur. */
+  /** TTS başlat (barge izlemesi AudioService'in mikrofon döngüsündedir). */
   private speakText(text: string): void {
     const settings = useSettingsStore.getState().settings;
-    this.speakStartedAt = Date.now();
     this.audio.speak(text, settings.voice.rate, settings.voice.pitch, settings.voice.voiceName);
-    if (settings.voice.bargeIn) this.startBargeWatch();
+  }
+
+  /** Kullanıcı Quatra konuşurken sözünü böldü → çalma durur, hemen dinlenir. */
+  private onBarge(): void {
+    window.quatra?.log.info('barge', 'kullanıcı sözü böldü — dinlemeye geçiliyor');
+    this.audio.stopSpeaking();
+    void window.quatra?.agent.cancel();
+    const st = useAssistantStore.getState();
+    st.setStatus('idle');
+    void this.startCommandCapture('barge');
   }
 
   /**
-   * GPT voice tarzı söz kesme: Quatra konuşurken kullanıcı seslenirse
-   * çalma durur ve hemen dinlemeye geçilir — "Quatra" demeye gerek yok.
+   * Uyandırma kelimesi duyuldu. Cümlede kelimeden sonra komut varsa ("quatra saat kaç")
+   * doğrudan o komut işlenir — kullanıcı iki kez konuşmak zorunda kalmaz.
    */
-  private startBargeWatch(): void {
-    const token = ++this.bargeToken;
-    this.bargeArmed = true;
-    let sustained = 0;
-    let last = performance.now();
-    const tick = () => {
-      if (token !== this.bargeToken) return;
+  private onWakeDetected(transcript: string): void {
+    const word = useSettingsStore.getState().settings.activation.wakeWord;
+    const rest = extractCommandAfterWake(transcript, word);
+    useAssistantStore.getState().setCaption(strings.wakeDetected);
+    if (rest && rest.trim().length >= 2) {
+      this.conversationActive = true;
+      this.wake?.pause(); // cooldown sonrası mikrofonu sohbete bırakır
+      window.quatra?.log.info('wake', `uyandırma + komut (${rest.length} karakter)`);
       const st = useAssistantStore.getState();
-      if (!this.bargeArmed || st.mutedByUser || st.status !== 'speaking') {
-        this.bargeArmed = false;
-        return;
-      }
-      const now = performance.now();
-      // Kendi sesinin yankısına karşı kısa bekleme süresi.
-      if (now - this.speakStartedAt < 800) {
-        requestAnimationFrame(tick);
-        return;
-      }
-      const threshold =
-        vadThresholdOf(useSettingsStore.getState().settings.voice.vadSensitivity) * 0.85;
-      if (st.micLevel > threshold) {
-        sustained += now - last;
-      } else {
-        sustained = 0;
-      }
-      last = now;
-      if (sustained > 320) {
-        this.bargeArmed = false;
-        window.quatra?.log.info('barge', 'kullanıcı sözü böldü — dinlemeye geçiliyor');
-        this.audio.stopSpeaking();
-        void window.quatra?.agent.cancel();
-        st.setStatus('idle');
-        void this.startCommandCapture('barge');
-        return;
-      }
-      requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-  }
-
-  private stopBargeWatch(): void {
-    this.bargeToken += 1;
-    this.bargeArmed = false;
+      st.setCaption(rest.trim());
+      st.setStatus('processing');
+      this.send(rest.trim());
+    } else {
+      void this.startCommandCapture('wake');
+    }
   }
 
   /** Kısayol/buton/uyandırma ile komut kaydını başlatır. */
@@ -191,7 +168,6 @@ export class AssistantController {
     }
 
     this.followToken += 1; // bekleyen takip zamanlayıcısını iptal et
-    this.stopBargeWatch();
     this.conversationActive = true;
     this.listening = true;
     this.wake?.pause();
@@ -300,7 +276,6 @@ export class AssistantController {
 
   interrupt(): void {
     this.followToken += 1; // takip döngüsünü durdur
-    this.stopBargeWatch();
     this.conversationActive = false;
     this.audio.cancelRecording();
     this.audio.stopSpeaking();
@@ -332,10 +307,14 @@ export class AssistantController {
     const assistant = useAssistantStore.getState();
     const lower = text.toLowerCase();
 
-    // Yerel hafıza komutları
-    const memMatch = lower.match(/^hatırla[,:]?\s+(.+)$/);
-    if (memMatch?.[1]) {
-      void this.saveMemory(memMatch[1]);
+    // Yerel hafıza komutları (isim + hatırla)
+    const memIntent = parseMemoryIntent(text);
+    if (memIntent?.kind === 'name') {
+      void this.saveMemory(`Kullanıcının adı: ${memIntent.name}`);
+      return;
+    }
+    if (memIntent?.kind === 'remember') {
+      void this.saveMemory(memIntent.text);
       return;
     }
     if (/neler? hatırlıyorsun|hafızada ne var|hafızanı göster/.test(lower)) {
@@ -350,17 +329,18 @@ export class AssistantController {
     }
 
     // Yerel mod komutları — sağlayıcıya gitmeden anında geçiş.
-    if (/(yazılım|proje|kod) moduna geç/.test(lower)) {
+    const modeCmd = detectModeCommand(text);
+    if (modeCmd === 'pro') {
       assistant.setMode('pro');
       this.sayLocal(`Yazılım moduna geçildi: ${settings.provider.proModel}`);
       return;
     }
-    if (/(normal|sohbet) moda? geç/.test(lower)) {
+    if (modeCmd === 'flash') {
       assistant.setMode('flash');
       this.sayLocal(`Normal moda geçildi: ${settings.provider.flashModel}`);
       return;
     }
-    if (/mod değiştir/.test(lower)) {
+    if (modeCmd === 'toggle') {
       const next = assistant.mode === 'flash' ? 'pro' : 'flash';
       assistant.setMode(next);
       const model = next === 'pro' ? settings.provider.proModel : settings.provider.flashModel;
@@ -479,7 +459,6 @@ export class AssistantController {
   }
 
   private onTtsEnd(): void {
-    this.stopBargeWatch();
     const store = useAssistantStore.getState();
     if (store.status === 'speaking') store.setStatus('idle');
     // Sohbet hâlâ sürüyorsa uyandırma servisi BEKLEMEDE kalır (mikrofonu sohbete bırakır).

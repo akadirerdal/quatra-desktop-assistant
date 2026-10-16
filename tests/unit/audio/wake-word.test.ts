@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { matchesWakeWord, similarity } from '../../../src/features/audio/wake-word';
+import {
+  extractCommandAfterWake,
+  matchesWakeWord,
+  similarity,
+} from '../../../src/features/audio/wake-word';
 
 describe('matchesWakeWord', () => {
   it('tam kelimeyi yakalar', () => {
@@ -27,5 +31,21 @@ describe('similarity', () => {
   it('aynı kelimede 1, tamamen farklıda düşük döner', () => {
     expect(similarity('quatra', 'quatra')).toBe(1);
     expect(similarity('quatra', 'xyzabc')).toBeLessThan(0.3);
+  });
+});
+
+describe('extractCommandAfterWake', () => {
+  it('uyandırma kelimesinden sonrasını komut olarak döner', () => {
+    expect(extractCommandAfterWake('quatra saat kaç', 'quatra')).toBe('saat kaç');
+    expect(extractCommandAfterWake('Quatra benim adım Ali', 'quatra')).toBe('benim adım Ali');
+  });
+
+  it('komut yoksa boş döner', () => {
+    expect(extractCommandAfterWake('quatra', 'quatra')).toBe('');
+    expect(extractCommandAfterWake('bugün hava güzel', 'quatra')).toBe('');
+  });
+
+  it('varyant telaffuzları da tanır', () => {
+    expect(extractCommandAfterWake('kuatra not defterini aç', 'quatra')).toBe('not defterini aç');
   });
 });

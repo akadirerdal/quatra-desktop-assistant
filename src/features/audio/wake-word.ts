@@ -58,6 +58,34 @@ export function similarity(a: string, b: string): number {
   return 1 - dp[m]![n]! / Math.max(m, n);
 }
 
+function tokenize(s: string): string[] {
+  return s
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+/**
+ * "quatra benim adım Ali" → uyandırma kelimesinden SONRASINI komut olarak döner.
+ * Böylece bütün cümle tek seferde yakalanır; kullanıcı iki kez konuşmak zorunda kalmaz.
+ */
+export function extractCommandAfterWake(transcript: string, wakeWord: string): string {
+  const tokens = transcript.trim().split(/\s+/);
+  const normTokens = tokenize(transcript);
+  const target = tokenize(wakeWord)[0] ?? 'quatra';
+  let idx = -1;
+  for (let i = 0; i < normTokens.length; i++) {
+    const t = normTokens[i]!;
+    if (t === target || WAKE_ALIASES.includes(t) || similarity(t, target) >= 0.66) {
+      idx = i;
+      break;
+    }
+  }
+  if (idx === -1) return '';
+  return tokens.slice(idx + 1).join(' ').trim();
+}
+
 export interface WakeWordCallbacks {
   onWake: (transcript: string) => void;
   onError: (message: string) => void;
@@ -76,6 +104,8 @@ export interface WakeWordOptions {
 export class WakeWordService {
   private running = false;
   private paused = false;
+  /** Dış istek (sohbet) mikrofonu tutuyorsa cooldown sonrası otomatik açılma engellenir. */
+  private holdRequested = false;
 
   constructor(
     private readonly audio: AudioService,
@@ -97,12 +127,14 @@ export class WakeWordService {
     this.running = false;
   }
 
-  /** Komut dinlerken/konuşurken uyandırma aramayı duraklat. */
+  /** Sohbet/komut sırasında uyandırma aramayı duraklat (cooldown sonrası açılmaz). */
   pause(): void {
+    this.holdRequested = true;
     this.paused = true;
   }
 
   resume(): void {
+    this.holdRequested = false;
     this.paused = false;
     this.callbacks.onState?.('armed');
   }
@@ -153,10 +185,10 @@ export class WakeWordService {
         continue;
       }
       if (matchesWakeWord(res.text, this.options.wakeWord)) {
-        this.paused = true; // komut kaydı başlayana dek yeni burst yok
+        this.paused = true; // komut akışı bitene dek yeni burst yok
         this.callbacks.onWake(res.text);
         await sleep(cooldownMs);
-        this.paused = false;
+        if (!this.holdRequested) this.paused = false;
       }
     }
   }
