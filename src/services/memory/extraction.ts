@@ -40,11 +40,15 @@ export function shouldReplaceEntry(existing: string, incoming: string): boolean 
   return Boolean(exPrefix && incPrefix && exPrefix === incPrefix);
 }
 
-/** Çöp ad kayıtlarını tanır (eski bug kalıntıları: "adı: ne", "adı: kuatral"…). */
+/** Çöp ad kayıtlarını tanır (eski bug kalıntıları: "adı: ne", "adı: ne kuatral"…). */
 export function isGarbageNameEntry(text: string): boolean {
   const stoplist = ['ne', 'kuatral', 'kuatra', 'quatra', 'yok', 'bilmiyorum'];
   const m = text.toLowerCase().match(/kullanıcının adı\s*[:：]\s*(.+)$/);
   if (!m) return false;
   const name = m[1]!.trim().toLowerCase();
-  return stoplist.includes(name) || name.length > 40 || /^quatra/.test(name);
+  return (
+    stoplist.some((w) => name === w || name.startsWith(`${w} `)) ||
+    name.length > 40 ||
+    /^quatra/.test(name)
+  );
 }

@@ -46,6 +46,7 @@ describe('isGarbageNameEntry', () => {
   it('eski bug kalıntılarını tanır', () => {
     expect(isGarbageNameEntry('Kullanıcının adı: ne')).toBe(true);
     expect(isGarbageNameEntry('Kullanıcının adı: kuatral')).toBe(true);
+    expect(isGarbageNameEntry('Kullanıcının adı: ne kuatral')).toBe(true);
   });
 
   it('geçerli adları korur', () => {
