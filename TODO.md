@@ -248,7 +248,7 @@ Durum etiketleri: ✅ tamam | 🟡 kısmi | ⛔ blocked | ⬜ başlanmadı.
 
 > Çalışma kuralı: soru sorulmaz; biriken sorular `SORULAR.md`'de tutulur. Her adım `verify` + commit ile kapanır.
 
-- **Hafıza kurtarma:** 16.10'da sessizce boşaltılan hafıza geri yüklendi (6 kayıt: kişisel kayıtlar (ayrıntılar yalnızca cihazdaki hafızada) · "efendim").
+- **Hafıza kurtarma:** 16.10'da sessizce boşaltılan hafıza geri yüklendi (6 kişisel kayıt — ad, soyad, yaş, okul, evcil hayvan ve "efendim" hitabı; ayrıntılar yalnızca cihazdaki hafızada).
 - **Hafıza silme koruması:** silme öncesi otomatik `memory.json.bak` + silme olaylarının log'a düşmesi (MemoryStore.backup + IPC logları).
 - **Not (`not_al`) klasör dayanıklılığı:** modelin uydurduğu var olmayan klasör yok sayılır → hatırlanan klasör → kullanıcı seçimi (seçim `notes-dir.txt`'te hatırlanır). "Hedef klasör mevcut değil." hatası bitti.
 - **A paketi — mikrofon & ses girişi (V1-01…V1-05) ✅:** mikrofon testi paneli (canlı seviye + sabit süreli test kaydı + dinleme + aktif cihaz adı); cihaz seçimi (enumerateDevices, devicechange yenileme, kayıp cihazda varsayılana düşme); kademeli yazılım katmanı (ek kazanç + gürültü kapısı, kayıt zinciri MediaStreamDestination üzerinden); "uyu" sesli komutu (pendingSleep) + `sleepAfterSec` ayarı (varsayılan 5 sn).
@@ -286,5 +286,6 @@ Durum etiketleri: ✅ tamam | 🟡 kısmi | ⛔ blocked | ⬜ başlanmadı.
 - **Tepsi simgesi (macOS):** `scripts/make-tray.mjs` — bağımlılıksız şablon (template) PNG üreticisi → `build/trayTemplate.png` + `@2x` (sistem açık/koyu menü çubuğuna göre kendisi boyar); şablon yoksa renkli `tray.png`'ye, o da yoksa `icon.ico`'ya düşer.
 - **Bas-konuş varsayılanı:** `CommandOrControl+Shift+Space` (Windows'ta Ctrl+Shift+Space, macOS'te ⌘⇧Space). Mevcut kurulumlar etkilenmez — ayar dosyasındaki değer geçerli kalır.
 - **Belgeler:** README'ye "macOS notları" (izin, kısayol, veri taşıma, open_app) + pencere/menü satırı güncellendi; `docs/platform-matrix.md` macOS satırları gerçek duruma çekildi (uygulama menüsü + open_app satırları eklendi); EKSIKLER'deki "tek eksik: open_app eşlemesi" kaydı kapandı.
-- **Taşıma sorusu:** `SORULAR.md` #14 — kodu Mac'e taşıma yolu (klasör/ZIP öneriliyor; GitHub'a gönderim kişisel bilgi temizliği veya private kararı ister).
+- **Taşıma (18.10):** `SORULAR.md` #14 kapandı — GitHub yolu seçildi ("repoları eşitle"). Depo gönderime hazırlandı; ayrıntı alttaki 18.10 notunda.
 - **Kanıt:** **241 test** ✅ (app-names macOS +3, TitleBar platform +2), `verify` yeşil, secret taraması temiz. Gerçek Mac doğrulaması (dev çalıştırma, izin diyaloğu, ⌘⇧Space, Dock davranışı, şablon simge) kullanıcının Mac'inde yapılacak.
+- **GitHub eşitleme hazırlığı (18.10):** 47 commitlik yerel geçmiş kişisel bilgilerden arındırıldı (`git-filter-repo` ile tek seferlik yeniden yazım: SORULAR/TODO/kılavuz/test örnekleri nötrleştirildi; eski kılavuz PDF'i geçmişten çıkarıldı) ve kılavuz PDF'i nötr örneklerle yeniden üretildi; kılavuz üreticisine macOS font desteği eklendi. Mac'te geliştirmeye `git clone` ile devam edilecek; ilk gönderimde GitHub oturumu (tarayıcıdan bir kez giriş) istenecek.

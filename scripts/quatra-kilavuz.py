@@ -3,7 +3,7 @@
 Quatra Kullanım Kılavuzu üreticisi — reportlab ile tek komut:
     python scripts/quatra-kilavuz.py
 Çıktı: docs/Quatra-Kullanim-Kilavuzu.pdf
-Türkçe karakterler için Windows Arial (TrueType) kullanılır; gömülür.
+Türkçe karakterler için Arial (TrueType) kullanılır (Windows ve macOS); gömülür.
 """
 import os
 from reportlab.lib import colors
@@ -15,11 +15,23 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (HRFlowable, KeepTogether, PageBreak, Paragraph,
                                 SimpleDocTemplate, Spacer, Table, TableStyle)
 
-FONTS = r"C:\Windows\Fonts"
-pdfmetrics.registerFont(TTFont("Arial", os.path.join(FONTS, "arial.ttf")))
-pdfmetrics.registerFont(TTFont("Arial-Bold", os.path.join(FONTS, "arialbd.ttf")))
-pdfmetrics.registerFont(TTFont("Arial-Italic", os.path.join(FONTS, "ariali.ttf")))
-pdfmetrics.registerFont(TTFont("Arial-BoldItalic", os.path.join(FONTS, "arialbi.ttf")))
+def _resolve_arial():
+    """Arial dosyalarını platforma göre bulur (Windows: kısa adlar; macOS: Supplemental, boşluklu adlar)."""
+    if os.name == "nt":
+        return r"C:\Windows\Fonts", {"normal": "arial.ttf", "bold": "arialbd.ttf",
+                                     "italic": "ariali.ttf", "boldItalic": "arialbi.ttf"}
+    for base in ("/System/Library/Fonts/Supplemental", "/Library/Fonts", "/System/Library/Fonts"):
+        if os.path.exists(os.path.join(base, "Arial.ttf")):
+            return base, {"normal": "Arial.ttf", "bold": "Arial Bold.ttf",
+                          "italic": "Arial Italic.ttf", "boldItalic": "Arial Bold Italic.ttf"}
+    raise SystemExit("Arial yazı tipi bulunamadı — FONTS yolunu güncelle.")
+
+
+FONTS, ARIAL_FILES = _resolve_arial()
+pdfmetrics.registerFont(TTFont("Arial", os.path.join(FONTS, ARIAL_FILES["normal"])))
+pdfmetrics.registerFont(TTFont("Arial-Bold", os.path.join(FONTS, ARIAL_FILES["bold"])))
+pdfmetrics.registerFont(TTFont("Arial-Italic", os.path.join(FONTS, ARIAL_FILES["italic"])))
+pdfmetrics.registerFont(TTFont("Arial-BoldItalic", os.path.join(FONTS, ARIAL_FILES["boldItalic"])))
 pdfmetrics.registerFontFamily("Arial", normal="Arial", bold="Arial-Bold",
                               italic="Arial-Italic", boldItalic="Arial-BoldItalic")
 

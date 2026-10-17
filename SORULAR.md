@@ -5,7 +5,7 @@
 
 ## Cevaplanacaklar
 
-1. **Hafıza temizliği kasıtlı mıydı?** — 16.10 sabahı `memory.json` sessizce boşaltılmış bulundu (kodda tek sessiz yol: Ayarlar → Hafıza'daki ✕ / "Tümünü sil"). Bildiğim kayıtları **geri yükledim**: kişisel kayıtlar (ayrıntılar yalnızca cihazdaki hafızada) · "efendim" hitabı. *Kasıtlı sildiysen söyle, yeniden temizlerim.* Ayrıca artık silmeden önce otomatik yedek alınıyor (`memory.json.bak`) + silme olayları log'a düşüyor.
+1. **Hafıza temizliği kasıtlı mıydı?** — 16.10 sabahı `memory.json` sessizce boşaltılmış bulundu (kodda tek sessiz yol: Ayarlar → Hafıza'daki ✕ / "Tümünü sil"). Bildiğim kişisel kayıtları **geri yükledim** (ad, soyad, yaş, okul ve evcil hayvan — ayrıntılar yalnızca cihazdaki hafızada) · "efendim" hitabı. *Kasıtlı sildiysen söyle, yeniden temizlerim.* Ayrıca artık silmeden önce otomatik yedek alınıyor (`memory.json.bak`) + silme olayları log'a düşüyor.
 
 2. **Tema favorileri (V1-15)** — 7 temadan hangileri kalsın, hangileri çıksın? Şafak (aydınlık) temanın kontrast turunu ben geçirdim; kalmasını istersen kalır.
 
@@ -31,7 +31,7 @@
 
 13. **RNNoise güçlendirmesi** — Dahili gürültü bastırmaya ek olarak **RNNoise** (yerel, ücretsiz, BSD-3 lisanslı) motorunu opsiyonel olarak ekleyeyim mi? Klavye/fan seslerinde daha güçlü temizlik + STT'ye daha temiz ses. Önerim: ekle.
 
-14. **Kodu Mac'e taşıma** — "geliştirmeye Mac'ten devam edeceğim" dedin; repo şu an bu Windows makinesinde (GitHub'daki genel repo **~46 commit geride** — hiçbir şey gönderilmedi). Seçenekler: **(a)** klasörü olduğu gibi kopyala/ZIP (git geçmişi dahil; hiçbir şey yayınlanmaz — önerim), **(b)** GitHub'a gönder (önce kişisel bilgileri temizlerim ya da repo'yu private yaparsın), **(c)** başka yol söyle. Not: API anahtarları makineye bağlı şifreli kasada olduğu için Mac'te yeniden girilir; ayarlar "dışa aktar" ile taşınabilir. Cevap verince hazırlarım.
+14. ✅ **Kodu Mac'e taşıma — çözüldü (18.10):** "repoları eşitle" dedin; GitHub yolu seçildi. Depo gönderime hazırlandı: 47 commitlik geçmiş kişisel bilgilerden arındırıldı, kılavuz PDF'i nötr örneklerle yeniden üretildi. Mac'te: `git clone https://github.com/akadirerdal/quatra-desktop-assistant.git` → `npm install` → `npm run dev:electron`. API anahtarları Mac'te yeniden girilir (kasa makineye bağlı); ayarlar "Dışa/İçe aktar" ile taşınır. İlk gönderimde GitHub oturumu (tarayıcıdan bir kez giriş) istenecek.
 
 > Not: Bu dosyaya geliştirme sırasında yeni sorular eklenir; **hiçbir soru geliştirmeyi durdurmaz** — makul varsayımla ilerlerim, varsayım burada listelenir.
 
