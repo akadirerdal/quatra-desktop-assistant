@@ -41,7 +41,15 @@ npm run package:win   # Windows NSIS kurulumu (release/)
 npm run package:mac   # macOS DMG (release/) — yalnız macOS'ta üretilir
 ```
 
-Pencere: özel başlık çubuğu (menü yok) — **─ küçült / □ büyüt-geri al / ✕ kapat**; ilk açılışta **tam ekran** (F11 ile çık/gir).
+### macOS notları (kod hazır — doğrulama gerçek Mac'te yapılacak)
+
+- Geliştirme aynı komutlarla: `npm install` → `npm run dev:electron`.
+- İlk mikrofon kullanımında sistem izni sorulur. Reddedilirse: **Sistem Ayarları → Gizlilik ve Güvenlik → Mikrofon**. Geliştirme modunda listede **Electron**, paketli sürümde **Quatra** görünür.
+- Bas-konuş varsayılanı **⌘⇧Space** (Windows'ta Ctrl+Shift+Space); çakışırsa Ayarlar → Etkinleştirme'den değiştirilir.
+- Ayarlar `~/Library/Application Support/Quatra` altında. Makine değiştirirken: Ayarlar → Genel → "Ayarları dışa aktar" → Mac'te "içe aktar". **API anahtarları makineye bağlı şifreli kasada tutulur** — Mac'te yeniden girilir.
+- `open_app` karşılıkları: TextEdit · Calculator · Finder · Terminal · Activity Monitor (Paint'in macOS karşılığı yok — dürüst hata döner).
+
+Pencere: Windows/Linux'ta özel başlık çubuğu (menü yok) — **─ küçült / □ büyüt-geri al / ✕ kapat**; macOS'te yerel trafik ışıkları + uygulama menüsü (⌘C/⌘V, ⌘Q, tam ekran ⌃⌘F) — özel düğmeler gösterilmez. İlk açılışta **tam ekran** (Windows: F11 · macOS: ⌃⌘F).
 
 Alt çubukta iki pill (OpenCode tarzı): **model seçici** (sağlayıcıdan gerçek liste) ve **çalışma modu** (Hızlı / Düşünceli).
 
@@ -60,7 +68,7 @@ Mod geçişi: sesli "yazılım moduna geç" / "normal moda geç" / "mod değişt
 - **Ses tanıma (STT):** Electron'da Chromium'un Web Speech servisi çalışmadığı için sesin **Groq Whisper** ile yazıya çevrilir. Ayarlar → AI Sağlayıcı → **Groq API Anahtarı** alanına console.groq.com'dan aldığın anahtarı ekle (ücretsiz kota yeterli). Ses diske yazılmaz.
 - **Sürekli sohbet (varsayılan açık):** Cevap bitince mikrofon kendiliğinden dinlemeye döner — insanla sohbet eder gibi. «Quatra» demene gerek kalmaz; sessiz kalırsan sohbet beklemeye geçer. Ayarlar → Ses ve Giriş'ten kapatılabilir.
 - **Konuşma (TTS):** Varsayılan **Edge Neural** — doğal Türkçe sesler (Emel/Ahmet), ücretsiz, internet ister. Çevrimdışıysa otomatik sistem sesine düşer. Konuşma sırasında visualizer dalgası **gerçek çıkış sinyaliyle** çizilir.
-- **Uyandırma kelimesi:** «Quatra» (kuatra/quatro/kotra varyantları tanınır). Bas-konuş kısayolu (Ctrl+Shift+Space) globaldir.
+- **Uyandırma kelimesi:** «Quatra» (kuatra/quatro/kotra varyantları tanınır). Bas-konuş kısayolu (Windows: Ctrl+Shift+Space · macOS: ⌘⇧Space) globaldir.
 - Windows'ta ek sesler gerekirse: Ayarlar → Saat ve Dil → Konuşma → Sesleri ekle.
 
 ## Güncelleme ve veri kalıcılığı

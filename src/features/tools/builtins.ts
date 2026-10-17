@@ -33,7 +33,7 @@ export function createBuiltinTools(): ToolDef[] {
     // ---------------------------------------------------------------- open-app (low-risk + allowlist + TR eşleşme)
     tool<{ name: string }>({
       name: 'open_app',
-      description: 'İzinli listedeki bir uygulamayı açar (not defteri, hesap makinesi, dosya gezgini, komut istemi, powershell, paint, görev yöneticisi). Keyfi komut çalıştırmaz.',
+      description: 'İzinli listedeki bir uygulamayı açar (not defteri/TextEdit, hesap makinesi/Calculator, dosya gezgini/Finder, komut istemi/Terminal, görev yöneticisi/Activity Monitor). Keyfi komut çalıştırmaz.',
       schema: z.object({ name: z.string().min(1).max(100) }),
       parameters: {
         type: 'object',
@@ -44,7 +44,7 @@ export function createBuiltinTools(): ToolDef[] {
       async run(args, ctx) {
         const key = normalizeAppName(args.name);
         if (!key) {
-          throw new Error(`"${args.name}" izinli uygulama listesinde değil (not defteri, hesap makinesi, dosya gezgini, komut istemi).`);
+          throw new Error(`"${args.name}" izinli uygulama listesinde değil (not defteri, hesap makinesi, dosya gezgini, komut istemi, görev yöneticisi).`);
         }
         await ctx.native.openApp(key);
         return { opened: key };

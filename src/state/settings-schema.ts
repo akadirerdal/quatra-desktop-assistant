@@ -55,7 +55,8 @@ const MemorySchema = z.object({
 
 const ActivationSchema = z.object({
   mode: z.enum(['manual', 'push_to_talk', 'wake_word']).default('push_to_talk'),
-  pushToTalkKey: z.string().min(1).default('Ctrl+Shift+Space'),
+  /** CommandOrControl: Windows'ta Ctrl, macOS'te ⌘ — kısayol her platformda doğal kalır. */
+  pushToTalkKey: z.string().min(1).default('CommandOrControl+Shift+Space'),
   /** Uyandırma kelimesi (gerçek VAD + Whisper ile aranır). */
   wakeWord: z.string().min(2).max(20).default('quatra'),
 });

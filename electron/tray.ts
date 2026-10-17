@@ -21,19 +21,32 @@ export function showMainWindow(win: BrowserWindow): void {
 
 export function createTray(win: BrowserWindow, quit: () => void): void {
   if (tray) return;
-  // Simge: Windows'ta .ico; macOS menü çubuğunda .png (retina için @2x temsili).
+  // Simge: Windows'ta .ico; macOS menü çubuğunda ŞABLON (template) PNG — yalnızca
+  // alfa kanalı biçimi belirler, sistem açık/koyu menü çubuğuna göre kendisi boyar.
+  // Şablon yoksa renkli tray.png'ye, o da yoksa icon.ico'ya düşülür.
   // build/**/* paket listesinde → kurulu sürümde de bulunur.
   const iconDir = path.join(__dirname, '..', 'build');
-  const preferred = process.platform === 'darwin' ? 'tray.png' : 'icon.ico';
-  let image = nativeImage.createFromPath(path.join(iconDir, preferred));
-  if (process.platform === 'darwin' && !image.isEmpty()) {
-    const retina = nativeImage.createFromPath(path.join(iconDir, 'tray@2x.png'));
+  const isMac = process.platform === 'darwin';
+
+  let image = nativeImage.createFromPath(
+    path.join(iconDir, isMac ? 'trayTemplate.png' : 'icon.ico'),
+  );
+  if (isMac && !image.isEmpty()) {
+    const retina = nativeImage.createFromPath(path.join(iconDir, 'trayTemplate@2x.png'));
     if (!retina.isEmpty()) image.addRepresentation({ scaleFactor: 2, buffer: retina.toPNG() });
+    image.setTemplateImage(true);
   }
-  if (image.isEmpty() && preferred !== 'icon.ico') {
+  if (isMac && image.isEmpty()) {
+    image = nativeImage.createFromPath(path.join(iconDir, 'tray.png'));
+    if (!image.isEmpty()) {
+      const retina = nativeImage.createFromPath(path.join(iconDir, 'tray@2x.png'));
+      if (!retina.isEmpty()) image.addRepresentation({ scaleFactor: 2, buffer: retina.toPNG() });
+    }
+  }
+  if (image.isEmpty()) {
     image = nativeImage.createFromPath(path.join(iconDir, 'icon.ico'));
   }
-  if (image.isEmpty()) log.warn(`tepsi simgesi okunamadı: ${path.join(iconDir, preferred)}`);
+  if (image.isEmpty()) log.warn(`tepsi simgesi okunamadı: ${iconDir}`);
   tray = new Tray(image.isEmpty() ? nativeImage.createEmpty() : image);
   tray.setToolTip('Quatra — sesli asistan');
   const menu = Menu.buildFromTemplate([

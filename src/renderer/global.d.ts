@@ -1,6 +1,8 @@
 /** Preload köprüsünün tipi — renderer yalnızca bunu görür (Node yok). */
 export interface QuatraBridge {
   version: string;
+  /** process.platform — arayüz platforma göre uyum sağlar (ör. macOS trafik ışıkları). */
+  platform: string;
   settings: {
     load(): Promise<unknown>;
     save(data: unknown): Promise<{ ok: boolean }>;
@@ -70,6 +72,7 @@ export interface QuatraBridge {
     setLaunchAtLogin(
       enabled: boolean,
     ): Promise<{ ok: boolean; supported: boolean; enabled?: boolean; message?: string }>;
+    askMicAccess(): Promise<{ ok: boolean; granted: boolean }>;
     onCommand(handler: (cmd: { name: 'toggle-mic' | 'open-settings' }) => void): () => void;
   };
   log: {

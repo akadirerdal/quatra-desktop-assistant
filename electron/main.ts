@@ -9,7 +9,7 @@ import path from 'node:path';
 import { registerIpc } from './ipc';
 import { appLogger } from '../src/services/log/logger';
 import { appendLogLine, logFilePath } from './log-file';
-import { createTray, notifyFirstHide } from './tray';
+import { createTray, notifyFirstHide, showMainWindow } from './tray';
 
 // Chromium mikrofon yakalarken sistem mikrofon sesini otomatik ayarlamasın.
 // (wake-word dinlemesi açıkken seviyenin kendi kendine 45 → 80+ çıkmasının nedeni buydu)
@@ -64,9 +64,29 @@ function quitApp(): void {
   app.quit();
 }
 
+/**
+ * Uygulama menüsü — platforma göre.
+ * Windows/Linux: varsayılan menü kaldırılır (üst panel özel çubuktur).
+ * macOS: sistem menü çubuğu ŞARTTIR — kopyala/yapıştır (⌘C/⌘V), ⌘Q ve tam ekran (⌃⌘F)
+ * yalnız rol tabanlı menüyle çalışır; menüsüz uygulamada bu kısayollar ölür.
+ */
+function setupApplicationMenu(): void {
+  if (process.platform !== 'darwin') {
+    Menu.setApplicationMenu(null);
+    return;
+  }
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([
+      { role: 'appMenu' },
+      { role: 'editMenu' },
+      { role: 'viewMenu' },
+      { role: 'windowMenu' },
+    ]),
+  );
+}
+
 function createWindow(): void {
-  // Varsayılan menü (File/Edit/View…) kaldırılır — üst panel özel çubuktur.
-  Menu.setApplicationMenu(null);
+  setupApplicationMenu();
 
   mainWindow = new BrowserWindow({
     width: 1100,
@@ -75,8 +95,12 @@ function createWindow(): void {
     minHeight: 480,
     backgroundColor: '#08090D',
     show: false,
-    // Özel başlık çubuğu: çerçevesiz pencere; kontroller renderer'daki TitleBar'da.
-    frame: false,
+    // Pencere çerçevesi: Windows/Linux'ta tamamen çerçevesiz (kontroller TitleBar'da);
+    // macOS'ta yerel trafik ışıkları korunur (hiddenInset) — Mac kullanıcısı kırmızı/sarı/
+    // yeşil düğmeleri bekler; onları taklit etmek yanıltıcı olurdu.
+    ...(process.platform === 'darwin'
+      ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 14, y: 11 } }
+      : { frame: false }),
     // İlk açılışta tam ekran (F11 ile çıkılabilir/girilebilir).
     fullscreen: true,
     webPreferences: {
@@ -212,7 +236,10 @@ void app.whenReady().then(() => {
   if (mainWindow) createTray(mainWindow, quitApp);
 
   app.on('activate', () => {
+    // macOS: Dock simgesine tıklanınca pencere yoksa kur, gizliyse öne getir.
+    // (Tepsiye inen pencere show() olmadan Dock tıklamasıyla açılmıyordu.)
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    else if (mainWindow) showMainWindow(mainWindow);
   });
 });
 

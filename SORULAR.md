@@ -31,6 +31,8 @@
 
 13. **RNNoise güçlendirmesi** — Dahili gürültü bastırmaya ek olarak **RNNoise** (yerel, ücretsiz, BSD-3 lisanslı) motorunu opsiyonel olarak ekleyeyim mi? Klavye/fan seslerinde daha güçlü temizlik + STT'ye daha temiz ses. Önerim: ekle.
 
+14. **Kodu Mac'e taşıma** — "geliştirmeye Mac'ten devam edeceğim" dedin; repo şu an bu Windows makinesinde (GitHub'daki genel repo **~46 commit geride** — hiçbir şey gönderilmedi). Seçenekler: **(a)** klasörü olduğu gibi kopyala/ZIP (git geçmişi dahil; hiçbir şey yayınlanmaz — önerim), **(b)** GitHub'a gönder (önce kişisel bilgileri temizlerim ya da repo'yu private yaparsın), **(c)** başka yol söyle. Not: API anahtarları makineye bağlı şifreli kasada olduğu için Mac'te yeniden girilir; ayarlar "dışa aktar" ile taşınabilir. Cevap verince hazırlarım.
+
 > Not: Bu dosyaya geliştirme sırasında yeni sorular eklenir; **hiçbir soru geliştirmeyi durdurmaz** — makul varsayımla ilerlerim, varsayım burada listelenir.
 
 ---

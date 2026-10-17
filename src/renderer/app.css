@@ -188,6 +188,17 @@ body {
   color: #fff;
 }
 
+/* macOS: yerel trafik ışıkları (hiddenInset) — kopya düğme yok, sol boşluk bırakılır. */
+.titlebar.mac .titlebarDrag {
+  padding-left: 78px;
+  display: flex;
+  align-items: center;
+}
+.titlebar.mac .titlebarTitle {
+  font-size: 12px;
+  color: var(--muted);
+}
+
 /* ---------- alt çubuk (iki pill + popup) ---------- */
 .bottomBar {
   position: absolute;

@@ -2,37 +2,75 @@
  * Uygulama adı eşleştirme — Türkçe kullanıcı komutlarını gerçek uygulamalara çevirir.
  * Model çıktısı "not defterini aç" dese bile güvenli eşleşme çalışır.
  * Kabuk komutu yok: yalnızca sabit haritadaki uygulamalar açılabilir.
+ * Her girdi iki platformu birden tanımlar: Windows hedefi (.exe) + macOS uygulama adı.
  */
 
 export interface AppEntry {
   /** İzinli uygulamanın kanonik anahtarı. */
   key: string;
-  /** Çalıştırılacak hedef (Windows). */
-  exec: string;
-  /** Eşleşen takma adlar (küçük harf). */
+  /** Windows çalıştırılabilir hedefi (.exe). */
+  win: string;
+  /** macOS uygulama adı (`open -a` ile açılır); '' = macOS'ta karşılığı yok. */
+  mac: string;
+  /** Eşleşen takma adlar (küçük harf). Diğer platformun adları da dahil: textedit, finder… */
   aliases: string[];
 }
 
 export const KNOWN_APPS: AppEntry[] = [
-  { key: 'notepad', exec: 'notepad.exe', aliases: ['not defteri', 'notepad', 'not defterini'] },
-  { key: 'calculator', exec: 'calc.exe', aliases: ['hesap makinesi', 'calculator', 'calc'] },
-  { key: 'explorer', exec: 'explorer.exe', aliases: ['dosya gezgini', 'gezgin', 'explorer'] },
-  { key: 'cmd', exec: 'cmd.exe', aliases: ['komut istemi', 'cmd', 'command prompt'] },
-  { key: 'powershell', exec: 'powershell.exe', aliases: ['powershell', 'power shell'] },
-  { key: 'mspaint', exec: 'mspaint.exe', aliases: ['paint', 'boya'] },
-  { key: 'taskmgr', exec: 'taskmgr.exe', aliases: ['görev yöneticisi', 'task manager', 'taskmgr'] },
+  {
+    key: 'notepad',
+    win: 'notepad.exe',
+    mac: 'TextEdit',
+    aliases: ['not defteri', 'not defterini', 'notepad', 'textedit'],
+  },
+  {
+    key: 'calculator',
+    win: 'calc.exe',
+    mac: 'Calculator',
+    aliases: ['hesap makinesi', 'calculator', 'calc'],
+  },
+  {
+    key: 'explorer',
+    win: 'explorer.exe',
+    mac: 'Finder',
+    aliases: ['dosya gezgini', 'gezgin', 'explorer', 'finder'],
+  },
+  {
+    key: 'cmd',
+    win: 'cmd.exe',
+    mac: 'Terminal',
+    aliases: ['komut istemi', 'cmd', 'command prompt', 'terminal'],
+  },
+  {
+    key: 'powershell',
+    win: 'powershell.exe',
+    mac: 'Terminal',
+    aliases: ['powershell', 'power shell'],
+  },
+  {
+    key: 'mspaint',
+    win: 'mspaint.exe',
+    mac: '', // macOS'ta Paint'in karşılığı yok — dürüst hata döner, uydurma açma yok.
+    aliases: ['paint', 'boya'],
+  },
+  {
+    key: 'taskmgr',
+    win: 'taskmgr.exe',
+    mac: 'Activity Monitor',
+    aliases: ['görev yöneticisi', 'task manager', 'taskmgr', 'etkinlik izleyicisi', 'activity monitor'],
+  },
 ];
 
 function normalize(s: string): string {
   return s
     .toLowerCase()
-    .trim()
-    .replace(/ç/g, 'c')
-    .replace(/ğ/g, 'g')
-    .replace(/ş/g, 's')
+    // Unicode ayrıştırma + birleşen işaret temizliği: ç→c, ğ→g, ö→o, ü→u, İ→i
+    // (İ küçültünce "i + birleşen nokta" olur; temizlenmezse eşleşme kırılırdı.)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    // Noktasız ı ayrışmaz — ayrıca eşlenir.
     .replace(/ı/g, 'i')
-    .replace(/ö/g, 'o')
-    .replace(/ü/g, 'u')
+    .trim()
     .replace(/\s+/g, ' ');
 }
 
@@ -49,9 +87,21 @@ export function normalizeAppName(input: string): string | null {
   return null;
 }
 
-/** Kanonik anahtarın çalıştırılabilir hedefi. */
-export function appExec(key: string): string | null {
-  return KNOWN_APPS.find((a) => a.key === key)?.exec ?? null;
+/** Platforma göre çalıştırma hedefi. */
+export interface AppTarget {
+  /** exe: Windows çalıştırılabilir yolu · macApp: `open -a` uygulama adı. */
+  type: 'exe' | 'macApp';
+  value: string;
+}
+
+/** Kanonik anahtarın platform hedefi; anahtar yoksa ya da o platformda karşılığı yoksa null. */
+export function appTarget(key: string, platform: string): AppTarget | null {
+  const app = KNOWN_APPS.find((a) => a.key === key);
+  if (!app) return null;
+  if (platform === 'darwin') {
+    return app.mac ? { type: 'macApp', value: app.mac } : null;
+  }
+  return app.win ? { type: 'exe', value: app.win } : null;
 }
 
 /** İzin denetimi için izinli ad listesi (allowlist). */

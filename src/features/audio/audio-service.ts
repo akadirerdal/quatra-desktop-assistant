@@ -140,6 +140,24 @@ export class AudioService {
         this.onError('Mikrofon bulunamadı.');
         return false;
       }
+      // macOS: sistem mikrofon izni (TCC) — getUserMedia'dan önce açıkça sorulur.
+      // Reddedilmişse sessiz başarısızlık yerine dürüst mesaj gösterilir.
+      // (Node test ortamında `window` yok — typeof koruması şart; köprüsüz ortamda atlanır.)
+      const bridge = typeof window !== 'undefined' ? window.quatra : undefined;
+      if (bridge?.platform === 'darwin' && bridge.app.askMicAccess) {
+        try {
+          const access = await bridge.app.askMicAccess();
+          if (!access.granted) {
+            this.logEvent('mic HATA: sistem izni yok (macOS TCC)');
+            this.onError(
+              `Mikrofon izni reddedildi. ${micPermissionHint(navigator.platform || navigator.userAgent || '')}`,
+            );
+            return false;
+          }
+        } catch {
+          // Köprü hatası → getUserMedia kendi izin akışını dener.
+        }
+      }
       const voice = useSettingsStore.getState().settings.voice;
       const constraints = buildMicConstraints(voice, voice.inputDeviceId);
       try {

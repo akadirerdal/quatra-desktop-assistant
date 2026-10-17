@@ -2,7 +2,7 @@
  * IPC kayıtları — renderer ile güvenli köprü.
  * Kanallar sabit listededir; keyfi kanal/dinamik handler YOKTUR.
  */
-import { app, BrowserWindow, dialog, globalShortcut, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, systemPreferences } from 'electron';
 import { clearApiKey, credentialsAvailable, getApiKey, hasApiKey, setApiKey } from './credentials';
 import type { CredentialId } from './credentials';
 import { loadSettingsFile, saveSettingsFile } from './settings-file';
@@ -282,6 +282,18 @@ export function registerIpc(win: BrowserWindow): void {
   // ---------------------------------------------------------------- native yardımcılar
   ipcMain.handle('tools:pickDirectory', async () => createNativeBridge(win).pickDirectory());
   ipcMain.handle('app:version', async () => app.getVersion());
+  // macOS mikrofon izni (TCC): getUserMedia tetiklemeden önce açıkça sorulur.
+  // Windows/Linux'ta böyle bir izin kavramı yok — doğrudan "izinli" döner.
+  ipcMain.handle('app:mic-access', async () => {
+    if (process.platform !== 'darwin') return { ok: true, granted: true };
+    try {
+      const granted = await systemPreferences.askForMediaAccess('microphone');
+      return { ok: true, granted };
+    } catch (e) {
+      appLogger.scoped('main').warn(`mikrofon izni sorulamadı: ${String(e)}`);
+      return { ok: true, granted: true }; // hata → getUserMedia kendi akışını dener
+    }
+  });
   ipcMain.on('app:renderer-ready', () => {
     appLogger.scoped('main').info('renderer hazır — React mount edildi');
   });

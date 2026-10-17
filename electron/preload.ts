@@ -7,6 +7,9 @@ import { contextBridge, ipcRenderer } from 'electron';
 const quatra = {
   version: '0.1.0',
 
+  /** Çalışılan platform (salt okunur) — arayüz platforma göre uyum sağlar. */
+  platform: process.platform,
+
   settings: {
     load: (): Promise<unknown> => ipcRenderer.invoke('settings:load'),
     save: (data: unknown): Promise<{ ok: boolean }> => ipcRenderer.invoke('settings:save', data),
@@ -93,6 +96,8 @@ const quatra = {
       enabled: boolean,
     ): Promise<{ ok: boolean; supported: boolean; enabled?: boolean; message?: string }> =>
       ipcRenderer.invoke('app:login-item-set', enabled),
+    askMicAccess: (): Promise<{ ok: boolean; granted: boolean }> =>
+      ipcRenderer.invoke('app:mic-access'),
     onCommand: (handler: (cmd: { name: 'toggle-mic' | 'open-settings' }) => void): (() => void) => {
       const listener = (_e: unknown, cmd: { name: 'toggle-mic' | 'open-settings' }) => handler(cmd);
       ipcRenderer.on('app:command', listener);

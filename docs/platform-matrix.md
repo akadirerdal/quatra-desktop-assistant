@@ -2,26 +2,32 @@
 
 > Amaç: "Windows + macOS destekler" iddiasını dürüst tutmak.
 > Bu makinede yalnızca **Windows** doğrulanabilir; macOS satırları **unverified** etiketlidir.
+> 18.10.2026 (Tur 12): macOS uyarlaması kodda tamamlandı — trafik ışıklı pencere, uygulama menüsü,
+> `open_app` eşlemesi, mikrofon izni akışı, şablon menü-çubuğu simgesi; gerçek doğrulama Mac'te yapılacak.
 
 ## Doğrulama durumu
 
-| Özellik | Windows (bu makinede doğrulanır) | macOS (doğrulanmadı — kod yolu planlı) |
+| Özellik | Windows (bu makinede doğrulanır) | macOS (kod hazır — gerçek Mac'te doğrulanacak) |
 |---|---|---|
-| Uygulama açılışı | ✅ doğrulandı | ⬜ unverified (darwin dalları hazır: pencere/activate) |
-| Mikrofon izni (getUserMedia) | ✅ doğrulandı (canlı seviye + kayıt) | ⬜ unverified (TCC izni; DMG'de `NSMicrophoneUsageDescription` tanımlı) |
+| Uygulama açılışı | ✅ doğrulandı | ⬜ unverified (yerel trafik ışıkları `hiddenInset`; Dock tıklaması gizli pencereyi geri getirir) |
+| Uygulama menüsü | — (menü kaldırıldı; özel başlık çubuğu) | ⬜ unverified (appMenu/editMenu/viewMenu/windowMenu → ⌘C/⌘V, ⌘Q, ⌃⌘F) |
+| Mikrofon izni (getUserMedia) | ✅ doğrulandı (canlı seviye + kayıt) | ⬜ unverified (`askForMediaAccess` TCC diyaloğu; DMG'de `NSMicrophoneUsageDescription` tanımlı) |
 | Ses tanıma (Groq Whisper — ağ) | ✅ doğrulandı | ⬜ unverified (platformdan bağımsız; ağ ister) |
 | Konuşma (Edge Neural TTS — ağ) | ✅ doğrulandı | ⬜ unverified (platformdan bağımsız; sistem TTS'e düşer) |
 | Başlangıçta çalıştır (autostart) | ✅ Electron `app.setLoginItemSettings` | ⬜ unverified (mac: Login Items; kod darwin destekli) |
-| Tepsi (tray) | ✅ planlı | ⬜ unverified (menü çubuğu simgesi hazır: `tray.png` + `@2x`) |
-| Global kısayol | ✅ Electron `globalShortcut` | ⬜ unverified (Accessibility izni gerekebilir) |
+| Tepsi (tray) | ✅ doğrulandı (`icon.ico`) | ⬜ unverified (şablon simge: `trayTemplate.png`/`@2x` — sistem tema rengini kendisi seçer) |
+| Global kısayol | ✅ `globalShortcut` (varsayılan Ctrl+Shift+Space) | ⬜ unverified (varsayılan `CommandOrControl+Shift+Space` → ⌘⇧Space) |
+| Uygulama açma (`open_app`) | ✅ allowlist (notepad, calc, …) | ⬜ unverified (eşleme: TextEdit · Calculator · Finder · Terminal · Activity Monitor; Paint'in macOS karşılığı yok) |
 | Sistem ses seviyesi | ⚠️ V1: destek yok — "unsupported" işaretli | ⚠️ aynı |
 | Dosya yolları | `%APPDATA%\Quatra` | `~/Library/Application Support/Quatra` (`app.getPath` ile) |
 | Paketleme | NSIS (onaya bağlı — SORULAR #6) | dmg (`npm run package:mac`; yalnız macOS'ta üretilir) |
 
 ## Yaygın tuzaklar
 - Windows'ta ses cihazı seçimi Web Audio'da sınırlıdır → çıkış cihazı seçimi "desteklenmiyor" olarak dürüstçe işaretlenir.
-- macOS'ta mikrofon ve Accessibility izinleri ilk kullanımda sistem diyalogları ile istenir; ret edilirse uygulama `muted` durumda kalır ve recovery yolu sunar.
-- Global kısayol çakışmaları (başka uygulamayla) ayarlarda "kaydedilemedi" hatası ile gösterilir.
+- macOS'ta mikrofon izni sistem diyaloğuyla istenir; ret edilirse uygulama dürüst mesajla sessiz kalır ve Sistem Ayarları → Gizlilik yolunu gösterir. Geliştirme modunda izin listesinde uygulama **Electron** olarak görünebilir (paketli DMG'de **Quatra**).
+- Global kısayol çakışmaları (başka uygulamayla) ayarlarda "kaydedilemedi" hatası ile gösterilir; macOS'te ⌘⇧Space çakışırsa Ayarlar → Etkinleştirme'den değiştirilir.
+- macOS'te pencere kapatma (⌘W / kırmızı düğme) uygulamayı kapatmaz — menü çubuğuna (tepsiye) iner; gerçek çıkış: menü → Çıkış veya ⌘Q.
+- Uyandırma kelimesi/barge-in kararı HAM seviyeyle verilir; kazanç/kapı kararı bu kaynağı değiştirmemelidir (16.10 ölü-mikrofon dersi).
 
 ## İlk sürüm politika
 - Doğrulanamayan her özellik UI'da **"unsupported (macOS)"** veya **"unverified"** etiketi taşır.

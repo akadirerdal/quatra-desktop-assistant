@@ -3,12 +3,24 @@
  * Model çıktısı BURAYA komut olarak gelemez: her fonksiyon kendi güvenlik denetimini yapar.
  */
 import { app, clipboard, dialog, shell, BrowserWindow } from 'electron';
+import { execFile } from 'node:child_process';
 import os from 'node:os';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { NativeBridge } from '../src/features/tools/types';
-import { appExec } from '../src/features/tools/app-names';
+import { appTarget } from '../src/features/tools/app-names';
 import { backupBeforeWrite } from './note-backups';
+
+/**
+ * macOS: uygulamayı `open -a <ad>` ile açar. Ad yalnızca sabit allowlist'ten gelir
+ * (kullanıcı/model çıktısı buraya ham aksetmez); kabuk yok, argüman dizisi güvenli.
+ * Başarıda '' döner; hatada hata mesajı.
+ */
+function openMacApp(appName: string): Promise<string> {
+  return new Promise((resolve) => {
+    execFile('open', ['-a', appName], (error) => resolve(error ? error.message : ''));
+  });
+}
 
 export function createNativeBridge(win: BrowserWindow | null): NativeBridge {
   return {
@@ -27,11 +39,20 @@ export function createNativeBridge(win: BrowserWindow | null): NativeBridge {
     },
 
     async openApp(name: string) {
-      const exe = appExec(name);
-      if (!exe) {
-        throw new Error(`"${name}" için güvenli çalıştırma yolu tanımlı değil.`);
+      const target = appTarget(name, process.platform);
+      if (!target) {
+        throw new Error(
+          process.platform === 'darwin'
+            ? `"${name}" macOS'ta açılamıyor — karşılığı tanımlı değil.`
+            : `"${name}" için güvenli çalıştırma yolu tanımlı değil.`,
+        );
       }
-      const err = await shell.openPath(exe);
+      if (target.type === 'macApp') {
+        const err = await openMacApp(target.value);
+        if (err) throw new Error(`Uygulama açılamadı: ${err}`);
+        return;
+      }
+      const err = await shell.openPath(target.value);
       if (err) throw new Error(`Uygulama açılamadı: ${err}`);
     },
 
