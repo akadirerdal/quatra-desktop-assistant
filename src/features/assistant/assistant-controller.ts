@@ -238,6 +238,7 @@ export class AssistantController {
   private onWakeDetected(transcript: string): void {
     // Susturulmuşken uyandırma mikrofonu AÇMAZ (V1.2-002) — yarışta kalan tetiklemeler yutulur.
     if (this.disposed || useAssistantStore.getState().mutedByUser) return;
+    window.quatra?.log.info('wake', `uyandırma algılandı: "${transcript.slice(0, 60)}"`);
     const word = useSettingsStore.getState().settings.activation.wakeWord;
     const rest = extractCommandAfterWake(transcript, word);
     useAssistantStore.getState().setCaption(strings.wakeDetected);

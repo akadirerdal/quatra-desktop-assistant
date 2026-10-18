@@ -231,6 +231,14 @@ export class WakeWordService {
         await sleep(150);
         continue;
       }
+      // Çok kısa/sessiz patlamaları Whisper'a gönderme — gereksiz istek + rate limit (V1.2-mic).
+      if (
+        outcome.kind === 'ok' &&
+        (outcome.result.durationMs < 700 || outcome.result.peakLevel < 0.22)
+      ) {
+        await sleep(150);
+        continue;
+      }
       this.callbacks.onState?.('burst');
       const res = await this.audio.transcribe(outcome.result.audio);
       if (!this.running) return;
@@ -238,7 +246,9 @@ export class WakeWordService {
       if (!res.ok) {
         this.callbacks.onState?.('error');
         this.callbacks.onError(res.message);
-        await sleep(2500);
+        // Hız limitinde Groq kotası dolmuş — 15 sn bekle, arka arkaya istek atma.
+        const rateLimited = /hız limiti|rate.?limit|429/i.test(res.message);
+        await sleep(rateLimited ? 15000 : 2500);
         continue;
       }
       if (matchesWakeWord(res.text, this.options.wakeWord)) {
