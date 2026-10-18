@@ -109,6 +109,7 @@ export class AssistantController {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    window.quatra?.log.info('wake', 'controller dispose called');
     this.followToken += 1; // bekleyen takip dinlemesi dispose sonrası mikrofon açmasın (V1.2-001)
     this.captureToken += 1;
     if (this.followTimer) {
@@ -163,6 +164,7 @@ export class AssistantController {
 
   /** Ayarlar değiştikçe etkinleştirme yöntemini uygular (global kısayol / uyandırma). */
   async syncActivation(): Promise<void> {
+    window.quatra?.log.info('wake', 'syncActivation called');
     const s = useSettingsStore.getState().settings;
     const mode = s.activation.mode;
 
