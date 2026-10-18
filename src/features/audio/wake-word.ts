@@ -58,7 +58,7 @@ export function matchesWakeWord(transcript: string, wakeWord: string): boolean {
         (t[0] === 'q' || t[0] === 'k' || t[0] === 'c') &&
         similarity(t, target) >= 0.5) ||
       (t.length > 3 && t.includes(target)) ||
-      (target.length > 3 && target.includes(t)),
+      (target.length > 3 && t.length >= 2 && target.includes(t)),
   );
 }
 
