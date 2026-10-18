@@ -43,7 +43,7 @@ export function matchesWakeWord(transcript: string, wakeWord: string): boolean {
     (t) =>
       t === target ||
       aliases.includes(t) ||
-      similarity(t, target) >= 0.5 ||
+      (t.length >= 4 && similarity(t, target) >= 0.5) ||
       (t.length > 3 && t.includes(target)) ||
       (target.length > 3 && target.includes(t)),
   );
