@@ -134,7 +134,15 @@ export interface WakeWordOptions {
   cooldownMs?: number;
 }
 
-export class WakeWordService {
+export interface WakeService {
+  start(): Promise<boolean>;
+  stop(): void;
+  pause(): void;
+  resume(): void;
+  isRunning(): boolean;
+}
+
+export class WakeWordService implements WakeService {
   private running = false;
   private paused = false;
   /** Dış istek (sohbet) mikrofonu tutuyorsa cooldown sonrası otomatik açılma engellenir. */

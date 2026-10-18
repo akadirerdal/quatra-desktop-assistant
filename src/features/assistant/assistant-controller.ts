@@ -6,7 +6,13 @@
 import { useAssistantStore, TASK_DONE_LINGER_MS } from '../../state/assistant-store';
 import { useSettingsStore, activeModel } from '../../state/settings-store';
 import { AudioService, type RecordOutcome } from '../audio/audio-service';
-import { WakeWordService, matchesWakeWord, extractCommandAfterWake } from '../audio/wake-word';
+import {
+  WakeWordService,
+  matchesWakeWord,
+  extractCommandAfterWake,
+  type WakeService,
+} from '../audio/wake-word';
+import { WebSpeechWakeService } from '../audio/web-speech-wake';
 import {
   parseMemoryIntent,
   detectModeCommand,
@@ -37,7 +43,7 @@ function toolLabel(name: string): string {
 
 export class AssistantController {
   private audio: AudioService;
-  private wake: WakeWordService | null = null;
+  private wake: WakeService | null = null;
   private offline = false;
   private detachAgent: (() => void) | null = null;
   private detachShortcut: (() => void) | null = null;
@@ -190,20 +196,44 @@ export class AssistantController {
       if (this.wake && this.wakeWordInUse !== s.activation.wakeWord) this.stopWake();
       if (!this.wake) {
         this.wakeWordInUse = s.activation.wakeWord;
-        this.wake = new WakeWordService(
-          this.audio,
-          { wakeWord: s.activation.wakeWord },
-          {
-            onWake: (transcript) => this.onWakeDetected(transcript),
-            onError: (msg) => {
-              const st = useAssistantStore.getState();
-              if (st.status === 'idle') st.setCaption(msg);
+        // V1.2: Web Speech (tarayıcı motoru) öncelikli — rate limit/hallüsinasyon yok.
+        // Desteklenmiyorsa Whisper-burst (WakeWordService) yedeğine düş.
+        const useWebSpeech =
+          typeof window !== 'undefined' &&
+          (typeof (window as { SpeechRecognition?: unknown }).SpeechRecognition === 'function' ||
+            typeof (window as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition ===
+              'function');
+        if (useWebSpeech) {
+          this.wake = new WebSpeechWakeService(
+            this.audio,
+            { wakeWord: s.activation.wakeWord },
+            {
+              onWake: (transcript) => this.onWakeDetected(transcript),
+              onError: (msg) => {
+                const st = useAssistantStore.getState();
+                if (st.status === 'idle') st.setCaption(msg);
+              },
+              onTranscript: (text) => {
+                window.quatra?.log.info('wake', `transkript: "${text}"`);
+              },
             },
-            onTranscript: (text) => {
-              window.quatra?.log.info('wake', `transkript: "${text}"`);
+          );
+        } else {
+          this.wake = new WakeWordService(
+            this.audio,
+            { wakeWord: s.activation.wakeWord },
+            {
+              onWake: (transcript) => this.onWakeDetected(transcript),
+              onError: (msg) => {
+                const st = useAssistantStore.getState();
+                if (st.status === 'idle') st.setCaption(msg);
+              },
+              onTranscript: (text) => {
+                window.quatra?.log.info('wake', `transkript: "${text}"`);
+              },
             },
-          },
-        );
+          );
+        }
       }
       // Susturulmuşken mikrofon AÇILMAZ (V1.2-002); sustur kalkınca setMuted → syncActivation başlatır.
       if (useAssistantStore.getState().mutedByUser) this.wake.pause();
