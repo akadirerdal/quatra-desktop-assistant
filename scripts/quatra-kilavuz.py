@@ -86,7 +86,7 @@ def footer(canv, doc):
     canv.saveState()
     canv.setFont("Arial", 8)
     canv.setFillColor(MUTED)
-    canv.drawString(2 * cm, 1.1 * cm, "Quatra Kullanım Kılavuzu · v0.1.0 · 16 Ekim 2026")
+    canv.drawString(2 * cm, 1.1 * cm, "Quatra Kullanım Kılavuzu · v0.1.0 · 18 Ekim 2026")
     canv.drawRightString(A4[0] - 2 * cm, 1.1 * cm, f"Sayfa {doc.page}")
     canv.setStrokeColor(colors.HexColor("#E3E0F2"))
     canv.setLineWidth(0.5)
@@ -102,9 +102,9 @@ def build():
     story.append(P("Sesli masaüstü asistanı — Kullanım Kılavuzu", S_SUB))
     story.append(Spacer(1, 4))
     story.append(HRFlowable(width="100%", thickness=1.2, color=ACCENT, spaceAfter=10))
-    story.append(P("Bu kılavuz, 16 Ekim 2026 itibarıyla geliştirme sürümünü (v0.1.0) anlatır. "
-                   "Şu an uygulama, masaüstündeki <b>Quatra</b> kısayolundan kaynak koddan başlatılır; "
-                   "kurulum dosyası ürün tamamlanınca hazırlanacaktır.", S_P))
+    story.append(P("Bu kılavuz, 18 Ekim 2026 itibarıyla geliştirme sürümünü (v0.1.0) anlatır. "
+                   "Şu an uygulama kaynak koddan başlatılır (Windows'ta masaüstündeki <b>Quatra</b> kısayolu, "
+                   "macOS'te terminalde <b>npm run dev:electron</b>); kurulum dosyası ürün tamamlanınca hazırlanacaktır.", S_P))
 
     # ------------------------------------------------------------ 1. Nedir
     story.append(P("1. Quatra nedir?", S_H1))
@@ -117,10 +117,11 @@ def build():
     # ------------------------------------------------------------ 2. Başlatma
     story.append(P("2. Başlatma ve kapatma", S_H1))
     for b in B([
-        "Masaüstündeki <b>Quatra</b> kısayoluna çift tıkla → uygulama tam ekran açılır.",
-        "Kapatmak için sağ üstteki <b>kapat</b> düğmesi yeterlidir; arka planda çalışan tüm parçalar da kendiliğinden durur.",
+        "Windows'ta masaüstündeki <b>Quatra</b> kısayoluna çift tıkla (macOS'te terminalde <b>npm run dev:electron</b>) → uygulama <b>tam ekran</b> açılır; her açılışta tam ekrandır.",
+        "<b>Kapat</b> düğmesi uygulamayı bitirmez: pencere gizlenir, Quatra <b>tepside</b> çalışmaya devam eder (ilk inişte bir kez bilgilendirme bildirimi görünür). Sohbet ve mikrofon durumu korunur.",
+        "Gerçek çıkış tepsi menüsünden <b>Çıkış</b>'tır (macOS: <b>Cmd+Q</b>). Tepsi menüsü: Quatra'yı Göster · Mikrofonu Aç/Kapat · Ayarları Aç · Çıkış.",
         "Uygulama açıkken kısayola yeniden tıklarsan ikinci pencere açılmaz; “zaten çalışıyor” uyarısı gösterilir.",
-        "Yeni bir sürüm denemek istersen: pencereyi kapat, kısayola tekrar tıkla. Kısayol her zaman güncel kodu başlatır.",
+        "Yeni bir sürüm denemek istersen: önce tepsi menüsünden Çıkış (macOS: Cmd+Q), sonra kısayola tekrar tıkla. Kısayol her zaman güncel kodu başlatır.",
     ]):
         story.append(b)
 
@@ -128,12 +129,12 @@ def build():
     story.append(P("3. Ekranı tanı", S_H1))
     story.append(table([
         ["Bölge", "Ne işe yarar"],
-        ["Üst şerit", "Solda QUATRA adı; sağda pencere düğmeleri (küçült · büyüt/tam ekran · kapat). F11 de tam ekranı değiştirir."],
+        ["Üst şerit", "Solda QUATRA adı. Pencere düğmeleri: Windows/Linux'ta sağ üstte (küçült · büyüt · kapat), macOS'te sol üstte yerel trafik ışıkları. F11 (macOS: Ctrl+Cmd+F) tam ekranı değiştirir."],
         ["Ortadaki animasyon", "Durumu gösteren visualizer: <b>Hazır</b>, <b>Dinliyor</b>, <b>Düşünüyor</b>, <b>Konuşuyor</b>."],
         ["Durum yazısı ve ipucu", "“Uyandırmak için «quatra» de” gibi yönlendirmeler."],
         ["Yazı balonu (altyazı)", "Söylediğin söz ve Quatra'nın son cevabı; birkaç saniye sonra solar."],
         ["Görev balonları", "Not alma gibi işler sırasında beliren saydam kartlar: Çalışıyor → Tamamlandı / Başarısız."],
-        ["Sol alt MIC rozeti", "Mikrofonu elle aç/kapat. Kapalıyken Quatra hiçbir şey duymaz."],
+        ["Sol alt mikrofon düğmesi", "Ekolayzır: 4 çubuk gerçek mikrofon seviyesiyle oynar. Tıklayınca mikrofonu aç/kapat. Kapalıyken Quatra hiçbir şey duymaz."],
         ["Sağ üst dişli", "Ayarlar panelini açar."],
         ["Alt çubuk (iki seçici)", "Solda <b>DeepSeek model seviyesi</b> (Düşük…Ultra Max), sağda <b>çalışma modu</b> (Hızlı / Düşünceli). Tıkla, seç; seçim anında uygulanır."],
     ], [4.2 * cm, 12.6 * cm]))
@@ -147,6 +148,7 @@ def build():
     ]):
         story.append(b)
     story.append(P("Tek nefeste komut: “Quatra, not defterini aç” — Quatra uyandırma kelimesini duyduğu anda kalan sözü komut olarak alır.", S_NOTE))
+    story.append(P("Yanıt oluşurken cümle cümle seslendirilir (akış); yarım cümleler bekletilip tamamlanınca okunur — ilk ses gecikmesi bu yüzden düşüktür.", S_NOTE))
     story.append(P("Sürekli sohbet (varsayılan açık)", S_H2))
     story.append(P("Cevap bitince mikrofon kendiliğinden dinlemeye döner; her seferinde “Quatra” demen gerekmez. "
                    "Uzun süre sessiz kalırsan sohbet beklemeye geçer — yeniden “Quatra” dersin.", S_P))
@@ -155,10 +157,18 @@ def build():
                    "(GPT ses modu gibi). Ayarlardan kapatılabilir.", S_P))
     story.append(P("Bas-konuş ve elle kontrol", S_H2))
     for b in B([
-        "<b>Ctrl+Shift+Space</b> — basılı tut, konuş, bırak. Kısayol <b>globaldir</b>: uygulama arka plandayken de çalışır.",
+        "<b>Ctrl+Shift+Space</b> (macOS: <b>Cmd+Shift+Space</b>) — basılı tut, konuş, bırak. Kısayol <b>globaldir</b>: uygulama arka plandayken de çalışır.",
         "Kısayol tuşu Ayarlar → Etkinleştirme bölümünden değiştirilebilir.",
-        "Elle: sol alttaki <b>MIC</b> rozetine tıklayarak mikrofonu aç/kapat.",
+        "Elle: sol alttaki <b>ekolayzır</b> düğmesine tıklayarak mikrofonu aç/kapat.",
         "Etkinleştirme biçimi üçtan biridir: Elle (butonla) · Bas-konuş (kısayol) · Uyandırma kelimesi. Uyandırma için Groq anahtarı gerekir.",
+    ]):
+        story.append(b)
+    story.append(P("macOS'te kullanım (özet)", S_H2))
+    for b in B([
+        "Pencere yerel trafik ışıklarıyla gelir (sol üst); kapatma uygulamayı bitirmez, tepsiye indirir — çıkış <b>Cmd+Q</b> veya tepsi menüsü.",
+        "Uygulama menüsü kopyala/yapıştır (Cmd+C / Cmd+V) ve tam ekran (Ctrl+Cmd+F) kısayollarını destekler.",
+        "İlk çalıştırmada macOS mikrofon izni sorar; reddedilirse Sistem Ayarları → Gizlilik ve Güvenlik → Mikrofon yolundan izin verilir (geliştirme modunda uygulama “Electron” olarak görünebilir).",
+        "Veriler <b>~/Library/Application Support/Quatra</b> klasöründe tutulur (Windows: %APPDATA%\\Quatra).",
     ]):
         story.append(b)
 
@@ -169,7 +179,7 @@ def build():
         ["Yetenek", "Nasıl kullanılır / notlar"],
         ["Sohbet ve soru-cevap", "Her konuda soru sor; cevaplar kısa tutulur. “detaylı anlat / uzun anlat” dersen kapsamlı yanıt verir."],
         ["Sistem bilgisi", "“sistemin nasıl?” → sürüm, işletim sistemi bilgisi döner."],
-        ["Uygulama açma", "“not defterini aç” · “hesap makinesini aç”. İzinli liste: not defteri, hesap makinesi, dosya gezgini, komut istemi, PowerShell, Paint, Görev Yöneticisi. Türkçe adlar tanınır."],
+        ["Uygulama açma", "“not defterini aç” · “hesap makinesini aç”. Windows'ta izinli liste: not defteri, hesap makinesi, dosya gezgini, komut istemi, PowerShell, Paint, Görev Yöneticisi. macOS'te karşılıklar: TextEdit · Calculator · Finder · Terminal · Activity Monitor (Paint'in karşılığı yok). Türkçe adlar tanınır."],
         ["Web adresi açma", "“youtube'u aç” → varsayılan tarayıcıda açar. Yalnızca http/https adresleri."],
         ["Not alma", "“masaüstüne toplantı notu al: …” → Markdown (.md) dosyası yazar; klasör seçtirir ve onay ister."],
         ["Panoya kopyalama", "“bunu panoya kopyala: …” → panoya yazar."],
@@ -221,19 +231,22 @@ def build():
         ["Etkinleştirme", "Etkinleştirme biçimi (Elle / Bas-konuş / Uyandırma kelimesi), bas-konuş kısayolu, uyandırma kelimesi."],
         ["Görünüm", "Vurgu rengi, görsel yoğunluk, animasyon hızı, ışıltı, arayüz ölçeği, hareketi azalt."],
         ["Hafıza", "6. bölüme bak (anahtarlar, motor seçimi, kayıt listesi)."],
-        ["Gizlilik", "Konuşma metinlerini sakla (varsayılan kapalı), pano okumaya izin ver (varsayılan kapalı)."],
+        ["Gizlilik", "Konuşma metinlerini sakla (varsayılan kapalı), pano okumaya izin ver (varsayılan kapalı), konuşma kayıtlarını sil."],
+        ["İşlem Kaydı", "Quatra'nın yaptığı her araç işinin yerel kaydı (sırlar gizlenir); aylık ve toplam token sayaçları; not yedeğini geri alma. Yenile / temizle."],
         ["Teşhis", "Mikrofon ve sağlayıcı durumu, seçili model, araçlar, son hatalar; günlük dosyasını aç/temizle, konuşma bağlamını temizle, varsayılanlara dön."],
     ], [3.4 * cm, 13.4 * cm]))
 
     # ------------------------------------------------------------ 8. Veri ve gizlilik
     story.append(P("8. Veriler ve gizlilik — ne nerede?", S_H1))
+    story.append(P("Tüm veriler cihazında tek bir sabit klasörde tutulur: Windows'ta <b>%APPDATA%\\Quatra</b> · "
+                   "macOS'te <b>~/Library/Application Support/Quatra</b>. Aşağıdaki dosya adları bu klasörün içindedir.", S_P))
     story.append(table([
-        ["Yerleşim", "İçerik"],
-        ["%APPDATA%\\Quatra\\credentials.json", "API anahtarları — Windows şifre kasasıyla şifreli; ekranda bir daha gösterilmez."],
-        ["%APPDATA%\\Quatra\\settings.json", "Tüm ayarların (şifresiz veriler)."],
-        ["%APPDATA%\\Quatra\\memory.json", "Hafıza kayıtları — yalnızca bu cihazda; hafızada tuttuğun isim, tercih ve notlar; istediğinde tek tek veya tümüyle silebilirsin."],
-        ["%APPDATA%\\Quatra\\logs\\quatra.log", "Çalışma günlüğü — sorun teşhisi için; sırlar otomatik gizlenir, 1 MB'da döner."],
-    ], [6.4 * cm, 10.4 * cm]))
+        ["Dosya", "İçerik"],
+        ["credentials.json", "API anahtarları — işletim sistemi kasasıyla şifrelenir (Windows DPAPI · macOS Keychain); ekranda bir daha gösterilmez."],
+        ["settings.json", "Tüm ayarların (şifresiz veriler)."],
+        ["memory.json", "Hafıza kayıtları — yalnızca bu cihazda; hafızada tuttuğun isim, tercih ve notlar; istediğinde tek tek veya tümüyle silebilirsin."],
+        ["logs/quatra.log", "Çalışma günlüğü — sorun teşhisi için; sırlar otomatik gizlenir, 1 MB'da döner."],
+    ], [4.4 * cm, 12.4 * cm]))
     story.append(P("Dışarıya giden tek şeyler: soruların DeepSeek'e (yanıt üretimi), ses kaydın Groq'a (yazıya çevirme), "
                    "okunacak cevap metni Microsoft Edge sesine (seslendirme) gider. Anahtarlar ve hafıza cihazında kalır. "
                    "mem0 motorunu seçersen, hafıza olguları ek olarak mem0 bulutuna da yazılır (yerel kopya korunur).", S_NOTE))
@@ -244,10 +257,10 @@ def build():
         ["Belirti", "Çözüm"],
         ["Sesim algılanmıyor", "Ayarlar → Ses ve Giriş → Mikrofon hassasiyetini yükselt (1'e doğru). Filtrelerin açık olduğundan emin ol."],
         ["Kendiliğinden tetikleniyor", "Hassasiyeti azalt (10'a doğru); mikrofonu gürültülü ortamdan uzaklaştır."],
-        ["Mikrofon izni hatası", "Windows Ayarlar → Gizlilik ve güvenlik → Mikrofon → masaüstü uygulamalarına izin ver."],
+        ["Mikrofon izni hatası", "Windows: Ayarlar → Gizlilik ve güvenlik → Mikrofon → masaüstü uygulamalarına izin ver. macOS: Sistem Ayarları → Gizlilik ve Güvenlik → Mikrofon → uygulamaya izin ver (geliştirme modunda “Electron” olarak görünebilir)."],
         ["Yanıt gelmiyor", "İnternet bağlantısını kontrol et; Teşhis → sağlayıcı durumu; AI Sağlayıcı → “Test et”."],
         ["Uyandırma kelimesi çalışmıyor", "Groq anahtarı gerekir (AI Sağlayıcı). Ses tanıma motoru “Kapalı” olmasın."],
-        ["Quatra hiç duymuyor", "Sol alttaki MIC rozeti kapalı olabilir; tıklayıp aç."],
+        ["Quatra hiç duymuyor", "Sol alttaki ekolayzır düğmesi kapalı (susturulmuş) olabilir; tıklayıp aç."],
         ["Sorun sürüyor", "Teşhis → “Günlük dosyasını aç” → en alttaki kayıtlara bak; geliştiriciyle paylaş."],
     ], [4.4 * cm, 12.4 * cm]))
 
@@ -255,10 +268,10 @@ def build():
     story.append(P("10. Bilinen sınırlar (dürüst liste)", S_H1))
     for b in B([
         "Sistem ses seviyesini değiştirme veya medya oynatma/kontrol etme henüz yok.",
-        "Yalnızca Windows üzerinde geliştirildi ve test edildi; macOS denenmedi.",
-        "Tepsi (system tray) simgesi ve Windows başlangıcında otomatik açılma henüz yok.",
-        "Yanıt, cümle cümle canlı akıtılmaz; oluşturulup bir bütün olarak konuşulur (kısa cevap varsayılanı bunu dengeler).",
-        "Uygulama açma, yalnızca izinli 7 uygulamayla sınırlıdır; keyfi program çalıştırılmaz.",
+        "Uyandırma kelimesi ve ses tanıma buluta (Groq) bağlıdır; internet yokken Quatra seni duyamaz.",
+        "Kurulum dosyası ve otomatik güncelleme henüz yok; yeni sürümler kaynak koddan çalıştırılır.",
+        "macOS uyarlaması kodda tamamlandı (pencere, menü, mikrofon izni, uygulama eşlemesi); cihaz üzerinde doğrulama sürüyor — platform durumu docs/platform-matrix.md dosyasında dürüstçe izlenir.",
+        "Uygulama açma yalnızca izinli listeyle sınırlıdır; keyfi program çalıştırılmaz. macOS'te Paint'in karşılığı yoktur (uydurma yerine dürüst hata döner).",
         "Bu liste, sonraki geliştirme adımlarında eritilecek; kılavuz her sürümde güncellenir.",
     ]):
         story.append(b)
@@ -269,7 +282,7 @@ def build():
         ["Ne yapmak istiyorsun?", "Söyle / yap"],
         ["Quatra'yı uyandır", "“Quatra”"],
         ["Tek nefeste sor", "“Quatra, hava nasıl?”"],
-        ["Bas-konuş", "Ctrl+Shift+Space (basılı tut, konuş, bırak)"],
+        ["Bas-konuş", "Ctrl+Shift+Space (macOS: Cmd+Shift+Space) — basılı tut, konuş, bırak"],
         ["İsmini söyle", "“benim adım …” · “soyadım …”"],
         ["Bir şey hatırlat", "“hatırla: …” · “not et: …” · “unutma: …”"],
         ["Hafızadan sor", "“adım ne?” · “neler hatırlıyorsun?”"],
@@ -278,7 +291,7 @@ def build():
         ["Not al (dosya)", "“masaüstüne toplantı notu al: …”"],
         ["Uzun cevap iste", "“detaylı anlat” · “uzun anlat”"],
         ["Derin modele geç", "“yazılım moduna geç”"],
-        ["Tam ekran", "F11"],
+        ["Tam ekran", "F11 (macOS: Ctrl+Cmd+F)"],
     ], [5.2 * cm, 11.6 * cm], header=True))
 
     # ------------------------------------------------------------ Ek: kod haritası
@@ -296,10 +309,10 @@ def build():
         ["Araçlar (uygulama aç, not al, pano…)", "src/features/tools/"],
         ["Hafıza deposu ve çıkarım kuralları", "src/services/memory/"],
         ["Ayarlar şeması (varsayılanlar)", "src/state/settings-schema.ts"],
-        ["Ayarlar arayüzü (8 bölüm)", "src/features/settings/SettingsPanel.tsx"],
+        ["Ayarlar arayüzü (9 bölüm)", "src/features/settings/SettingsPanel.tsx"],
         ["DeepSeek istemcisi", "src/providers/deepseek/client.ts"],
         ["Groq Whisper (ses → yazı)", "src/providers/groq/transcribe.ts"],
-        ["masaüstü kısayolu + gizli başlatıcı", "scripts/quatra-baslat.vbs"],
+        ["Windows masaüstü kısayolu + gizli başlatıcı", "scripts/quatra-baslat.vbs"],
         ["Bu kılavuzun üreticisi", "scripts/quatra-kilavuz.py"],
     ], [7.0 * cm, 9.8 * cm]))
 

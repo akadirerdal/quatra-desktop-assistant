@@ -26,7 +26,9 @@ export function Visualizer(props: { width?: number; height?: number }): React.JS
   const speakRef = useRef(speakLevel);
   speakRef.current = speakLevel;
 
-  const size = { w: props.width ?? 420, h: props.height ?? 220 };
+  // V1.2-077: effect bağımlılıkları ilkel değerler (nesne her render'da yeniden oluşmasın).
+  const sizeW = props.width ?? 420;
+  const sizeH = props.height ?? 220;
 
   useEffect(() => {
     if (typeof requestAnimationFrame !== 'function') return; // jsdom/test ortamı
@@ -46,10 +48,12 @@ export function Visualizer(props: { width?: number; height?: number }): React.JS
       last = now;
       const focused = document.hasFocus();
       const speed = appRef.animationSpeed;
-      const reduced = appRef.reducedMotion || matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const reduced =
+        appRef.reducedMotion || matchMedia('(prefers-reduced-motion: reduce)').matches;
       if (focused && !reduced) t += dt * 0.001 * speed;
 
-      const { w, h } = size;
+      const w = sizeW;
+      const h = sizeH;
       const cx = w / 2;
       const cy = h / 2;
       ctx.clearRect(0, 0, w, h);
@@ -135,7 +139,8 @@ export function Visualizer(props: { width?: number; height?: number }): React.JS
         }
         case 'speaking': {
           // Dalga: speakLevel gerçek sinyalse onu; yoksa dürüst yumuşak dalga (sabit, rastgele değil).
-          const amp = speakRef.current > 0.02 ? 14 + speakRef.current * 46 : 22 + Math.sin(t * 1.4) * 8;
+          const amp =
+            speakRef.current > 0.02 ? 14 + speakRef.current * 46 : 22 + Math.sin(t * 1.4) * 8;
           const bars = 26;
           const bw = 3;
           const gap = 4;
@@ -143,7 +148,8 @@ export function Visualizer(props: { width?: number; height?: number }): React.JS
           let x = cx - total / 2;
           for (let i = 0; i < bars; i++) {
             // Deterministik zarf — sinüs tabanlı, rastgelelik yok.
-            const env = 0.25 + 0.75 * Math.abs(Math.sin((i / (bars - 1)) * Math.PI * 2.2 + t * 1.8));
+            const env =
+              0.25 + 0.75 * Math.abs(Math.sin((i / (bars - 1)) * Math.PI * 2.2 + t * 1.8));
             const bh = Math.max(2, amp * env);
             ctx.save();
             ctx.globalAlpha = 0.35 + 0.6 * env;
@@ -192,14 +198,14 @@ export function Visualizer(props: { width?: number; height?: number }): React.JS
 
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [status, appearance, size.w, size.h]);
+  }, [status, appearance, sizeW, sizeH]);
 
   return (
     <canvas
       ref={canvasRef}
-      width={size.w}
-      height={size.h}
-      style={{ width: size.w, height: size.h }}
+      width={sizeW}
+      height={sizeH}
+      style={{ width: sizeW, height: sizeH }}
       aria-label="Quatra durum göstergesi"
     />
   );

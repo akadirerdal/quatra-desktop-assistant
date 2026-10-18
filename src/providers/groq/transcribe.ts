@@ -64,7 +64,10 @@ export interface TranscribeResult {
 
 export async function transcribeAudio(options: TranscribeOptions): Promise<TranscribeResult> {
   if (!options.apiKey) {
-    throw new ProviderError('auth', 'Ses tanıma için Groq anahtarı gerekli (Ayarlar → AI Sağlayıcı).');
+    throw new ProviderError(
+      'auth',
+      'Ses tanıma için Groq anahtarı gerekli (Ayarlar → AI Sağlayıcı).',
+    );
   }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 30_000);
@@ -95,7 +98,11 @@ export async function transcribeAudio(options: TranscribeOptions): Promise<Trans
         throw new ProviderError('auth', 'Groq anahtarı geçersiz.', res.status);
       }
       if (res.status === 429) {
-        throw new ProviderError('rate_limit', 'Ses tanıma hız limiti — biraz sonra dene.', res.status);
+        throw new ProviderError(
+          'rate_limit',
+          'Ses tanıma hız limiti — biraz sonra dene.',
+          res.status,
+        );
       }
       throw new ProviderError('server', 'Ses tanıma servisi hata verdi.', res.status);
     }

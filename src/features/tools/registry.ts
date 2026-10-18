@@ -45,7 +45,10 @@ export class ToolRegistry {
   }
 
   /** OpenAI uyumlu tool tanımları (modele gönderilen). */
-  toProviderDefinitions(): Array<{ type: 'function'; function: { name: string; description: string; parameters: Record<string, unknown> } }> {
+  toProviderDefinitions(): Array<{
+    type: 'function';
+    function: { name: string; description: string; parameters: Record<string, unknown> };
+  }> {
     return [...this.tools.values()].map((t) => ({
       type: 'function' as const,
       function: {
@@ -91,10 +94,15 @@ export class ToolRegistry {
   private async withTimeout<T>(fn: () => Promise<T> | T, signal?: AbortSignal): Promise<T> {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new Error(`Görev zaman aşımına uğradı (${this.timeoutMs}ms).`)), this.timeoutMs);
+      timer = setTimeout(
+        () => reject(new Error(`Görev zaman aşımına uğradı (${this.timeoutMs}ms).`)),
+        this.timeoutMs,
+      );
     });
     const onAbort = new Promise<never>((_, reject) => {
-      signal?.addEventListener('abort', () => reject(new Error('Görev iptal edildi.')), { once: true });
+      signal?.addEventListener('abort', () => reject(new Error('Görev iptal edildi.')), {
+        once: true,
+      });
     });
     try {
       return await Promise.race([Promise.resolve().then(fn), timeout, onAbort]);

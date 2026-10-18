@@ -57,21 +57,29 @@ export const KNOWN_APPS: AppEntry[] = [
     key: 'taskmgr',
     win: 'taskmgr.exe',
     mac: 'Activity Monitor',
-    aliases: ['görev yöneticisi', 'task manager', 'taskmgr', 'etkinlik izleyicisi', 'activity monitor'],
+    aliases: [
+      'görev yöneticisi',
+      'task manager',
+      'taskmgr',
+      'etkinlik izleyicisi',
+      'activity monitor',
+    ],
   },
 ];
 
 function normalize(s: string): string {
-  return s
-    .toLowerCase()
-    // Unicode ayrıştırma + birleşen işaret temizliği: ç→c, ğ→g, ö→o, ü→u, İ→i
-    // (İ küçültünce "i + birleşen nokta" olur; temizlenmezse eşleşme kırılırdı.)
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    // Noktasız ı ayrışmaz — ayrıca eşlenir.
-    .replace(/ı/g, 'i')
-    .trim()
-    .replace(/\s+/g, ' ');
+  return (
+    s
+      .toLowerCase()
+      // Unicode ayrıştırma + birleşen işaret temizliği: ç→c, ğ→g, ö→o, ü→u, İ→i
+      // (İ küçültünce "i + birleşen nokta" olur; temizlenmezse eşleşme kırılırdı.)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      // Noktasız ı ayrışmaz — ayrıca eşlenir.
+      .replace(/ı/g, 'i')
+      .trim()
+      .replace(/\s+/g, ' ')
+  );
 }
 
 /** Kullanıcı/model girdisini kanonik uygulama anahtarına normalize eder; eşleşmezse null. */

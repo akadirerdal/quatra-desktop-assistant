@@ -36,7 +36,9 @@ export class PermissionManager {
   private readonly readOnly: boolean;
 
   constructor(options: PermissionManagerOptions = {}) {
-    this.allowedApps = new Set((options.allowedApps ?? DEFAULT_ALLOWED_APPS).map((a) => a.toLowerCase()));
+    this.allowedApps = new Set(
+      (options.allowedApps ?? DEFAULT_ALLOWED_APPS).map((a) => a.toLowerCase()),
+    );
     this.confirmFn = options.confirm;
     this.readOnly = options.readOnly ?? false;
   }
@@ -46,7 +48,12 @@ export class PermissionManager {
     return [...this.allowedApps].some((a) => n === a || n.includes(a) || a.includes(n));
   }
 
-  async check(toolName: string, level: PermissionLevel, requiresConfirmation: boolean | undefined, args: unknown): Promise<PermissionCheck> {
+  async check(
+    toolName: string,
+    level: PermissionLevel,
+    requiresConfirmation: boolean | undefined,
+    args: unknown,
+  ): Promise<PermissionCheck> {
     if (this.readOnly && level !== 'safe') {
       return { allowed: false, reason: 'Salt okunur mod etkin — bu işlem engellendi.' };
     }

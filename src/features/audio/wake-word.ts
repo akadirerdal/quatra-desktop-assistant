@@ -83,7 +83,10 @@ export function extractCommandAfterWake(transcript: string, wakeWord: string): s
     }
   }
   if (idx === -1) return '';
-  return tokens.slice(idx + 1).join(' ').trim();
+  return tokens
+    .slice(idx + 1)
+    .join(' ')
+    .trim();
 }
 
 export interface WakeWordCallbacks {

@@ -1,0 +1,13 @@
+# Quatra kullanim kilavuzu (PDF) uretimi icin Python bagimliliklari — V1.2-092
+# Yalnizca scripts/quatra-kilavuz.py icindir; uygulamayi calistirmak icin gerekli DEGIL.
+#
+# Kurulum (repo kokunden):
+#   python3 -m pip install -r scripts/requirements-kilavuz.txt
+#
+# PDF uretimi:
+#   python3 scripts/quatra-kilavuz.py
+#   -> cikti: docs/Quatra-Kullanim-Kilavuzu.pdf
+#
+# Not: PDF'te Turkce karakterler icin Arial (TrueType) kullanilir; Windows'ta
+# C:\Windows\Fonts, macOS'ta /System/Library/Fonts/Supplemental altindan okunur.
+reportlab>=4.0

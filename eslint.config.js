@@ -18,7 +18,29 @@ export default tseslint.config(
       'react-refresh': reactRefresh,
     },
     rules: {
+      // V1.2-077: rules-of-hooks (error) + exhaustive-deps (warn) etkin.
+      ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+    },
+  },
+  // V1.2-164 (kısmi): scripts/ lint kapsamında — node globalleriyle.
+  // Typecheck (tsconfig include: src/tests) JS dosyalarını kapsamaz; bu bilinçli.
+  {
+    extends: [js.configs.recommended],
+    files: ['scripts/**/*.{mjs,js}'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: { ...globals.node },
+    },
+  },
+  {
+    extends: [js.configs.recommended],
+    files: ['scripts/**/*.cjs'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'commonjs',
+      globals: { ...globals.node },
     },
   },
 );

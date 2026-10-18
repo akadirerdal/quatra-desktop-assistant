@@ -48,8 +48,13 @@ const quatra = {
       voice: string,
       rate: number,
       pitch: number,
-    ): Promise<{ ok: boolean; audio?: ArrayBuffer; mime?: string; code?: string; message?: string }> =>
-      ipcRenderer.invoke('tts:synthesize', text, voice, rate, pitch),
+    ): Promise<{
+      ok: boolean;
+      audio?: ArrayBuffer;
+      mime?: string;
+      code?: string;
+      message?: string;
+    }> => ipcRenderer.invoke('tts:synthesize', text, voice, rate, pitch),
   },
 
   shortcut: {
@@ -63,15 +68,31 @@ const quatra = {
   },
 
   provider: {
-    test: (model: string): Promise<{ ok: boolean; code?: string; message?: string; latencyMs?: number }> =>
+    test: (
+      model: string,
+    ): Promise<{ ok: boolean; code?: string; message?: string; latencyMs?: number }> =>
       ipcRenderer.invoke('provider:test', model),
-    models: (): Promise<{ ok: boolean; code?: string; message?: string; models?: Array<{ id: string }> }> =>
-      ipcRenderer.invoke('provider:models'),
+    models: (): Promise<{
+      ok: boolean;
+      code?: string;
+      message?: string;
+      models?: Array<{ id: string }>;
+    }> => ipcRenderer.invoke('provider:models'),
   },
 
   agent: {
-    run: (req: { text: string; model: string; temperature?: number; maxTokens?: number; personality?: string; useMemory?: boolean; memoryEngine?: 'local' | 'mem0'; autoLearn?: boolean; detailed?: boolean; retainTranscripts?: boolean }): Promise<{ started: boolean }> =>
-      ipcRenderer.invoke('agent:run', req),
+    run: (req: {
+      text: string;
+      model: string;
+      temperature?: number;
+      maxTokens?: number;
+      personality?: string;
+      useMemory?: boolean;
+      memoryEngine?: 'local' | 'mem0';
+      autoLearn?: boolean;
+      detailed?: boolean;
+      retainTranscripts?: boolean;
+    }): Promise<{ started: boolean }> => ipcRenderer.invoke('agent:run', req),
     cancel: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('agent:cancel'),
     confirm: (requestId: string, approved: boolean): Promise<{ ok: boolean; handled: boolean }> =>
       ipcRenderer.invoke('agent:confirm', requestId, approved),
@@ -108,11 +129,13 @@ const quatra = {
   log: {
     openLogs: (): Promise<{ ok: boolean; path?: string; message?: string }> =>
       ipcRenderer.invoke('log:open'),
-    path: (): Promise<{ ok: boolean; path?: string; dir?: string }> => ipcRenderer.invoke('log:path'),
+    path: (): Promise<{ ok: boolean; path?: string; dir?: string }> =>
+      ipcRenderer.invoke('log:path'),
     clear: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('log:clear'),
     rendererError: (level: 'warn' | 'error', message: string): void =>
       ipcRenderer.send('log:renderer', level, 'renderer', message),
-    info: (scope: string, message: string): void => ipcRenderer.send('log:renderer', 'info', scope, message),
+    info: (scope: string, message: string): void =>
+      ipcRenderer.send('log:renderer', 'info', scope, message),
   },
 
   audit: {
@@ -141,7 +164,8 @@ const quatra = {
   },
 
   privacy: {
-    clearTranscripts: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('privacy:clear-transcripts'),
+    clearTranscripts: (): Promise<{ ok: boolean }> =>
+      ipcRenderer.invoke('privacy:clear-transcripts'),
   },
 
   memory: {
@@ -150,8 +174,10 @@ const quatra = {
     add: (
       text: string,
       source: 'user' | 'assistant',
-    ): Promise<{ ok: boolean; entry?: { id: string; text: string; createdAt: string; source: string } }> =>
-      ipcRenderer.invoke('memory:add', text, source),
+    ): Promise<{
+      ok: boolean;
+      entry?: { id: string; text: string; createdAt: string; source: string };
+    }> => ipcRenderer.invoke('memory:add', text, source),
     remove: (id: string): Promise<{ ok: boolean }> => ipcRenderer.invoke('memory:remove', id),
     clear: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('memory:clear'),
   },

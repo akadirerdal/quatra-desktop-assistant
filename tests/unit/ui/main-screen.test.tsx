@@ -7,12 +7,16 @@ import { useAssistantStore } from '../../../src/state/assistant-store';
 import { setSettingsBackend, useSettingsStore } from '../../../src/state/settings-store';
 import { DEFAULT_SETTINGS } from '../../../src/state/settings-schema';
 import { MemorySettingsBackend } from '../../../src/services/storage/settings-storage';
+import { installBridgeMock, removeBridgeMock } from '../../helpers/bridge';
 
 function renderMain(): void {
   render(<MainScreen onOpenSettings={() => undefined} onToggleMic={() => undefined} />);
 }
 
 beforeEach(() => {
+  // Ortak köprü mock'u (V1.2-026): App/MainScreen'in `window.quatra` yolları
+  // eksiksiz ve deterministik şekilde çalışsın.
+  installBridgeMock();
   useAssistantStore.setState({
     status: 'idle',
     caption: '',
@@ -25,11 +29,17 @@ beforeEach(() => {
     connectionError: null,
   });
   setSettingsBackend(new MemorySettingsBackend());
-  useSettingsStore.setState({ settings: DEFAULT_SETTINGS, loaded: true, loadError: null, saveError: null });
+  useSettingsStore.setState({
+    settings: DEFAULT_SETTINGS,
+    loaded: true,
+    loadError: null,
+    saveError: null,
+  });
 });
 
 afterEach(() => {
   cleanup();
+  removeBridgeMock();
   useAssistantStore.setState({ tasks: [], caption: '', status: 'idle' });
 });
 
@@ -49,7 +59,9 @@ describe('MainScreen', () => {
   });
 
   it('görev balonunu saydam kutu olarak gösterir', () => {
-    useAssistantStore.getState().pushTask({ title: 'Alarm kuruldu — 06:00', detail: 'Tamamlandı', state: 'done' });
+    useAssistantStore
+      .getState()
+      .pushTask({ title: 'Alarm kuruldu — 06:00', detail: 'Tamamlandı', state: 'done' });
     renderMain();
     expect(screen.getByText('Alarm kuruldu — 06:00')).toBeTruthy();
     expect(screen.getByText('Tamamlandı')).toBeTruthy();
@@ -127,7 +139,10 @@ describe('MainScreen', () => {
   it('hareketi azalt açıkken dinleme çubukları sabit desende kalır', () => {
     act(() => {
       useSettingsStore.setState({
-        settings: { ...DEFAULT_SETTINGS, appearance: { ...DEFAULT_SETTINGS.appearance, reducedMotion: true } },
+        settings: {
+          ...DEFAULT_SETTINGS,
+          appearance: { ...DEFAULT_SETTINGS.appearance, reducedMotion: true },
+        },
       });
       useAssistantStore.getState().setStatus('listening');
       useAssistantStore.getState().setLevels(0.95, 0);

@@ -37,7 +37,15 @@ describe('appendWithRotation', () => {
   });
 
   it('yazılamayan yolda sessiz kalır (throw etmez)', () => {
-    expect(() => appendWithRotation('Z:\\olmayan-yol\\x.log', 'x')).not.toThrow();
+    // Ebeveyni dizin değil DOSYA olan yol: POSIX ve Windows'ta da yazılamaz,
+    // repo köküne/geçerli dizine artık dosya bırakmaz (bonus: V1.2 raporu).
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'quatra-log-'));
+    tempDirs.push(dir);
+    const blocker = path.join(dir, 'blocker');
+    fs.writeFileSync(blocker, 'x');
+    const file = path.join(blocker, 'x.log');
+    expect(() => appendWithRotation(file, 'x')).not.toThrow();
+    expect(fs.existsSync(file)).toBe(false);
   });
 });
 

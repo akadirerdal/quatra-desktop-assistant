@@ -159,7 +159,9 @@ export function BottomBar(): React.JSX.Element {
             >
               <span className="check">{mode === 'flash' ? '✓' : ''}</span>
               {strings.modeFlash}
-              <span className="popupSub">{settings.provider.flashModel} · günlük sorular, hızlı yanıt</span>
+              <span className="popupSub">
+                {settings.provider.flashModel} · günlük sorular, hızlı yanıt
+              </span>
             </button>
             <button
               className={`popupItem ${mode === 'pro' ? 'active' : ''}`}
@@ -174,7 +176,11 @@ export function BottomBar(): React.JSX.Element {
             <div className="popupHint">Sesli komut: “yazılım moduna geç” / “normal moda geç”</div>
           </div>
         )}
-        <button className="pill" onClick={() => setPopup(popup === 'mode' ? 'none' : 'mode')} title={strings.modeSelect}>
+        <button
+          className="pill"
+          onClick={() => setPopup(popup === 'mode' ? 'none' : 'mode')}
+          title={strings.modeSelect}
+        >
           <span>{mode === 'pro' ? strings.modePro : strings.modeFlash}</span>
         </button>
       </div>

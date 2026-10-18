@@ -2,7 +2,7 @@
  * Ayarlar paneli — 8 kategori, her kontrol gerçekten çalışır veya "kullanılamaz" işaretlidir.
  * Ölü buton YASAK.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Dialog, Select, Slider, StatusPill, Switch } from '../../components/ui';
 import { useSettingsStore } from '../../state/settings-store';
 import { useAssistantStore } from '../../state/assistant-store';
@@ -69,7 +69,8 @@ export function SettingsPanel(props: {
           {category === 'memory' && <MemorySection />}
           {category === 'privacy' && <PrivacySection />}
           {category === 'records' && <RecordsSection />}
-          {category === 'diagnostics' && <DiagnosticsSection />}        </div>
+          {category === 'diagnostics' && <DiagnosticsSection />}{' '}
+        </div>
       </div>
     </div>
   );
@@ -247,7 +248,9 @@ function KeyBlock(props: {
         <input
           className="input"
           type={showKey ? 'text' : 'password'}
-          placeholder={hasKey && !keyInput ? strings.apiKeyPlaceholderSaved : strings.apiKeyPlaceholder}
+          placeholder={
+            hasKey && !keyInput ? strings.apiKeyPlaceholderSaved : strings.apiKeyPlaceholder
+          }
           value={keyInput}
           onChange={(e) => setKeyInput(e.target.value)}
           autoComplete="off"
@@ -260,7 +263,11 @@ function KeyBlock(props: {
           {strings.saveKey}
         </Button>
         {hasKey && (
-          <Button variant="danger" onClick={() => void clearKey()} title="Kayıtlı anahtarı kasasından sil">
+          <Button
+            variant="danger"
+            onClick={() => void clearKey()}
+            title="Kayıtlı anahtarı kasasından sil"
+          >
             {strings.clearKey}
           </Button>
         )}
@@ -336,11 +343,19 @@ function ProviderSection(): React.JSX.Element {
       <KeyBlock id="deepseek" label={strings.apiKey} hint={strings.apiKeyHint} />
       <div className="field">
         <label>{strings.flashModel}</label>
-        <Select value={flash} onChange={(v) => void updateProvider({ flashModel: v })} options={modelOptions(flash)} />
+        <Select
+          value={flash}
+          onChange={(v) => void updateProvider({ flashModel: v })}
+          options={modelOptions(flash)}
+        />
       </div>
       <div className="field">
         <label>{strings.proModel}</label>
-        <Select value={pro} onChange={(v) => void updateProvider({ proModel: v })} options={modelOptions(pro)} />
+        <Select
+          value={pro}
+          onChange={(v) => void updateProvider({ proModel: v })}
+          options={modelOptions(pro)}
+        />
       </div>
       <div className="field">
         <label>{strings.temperature}</label>
@@ -396,12 +411,18 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
   const settings = useSettingsStore((s) => s.settings);
   const update = useSettingsStore((s) => s.update);
   const [sysVoices, setSysVoices] = useState<Array<{ name: string; lang: string }>>([]);
-  const [edgeVoices, setEdgeVoices] = useState<Array<{ shortName: string; locale: string; gender: string }>>([]);
+  const [edgeVoices, setEdgeVoices] = useState<
+    Array<{ shortName: string; locale: string; gender: string }>
+  >([]);
   const [edgeErr, setEdgeErr] = useState<string | null>(null);
   const [devices, setDevices] = useState<Array<{ id: string; label: string }>>([]);
   const engine = settings.voice.ttsEngine;
 
-  const loadSysVoices = (): void => setSysVoices(props.controller.audioService.availableVoices());
+  // V1.2-077: effect bağımlılığı olduğundan kimlik props.controller'a bağlı sabitlenir.
+  const loadSysVoices = useCallback(
+    (): void => setSysVoices(props.controller.audioService.availableVoices()),
+    [props.controller],
+  );
   const loadDevices = async (): Promise<void> => {
     if (!navigator.mediaDevices?.enumerateDevices) return;
     try {
@@ -433,7 +454,7 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
       window.speechSynthesis.addEventListener('voiceschanged', loadSysVoices);
       return () => window.speechSynthesis.removeEventListener('voiceschanged', loadSysVoices);
     }
-  }, [props.controller]);
+  }, [loadSysVoices]);
 
   useEffect(() => {
     void loadDevices();
@@ -482,7 +503,9 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
         <Select
           value={settings.voice.sttEngine}
           onChange={(v) =>
-            void update({ voice: { ...settings.voice, sttEngine: v as typeof settings.voice.sttEngine } })
+            void update({
+              voice: { ...settings.voice, sttEngine: v as typeof settings.voice.sttEngine },
+            })
           }
           options={[
             { value: 'auto', label: strings.sttAuto },
@@ -630,7 +653,13 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
         <Select
           value={engine}
           onChange={(v) =>
-            void update({ voice: { ...settings.voice, ttsEngine: v as typeof settings.voice.ttsEngine, voiceName: '' } })
+            void update({
+              voice: {
+                ...settings.voice,
+                ttsEngine: v as typeof settings.voice.ttsEngine,
+                voiceName: '',
+              },
+            })
           }
           options={[
             { value: 'edge', label: strings.ttsEdge },
@@ -650,7 +679,10 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
             onChange={(v) => void update({ voice: { ...settings.voice, voiceName: v } })}
             options={voiceOptions}
           />
-          <Button size="small" onClick={() => (engine === 'edge' ? void loadEdgeVoices() : loadSysVoices())}>
+          <Button
+            size="small"
+            onClick={() => (engine === 'edge' ? void loadEdgeVoices() : loadSysVoices())}
+          >
             {strings.refresh}
           </Button>
         </div>
@@ -679,7 +711,9 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
         />
       </div>
       <div className="field row">
-        <Button onClick={() => props.controller.testVoice('Merhaba, ben Quatra. Ses sistemim çalışıyor.')}>
+        <Button
+          onClick={() => props.controller.testVoice('Merhaba, ben Quatra. Ses sistemim çalışıyor.')}
+        >
           {strings.testVoice}
         </Button>
         <Button onClick={() => props.controller.stopSpeaking()}>{strings.stopSpeaking}</Button>
@@ -823,7 +857,9 @@ function ActivationSection(): React.JSX.Element {
         <Select
           value={settings.activation.mode}
           onChange={(v) =>
-            void update({ activation: { ...settings.activation, mode: v as typeof settings.activation.mode } })
+            void update({
+              activation: { ...settings.activation, mode: v as typeof settings.activation.mode },
+            })
           }
           options={[
             { value: 'manual', label: strings.modeManual },
@@ -893,7 +929,15 @@ function AppearanceSection(): React.JSX.Element {
                 justifyContent: 'center',
               }}
             >
-              <span style={{ width: 12, height: 12, borderRadius: '50%', background: t.accent, display: 'inline-block' }} />
+              <span
+                style={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: '50%',
+                  background: t.accent,
+                  display: 'inline-block',
+                }}
+              />
             </button>
           ))}
         </div>
@@ -923,23 +967,50 @@ function AppearanceSection(): React.JSX.Element {
       </div>
       <div className="field">
         <label>{strings.intensity}</label>
-        <Slider value={app.intensity} min={0.3} max={1} onChange={(v) => void update({ appearance: { ...app, intensity: v } })} format={(v) => v.toFixed(2)} />
+        <Slider
+          value={app.intensity}
+          min={0.3}
+          max={1}
+          onChange={(v) => void update({ appearance: { ...app, intensity: v } })}
+          format={(v) => v.toFixed(2)}
+        />
       </div>
       <div className="field">
         <label>{strings.animationSpeed}</label>
-        <Slider value={app.animationSpeed} min={0.5} max={2} onChange={(v) => void update({ appearance: { ...app, animationSpeed: v } })} format={(v) => `${v.toFixed(1)}x`} />
+        <Slider
+          value={app.animationSpeed}
+          min={0.5}
+          max={2}
+          onChange={(v) => void update({ appearance: { ...app, animationSpeed: v } })}
+          format={(v) => `${v.toFixed(1)}x`}
+        />
       </div>
       <div className="field">
         <label>{strings.glow}</label>
-        <Slider value={app.glow} min={0} max={1} onChange={(v) => void update({ appearance: { ...app, glow: v } })} format={(v) => v.toFixed(2)} />
+        <Slider
+          value={app.glow}
+          min={0}
+          max={1}
+          onChange={(v) => void update({ appearance: { ...app, glow: v } })}
+          format={(v) => v.toFixed(2)}
+        />
       </div>
       <div className="field">
         <label>{strings.uiScale}</label>
-        <Slider value={app.uiScale} min={0.85} max={1.3} onChange={(v) => void update({ appearance: { ...app, uiScale: v } })} format={(v) => `${Math.round(v * 100)}%`} />
+        <Slider
+          value={app.uiScale}
+          min={0.85}
+          max={1.3}
+          onChange={(v) => void update({ appearance: { ...app, uiScale: v } })}
+          format={(v) => `${Math.round(v * 100)}%`}
+        />
       </div>
       <div className="field row between">
         <label style={{ margin: 0 }}>{strings.reducedMotion}</label>
-        <Switch on={app.reducedMotion} onChange={(v) => void update({ appearance: { ...app, reducedMotion: v } })} />
+        <Switch
+          on={app.reducedMotion}
+          onChange={(v) => void update({ appearance: { ...app, reducedMotion: v } })}
+        />
       </div>
       <div className="field">
         <label>{strings.preview}</label>
@@ -954,7 +1025,9 @@ function AppearanceSection(): React.JSX.Element {
 function MemorySection(): React.JSX.Element {
   const settings = useSettingsStore((s) => s.settings);
   const update = useSettingsStore((s) => s.update);
-  const [entries, setEntries] = useState<Array<{ id: string; text: string; createdAt: string; source: string }>>([]);
+  const [entries, setEntries] = useState<
+    Array<{ id: string; text: string; createdAt: string; source: string }>
+  >([]);
   const [newText, setNewText] = useState('');
   const [confirming, setConfirming] = useState(false);
 
@@ -1010,7 +1083,9 @@ function MemorySection(): React.JSX.Element {
         <Select
           value={settings.memory.engine}
           onChange={(v) =>
-            void update({ memory: { ...settings.memory, engine: v as typeof settings.memory.engine } })
+            void update({
+              memory: { ...settings.memory, engine: v as typeof settings.memory.engine },
+            })
           }
           options={[
             { value: 'local', label: strings.memoryEngineLocal },
@@ -1041,7 +1116,11 @@ function MemorySection(): React.JSX.Element {
       <div className="diagList">
         {entries.length === 0 && <div className="statusHint">{strings.memoryEmpty}</div>}
         {entries.map((e) => (
-          <div key={e.id} className="row between" style={{ padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+          <div
+            key={e.id}
+            className="row between"
+            style={{ padding: '6px 0', borderBottom: '1px solid var(--border)' }}
+          >
             <span style={{ fontSize: 12.5 }}>{e.text}</span>
             <Button size="small" variant="danger" onClick={() => void removeEntry(e.id)}>
               ✕
@@ -1091,7 +1170,9 @@ function PrivacySection(): React.JSX.Element {
         <label style={{ margin: 0 }}>{strings.clipboardRead}</label>
         <Switch
           on={settings.privacy.clipboardReadEnabled}
-          onChange={(v) => void update({ privacy: { ...settings.privacy, clipboardReadEnabled: v } })}
+          onChange={(v) =>
+            void update({ privacy: { ...settings.privacy, clipboardReadEnabled: v } })
+          }
         />
       </div>
       <div className="field row">
@@ -1111,7 +1192,9 @@ function PrivacySection(): React.JSX.Element {
         </Button>
         <Button
           onClick={() => {
-            void window.quatra?.privacy.clearTranscripts().then(() => setCaption(strings.transcriptsCleared));
+            void window.quatra?.privacy
+              .clearTranscripts()
+              .then(() => setCaption(strings.transcriptsCleared));
           }}
         >
           {strings.clearTranscripts}
@@ -1136,7 +1219,9 @@ function RecordsSection(): React.JSX.Element {
 
   const refresh = () => {
     void window.quatra?.audit.list().then((r) => setAudit(r.entries));
-    void window.quatra?.usage.get().then((r) => setUsage({ monthUsage: r.monthUsage, total: r.total }));
+    void window.quatra?.usage
+      .get()
+      .then((r) => setUsage({ monthUsage: r.monthUsage, total: r.total }));
     void window.quatra?.notes.lastBackup().then((r) => setBackup(r.record));
   };
   const ranOnce = useRef(false);
@@ -1193,9 +1278,10 @@ function RecordsSection(): React.JSX.Element {
       <h4>{strings.usageTitle}</h4>
       {usage ? (
         <div className="statusHint">
-          {strings.usageMonth}: {fmt(usage.monthUsage.prompt)} giriş / {fmt(usage.monthUsage.completion)} çıkış (
-          {fmt(usage.monthUsage.requests)} {strings.usageRequests}) · {strings.usageTotal}:{' '}
-          {fmt(usage.total.prompt)} / {fmt(usage.total.completion)}
+          {strings.usageMonth}: {fmt(usage.monthUsage.prompt)} giriş /{' '}
+          {fmt(usage.monthUsage.completion)} çıkış ({fmt(usage.monthUsage.requests)}{' '}
+          {strings.usageRequests}) · {strings.usageTotal}: {fmt(usage.total.prompt)} /{' '}
+          {fmt(usage.total.completion)}
         </div>
       ) : (
         <div className="statusHint">{strings.usageEmpty}</div>
@@ -1203,7 +1289,9 @@ function RecordsSection(): React.JSX.Element {
 
       <h4>{strings.noteBackupTitle}</h4>
       <div className="statusHint">
-        {backup ? `${strings.noteBackupLast}: ${backup.target} (${fmtTs(backup.ts)})` : strings.noteBackupNone}
+        {backup
+          ? `${strings.noteBackupLast}: ${backup.target} (${fmtTs(backup.ts)})`
+          : strings.noteBackupNone}
       </div>
       {backup && (
         <div className="field row">
@@ -1211,7 +1299,9 @@ function RecordsSection(): React.JSX.Element {
             size="small"
             onClick={() => {
               void window.quatra?.notes.restore().then((r) => {
-                setCaption(r.ok ? strings.noteRestored : `${strings.noteRestoreFailed} ${r.message}`);
+                setCaption(
+                  r.ok ? strings.noteRestored : `${strings.noteRestoreFailed} ${r.message}`,
+                );
               });
             }}
           >
@@ -1223,6 +1313,16 @@ function RecordsSection(): React.JSX.Element {
   );
 }
 
+// V1.2-077: refresh'in useCallback bağımlılığı olmasın diye modül düzeyinde sabit.
+const DIAG_TOOL_LIST = [
+  'sysinfo',
+  'open_app',
+  'open_url',
+  'not_al',
+  'clipboard_yaz',
+  'clipboard_oku',
+];
+
 function DiagnosticsSection(): React.JSX.Element {
   const status = useAssistantStore((s) => s.status);
   const connection = useAssistantStore((s) => s.connection);
@@ -1230,24 +1330,32 @@ function DiagnosticsSection(): React.JSX.Element {
   const settings = useSettingsStore((s) => s.settings);
   const [logs, setLogs] = useState<Array<{ text: string; kind: string }>>([]);
 
-  const toolList = ['sysinfo', 'open_app', 'open_url', 'not_al', 'clipboard_yaz', 'clipboard_oku'];
-
-  const refresh = () => {
+  // V1.2-077: effect bağımlılığı olduğundan useCallback; ranOnce guard'ı davranışı korur.
+  const refresh = useCallback(() => {
     setLogs([
-      { text: `${strings.providerState}: ${connection}`, kind: connection === 'failed' ? 'error' : '' },
-      { text: `${strings.selectedModel}: ${settings.provider.flashModel} / ${settings.provider.proModel}`, kind: '' },
-      { text: `${strings.micStatus}: ${status === 'listening' ? 'aktif' : status === 'muted' ? 'kapalı' : 'hazır'}`, kind: '' },
-      { text: `${strings.tools}: ${toolList.join(', ')}`, kind: '' },
+      {
+        text: `${strings.providerState}: ${connection}`,
+        kind: connection === 'failed' ? 'error' : '',
+      },
+      {
+        text: `${strings.selectedModel}: ${settings.provider.flashModel} / ${settings.provider.proModel}`,
+        kind: '',
+      },
+      {
+        text: `${strings.micStatus}: ${status === 'listening' ? 'aktif' : status === 'muted' ? 'kapalı' : 'hazır'}`,
+        kind: '',
+      },
+      { text: `${strings.tools}: ${DIAG_TOOL_LIST.join(', ')}`, kind: '' },
       ...(connectionError ? [{ text: connectionError, kind: 'error' }] : []),
     ]);
-  };
+  }, [connection, settings, status, connectionError]);
   const ranOnce = useRef(false);
   useEffect(() => {
     if (!ranOnce.current) {
       ranOnce.current = true;
       refresh();
     }
-  }, [connection, connectionError]);
+  }, [refresh]);
 
   return (
     <>
@@ -1272,10 +1380,13 @@ function DiagnosticsSection(): React.JSX.Element {
           </Button>
         </div>
         <div className="hint">
-          Hata günlükleri kalıcı olarak tutulur: %APPDATA%\\Quatra\\logs\\quatra.log (1MB'da rotasyon).
+          Hata günlükleri kalıcı olarak tutulur: %APPDATA%\\Quatra\\logs\\quatra.log (1MB'da
+          rotasyon).
         </div>
       </div>
-      <div className="statusHint">Sahte sağlık puanı yoktur; gösterilen her şey gerçek durumdur.</div>
+      <div className="statusHint">
+        Sahte sağlık puanı yoktur; gösterilen her şey gerçek durumdur.
+      </div>
     </>
   );
 }

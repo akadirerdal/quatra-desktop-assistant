@@ -16,7 +16,7 @@ Built with Electron + Vite + React + TypeScript. Brain: **DeepSeek** · Ears: **
 
 **🎙 Voice**
 
-- Wake word **“Quatra”** (pronunciation variants like *kuatra/quatro* are recognized) → **“Efendim?”** → your command.
+- Wake word **“Quatra”** (pronunciation variants like _kuatra/quatro_ are recognized) → **“Efendim?”** → your command.
 - **Continuous conversation** (on by default): after an answer it keeps listening — no wake word needed; if you stay silent it returns to standby (default 5 s, adjustable).
 - **Push-to-talk hotkey** (global): `Ctrl+Shift+Space` on Windows · `⌘⇧Space` on macOS — changeable in Settings.
 - **Barge-in**: talk over Quatra and it stops and listens immediately.
@@ -47,7 +47,7 @@ Built with Electron + Vite + React + TypeScript. Brain: **DeepSeek** · Ears: **
 - Launch at login (installed builds; honestly marked as unsupported when running from source).
 - 7 themes, UI scale, reduced motion.
 - Audit log (“İşlem Kaydı”), note backups with one-click restore, token counters, diagnostics, settings export/import (API keys never included).
-- Window chrome: custom title bar on Windows; native traffic lights + app menu on macOS. Opens fullscreen on first launch (F11 / ⌃⌘F).
+- Window chrome: custom title bar on Windows; native traffic lights + app menu on macOS. Opens fullscreen on every launch (F11 / ⌃⌘F).
 
 ## How it works
 
@@ -104,20 +104,20 @@ Installers will be produced and shared only when the product is approved. Until 
 
 Say **“Quatra”** → “Efendim?” → your command. During an active conversation the wake word is not needed; silence returns it to standby.
 
-| You say (Turkish) | What happens |
-|---|---|
-| “Quatra, not defterini aç” | Opens Notepad (Windows) / TextEdit (macOS) |
-| “Hesap makinesini aç” | Calculator |
-| “Görev yöneticisini aç” | Task Manager / Activity Monitor |
-| “10 dakika sonra çayı hatırlat” | Local reminder (2 s – 24 h); spoken when it fires |
-| “hatırla: yarın sınavım var” | Stores it in local memory, silently |
-| “adım ne?” | Answers from memory |
-| “yazılım moduna geç” / “normal moda geç” | Switches work mode (Pro / Fast) |
-| “detaylı anlat” | Asks for a longer answer instead of the short default |
-| “sus” | Stops speaking immediately |
-| “uyu” | Ends the conversation — mic stays open for the next wake word |
-| “bilgisayar bilgisi ver” | Runs the `sysinfo` tool |
-| “github.com’u aç” | Opens the URL in your default browser (http/https only) |
+| You say (Turkish)                        | What happens                                                  |
+| ---------------------------------------- | ------------------------------------------------------------- |
+| “Quatra, not defterini aç”               | Opens Notepad (Windows) / TextEdit (macOS)                    |
+| “Hesap makinesini aç”                    | Calculator                                                    |
+| “Görev yöneticisini aç”                  | Task Manager / Activity Monitor                               |
+| “10 dakika sonra çayı hatırlat”          | Local reminder (2 s – 24 h); spoken when it fires             |
+| “hatırla: yarın sınavım var”             | Stores it in local memory, silently                           |
+| “adım ne?”                               | Answers from memory                                           |
+| “yazılım moduna geç” / “normal moda geç” | Switches work mode (Pro / Fast)                               |
+| “detaylı anlat”                          | Asks for a longer answer instead of the short default         |
+| “sus”                                    | Stops speaking immediately                                    |
+| “uyu”                                    | Ends the conversation — mic stays open for the next wake word |
+| “bilgisayar bilgisi ver”                 | Runs the `sysinfo` tool                                       |
+| “github.com’u aç”                        | Opens the URL in your default browser (http/https only)       |
 
 Sensitive actions (reading the clipboard, writing note files) ask a spoken “evet/hayır” confirmation first.
 
@@ -125,38 +125,38 @@ Sensitive actions (reading the clipboard, writing note files) ask a spoken “ev
 
 Settings has nine sections (the UI is in Turkish):
 
-| Section | What you'll find |
-|---|---|
-| **Genel** (General) | Startup / launch-at-login behavior, export & import settings (keys excluded), app version |
-| **AI Sağlayıcı** (AI Provider) | DeepSeek & Groq keys, real connection test, model list |
+| Section                          | What you'll find                                                                               |
+| -------------------------------- | ---------------------------------------------------------------------------------------------- |
+| **Genel** (General)              | Startup / launch-at-login behavior, export & import settings (keys excluded), app version      |
+| **AI Sağlayıcı** (AI Provider)   | DeepSeek & Groq keys, real connection test, model list                                         |
 | **Ses ve Giriş** (Voice & Input) | Mic test with live level, input device, VAD sensitivity, capture filters, TTS voice/rate/pitch |
-| **Etkinleştirme** (Activation) | Push-to-talk shortcut, wake-word and continuous-conversation toggles |
-| **Görünüm** (Appearance) | 7 themes, accent color, UI scale, reduced motion |
-| **Hafıza** (Memory) | Memory list & management, engine (local / mem0), auto-learn toggle |
-| **Gizlilik** (Privacy) | Conversation transcripts (off by default) and their deletion |
-| **İşlem Kaydı** (Action Log) | The audit log of what Quatra did — view & clear |
-| **Teşhis** (Diagnostics) | Logs, token usage, version info |
+| **Etkinleştirme** (Activation)   | Push-to-talk shortcut, wake-word and continuous-conversation toggles                           |
+| **Görünüm** (Appearance)         | 7 themes, accent color, UI scale, reduced motion                                               |
+| **Hafıza** (Memory)              | Memory list & management, engine (local / mem0), auto-learn toggle                             |
+| **Gizlilik** (Privacy)           | Conversation transcripts (off by default) and their deletion                                   |
+| **İşlem Kaydı** (Action Log)     | The audit log of what Quatra did — view & clear                                                |
+| **Teşhis** (Diagnostics)         | Logs, token usage, version info                                                                |
 
 **Model tiers** (bottom bar, model pill):
 
-| Tier | Model | Temperature | Max tokens |
-|---|---|---|---|
-| Düşük (Low) | deepseek-chat | 0.3 | 1024 |
-| Varsayılan (Default) | deepseek-chat | 0.7 | 2048 |
-| Yüksek (High) | deepseek-reasoner | 0.7 | 4096 |
-| Max | deepseek-reasoner | 1.0 | 8192 |
-| Ultra Max | deepseek-reasoner | 1.2 | 8192 |
+| Tier                 | Model             | Temperature | Max tokens |
+| -------------------- | ----------------- | ----------- | ---------- |
+| Düşük (Low)          | deepseek-chat     | 0.3         | 1024       |
+| Varsayılan (Default) | deepseek-chat     | 0.7         | 2048       |
+| Yüksek (High)        | deepseek-reasoner | 0.7         | 4096       |
+| Max                  | deepseek-reasoner | 1.0         | 8192       |
+| Ultra Max            | deepseek-reasoner | 1.2         | 8192       |
 
 ## Tools & permissions
 
-| Tool | Level | Action |
-|---|---|---|
-| `sysinfo` | safe | OS & app info |
-| `open_app` | low-risk | Opens an allowlisted app only: notepad, calculator, file explorer, command prompt / PowerShell, task manager, Paint (Windows); TextEdit, Calculator, Finder, Terminal, Activity Monitor (macOS) |
-| `open_url` | low-risk | Opens http/https links in the default browser |
-| `not_al` | low-risk + confirm | Writes a markdown note to your chosen folder (the folder is remembered; existing notes are backed up before overwrite) |
-| `clipboard_yaz` | low-risk | Copies text to the clipboard |
-| `clipboard_oku` | sensitive + confirm | Reads the clipboard |
+| Tool            | Level               | Action                                                                                                                                                                                          |
+| --------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sysinfo`       | safe                | OS & app info                                                                                                                                                                                   |
+| `open_app`      | low-risk            | Opens an allowlisted app only: notepad, calculator, file explorer, command prompt / PowerShell, task manager, Paint (Windows); TextEdit, Calculator, Finder, Terminal, Activity Monitor (macOS) |
+| `open_url`      | low-risk            | Opens http/https links in the default browser                                                                                                                                                   |
+| `not_al`        | low-risk + confirm  | Writes a markdown note to your chosen folder (the folder is remembered; existing notes are backed up before overwrite)                                                                          |
+| `clipboard_yaz` | low-risk            | Copies text to the clipboard                                                                                                                                                                    |
+| `clipboard_oku` | sensitive + confirm | Reads the clipboard                                                                                                                                                                             |
 
 Permissions are enforced in the native layer — the model cannot grant itself anything.
 
@@ -164,20 +164,20 @@ Permissions are enforced in the native layer — the model cannot grant itself a
 
 **Where your data lives:**
 
-| Windows | macOS |
-|---|---|
+| Windows            | macOS                                  |
+| ------------------ | -------------------------------------- |
 | `%APPDATA%\Quatra` | `~/Library/Application Support/Quatra` |
 
-| File | Contents |
-|---|---|
-| `credentials.json` | API keys — encrypted by the OS vault (DPAPI / Keychain); readable only by the main process |
-| `settings.json` (+ `.bak`) | Settings, atomically written with backup recovery |
-| `memory.json` (+ `.bak`) | Local memory entries; deletions are backed up |
-| `logs/quatra.log` | Rolling log (~1 MB rotation); secrets are redacted |
-| `audit.jsonl` | Action log — last 800 entries, redacted |
-| `transcripts.jsonl` | Conversation transcripts — **only if you opt in**; clearable |
-| `token-usage.json` | Token counters (monthly + total) |
-| `notes-dir.txt` | The notes folder you picked |
+| File                       | Contents                                                                                   |
+| -------------------------- | ------------------------------------------------------------------------------------------ |
+| `credentials.json`         | API keys — encrypted by the OS vault (DPAPI / Keychain); readable only by the main process |
+| `settings.json` (+ `.bak`) | Settings, atomically written with backup recovery                                          |
+| `memory.json` (+ `.bak`)   | Local memory entries; deletions are backed up                                              |
+| `logs/quatra.log`          | Rolling log (~1 MB rotation); secrets are redacted                                         |
+| `audit.jsonl`              | Action log — last 800 entries, redacted                                                    |
+| `transcripts.jsonl`        | Conversation transcripts — **only if you opt in**; clearable                               |
+| `token-usage.json`         | Token counters (monthly + total)                                                           |
+| `notes-dir.txt`            | The notes folder you picked                                                                |
 
 **What leaves your machine:** the text of your commands goes to Groq (speech-to-text) and DeepSeek (answers); the answer text goes to Microsoft's Edge TTS endpoint for speech. Audio is never stored. If you enable the optional mem0 engine, memory syncs there — otherwise everything stays local. API keys never leave your machine.
 
@@ -196,19 +196,19 @@ npm run format        # Prettier
 
 **Project map:**
 
-| Area | Where |
-|---|---|
-| Electron main — window, tray, shortcuts, IPC, vault, audit | `electron/` |
-| Audio pipeline — capture, levels, VAD, recording, barge-in, TTS queue | `src/features/audio/` |
-| Wake word | `src/features/audio/wake-word.ts` |
-| Assistant flow — wake → answer → listen again | `src/features/assistant/assistant-controller.ts` |
-| Agent loop, streaming, context | `src/features/agent/` |
-| Tools & permissions | `src/features/tools/` |
-| Providers — DeepSeek client, Groq transcription | `src/providers/` |
-| Memory store & extraction | `src/services/memory/` |
-| Settings schema (zod) & stores (zustand) | `src/state/` |
-| UI — main screen, settings, title bar | `src/features/`, `src/renderer/` |
-| Tests (vitest) | `tests/` |
+| Area                                                                  | Where                                            |
+| --------------------------------------------------------------------- | ------------------------------------------------ |
+| Electron main — window, tray, shortcuts, IPC, vault, audit            | `electron/`                                      |
+| Audio pipeline — capture, levels, VAD, recording, barge-in, TTS queue | `src/features/audio/`                            |
+| Wake word                                                             | `src/features/audio/wake-word.ts`                |
+| Assistant flow — wake → answer → listen again                         | `src/features/assistant/assistant-controller.ts` |
+| Agent loop, streaming, context                                        | `src/features/agent/`                            |
+| Tools & permissions                                                   | `src/features/tools/`                            |
+| Providers — DeepSeek client, Groq transcription                       | `src/providers/`                                 |
+| Memory store & extraction                                             | `src/services/memory/`                           |
+| Settings schema (zod) & stores (zustand)                              | `src/state/`                                     |
+| UI — main screen, settings, title bar                                 | `src/features/`, `src/renderer/`                 |
+| Tests (vitest)                                                        | `tests/`                                         |
 
 Windows convenience: `scripts/quatra-baslat.vbs` runs the dev app hidden (desktop-shortcut friendly).
 
@@ -222,7 +222,7 @@ Windows convenience: `scripts/quatra-baslat.vbs` runs the dev app hidden (deskto
 
 - UI and voice are Turkish; there is no English UI yet.
 - The wake word runs through Groq — it needs internet. A fully local wake-word engine is planned.
-- No system volume control and no output-device picker — the app marks these as unsupported instead of faking them.
+- No system volume control and no output-device picker yet.
 - Edge Neural TTS needs internet; offline it falls back to the system voice.
 - Linux is untested; only Windows and macOS are targeted.
 - No auto-update yet. Packaged builds are unsigned → OS security warnings are possible once packaging starts.
@@ -230,14 +230,14 @@ Windows convenience: `scripts/quatra-baslat.vbs` runs the dev app hidden (deskto
 
 ## Troubleshooting
 
-| Problem | Check |
-|---|---|
-| Quatra doesn't hear me | Mic button state; Settings → Ses ve Giriş → live level test; system microphone permission |
-| Wake word does nothing | Groq API key present? Say “Quatra” clearly; check Settings → Etkinleştirme |
-| No speech output | Edge TTS needs internet; otherwise the system voice takes over — on Windows, add more voices via Settings → Time & Language → Speech → Add voices |
-| Window closed but the app still runs | That's tray mode — reopen from the tray icon; quit via the tray menu |
-| Provider errors | Settings → AI Sağlayıcı → **Test et** / **Modelleri getir** show the real error |
-| Where are the logs? | Settings → Teşhis, or `%APPDATA%\Quatra\logs\quatra.log` (`~/Library/Application Support/Quatra` on macOS) |
+| Problem                              | Check                                                                                                                                             |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Quatra doesn't hear me               | Mic button state; Settings → Ses ve Giriş → live level test; system microphone permission                                                         |
+| Wake word does nothing               | Groq API key present? Say “Quatra” clearly; check Settings → Etkinleştirme                                                                        |
+| No speech output                     | Edge TTS needs internet; otherwise the system voice takes over — on Windows, add more voices via Settings → Time & Language → Speech → Add voices |
+| Window closed but the app still runs | That's tray mode — reopen from the tray icon; quit via the tray menu                                                                              |
+| Provider errors                      | Settings → AI Sağlayıcı → **Test et** / **Modelleri getir** show the real error                                                                   |
+| Where are the logs?                  | Settings → Teşhis, or `%APPDATA%\Quatra\logs\quatra.log` (`~/Library/Application Support/Quatra` on macOS)                                        |
 
 ## Docs
 

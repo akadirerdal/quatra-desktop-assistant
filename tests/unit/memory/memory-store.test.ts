@@ -50,10 +50,14 @@ describe('MemoryStore', () => {
     await s.add('bir', 'user');
     const two = await s.add('iki', 'user');
     await s.remove(two.id);
-    const bak1 = JSON.parse(fs.readFileSync(`${file}.bak`, 'utf8')) as { entries: Array<{ text: string }> };
+    const bak1 = JSON.parse(fs.readFileSync(`${file}.bak`, 'utf8')) as {
+      entries: Array<{ text: string }>;
+    };
     expect(bak1.entries.map((e) => e.text).sort()).toEqual(['bir', 'iki']);
     await s.clear();
-    const bak2 = JSON.parse(fs.readFileSync(`${file}.bak`, 'utf8')) as { entries: Array<{ text: string }> };
+    const bak2 = JSON.parse(fs.readFileSync(`${file}.bak`, 'utf8')) as {
+      entries: Array<{ text: string }>;
+    };
     expect(bak2.entries.map((e) => e.text)).toEqual(['bir']);
     expect(await s.load()).toHaveLength(0);
   });

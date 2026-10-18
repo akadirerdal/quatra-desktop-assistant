@@ -57,7 +57,10 @@ function makeStream(track: ReturnType<typeof makeTrack>) {
 async function setupMic(state = 'running') {
   FakeAudioContext.nextState = state;
   vi.stubGlobal('AudioContext', FakeAudioContext);
-  vi.stubGlobal('requestAnimationFrame', vi.fn(() => 0));
+  vi.stubGlobal(
+    'requestAnimationFrame',
+    vi.fn(() => 0),
+  );
   vi.stubGlobal('cancelAnimationFrame', vi.fn());
   const track = makeTrack();
   const getUserMedia = vi.fn(async () => makeStream(track));

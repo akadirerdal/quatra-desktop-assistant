@@ -30,6 +30,10 @@ export class QuatraError extends Error {
   }
 }
 
-export function quatraError(category: QuatraErrorCategory, message: string, details?: string): QuatraError {
+export function quatraError(
+  category: QuatraErrorCategory,
+  message: string,
+  details?: string,
+): QuatraError {
   return new QuatraError(category, message, details);
 }

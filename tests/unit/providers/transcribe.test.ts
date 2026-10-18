@@ -33,7 +33,10 @@ describe('transcribeAudio (Groq Whisper)', () => {
   });
 
   it('401 → auth', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 401 })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('{}', { status: 401 })),
+    );
     const err = await transcribeAudio({ apiKey: 'k', audio, mimeType: 'audio/webm' }).then(
       () => null,
       (e: unknown) => e,
@@ -42,7 +45,10 @@ describe('transcribeAudio (Groq Whisper)', () => {
   });
 
   it('429 → rate_limit', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 429 })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('{}', { status: 429 })),
+    );
     const err = await transcribeAudio({ apiKey: 'k', audio, mimeType: 'audio/webm' }).then(
       () => null,
       (e: unknown) => e,
@@ -106,12 +112,15 @@ describe('stripHallucination — Whisper hayalet kalıpları', () => {
     expect(stripHallucination(s)).toBe('');
   });
 
-  it.each(['Teşekkür ederim.', 'Görüşmek üzere.', 'Altyazıları aç.', 'M.K. ne demek?', 'merhaba dünya'])(
-    'gerçek konuşma korunur: %s',
-    (s) => {
-      expect(stripHallucination(s)).toBe(s);
-    },
-  );
+  it.each([
+    'Teşekkür ederim.',
+    'Görüşmek üzere.',
+    'Altyazıları aç.',
+    'M.K. ne demek?',
+    'merhaba dünya',
+  ])('gerçek konuşma korunur: %s', (s) => {
+    expect(stripHallucination(s)).toBe(s);
+  });
 
   it('baş/son boşluk temizlenir', () => {
     expect(stripHallucination('  merhaba  ')).toBe('merhaba');

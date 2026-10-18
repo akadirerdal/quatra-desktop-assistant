@@ -25,7 +25,11 @@ import {
 } from '../src/services/memory/extraction';
 import { appLogger } from '../src/services/log/logger';
 import { ProviderError, isFallbackEligible } from '../src/providers/types';
-import { appendContextTurn, contextToMessages, type ContextTurn } from '../src/features/agent/context';
+import {
+  appendContextTurn,
+  contextToMessages,
+  type ContextTurn,
+} from '../src/features/agent/context';
 import { appendAudit } from './audit';
 import { recordUsage } from './usage-store';
 import { redactSecrets } from '../src/utils/redact';
@@ -92,10 +96,7 @@ export function resolveAgentConfirm(requestId: string, approved: boolean): boole
   return true;
 }
 
-export async function runAgent(
-  win: BrowserWindow,
-  req: AgentRunRequest,
-): Promise<void> {
+export async function runAgent(win: BrowserWindow, req: AgentRunRequest): Promise<void> {
   const log = appLogger.scoped('agent-service');
   cancelActiveAgent(); // yeni istek eskiyi iptal eder (üst üste konuşma yok)
   const abort = new AbortController();
@@ -161,7 +162,9 @@ export async function runAgent(
           if (mem0Key) {
             const results = await mem0Search(mem0Key, req.text, 6);
             if (results.length) {
-              memoryBlock = 'Kullanıcı hakkında hatırlananlar:\n' + results.map((r) => `- ${r.memory}`).join('\n');
+              memoryBlock =
+                'Kullanıcı hakkında hatırlananlar:\n' +
+                results.map((r) => `- ${r.memory}`).join('\n');
             }
           } else {
             memoryBlock = await memoryStore.contextBlock(req.text, 1200);

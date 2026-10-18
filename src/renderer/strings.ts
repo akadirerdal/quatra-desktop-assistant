@@ -30,7 +30,8 @@ export const strings = {
   version: 'Sürüm',
   launchAtLogin: 'Windows açılışında başlat',
   launchAtLoginHint: 'Bilgisayar açıldığında Quatra kendiliğinden başlar ve tepside bekler.',
-  launchAtLoginDev: 'Yalnız kurulu (paketlenmiş) sürümde kullanılabilir; kaynak modda desteklenmez.',
+  launchAtLoginDev:
+    'Yalnız kurulu (paketlenmiş) sürümde kullanılabilir; kaynak modda desteklenmez.',
   settingsExport: 'Ayarları dışa aktar',
   settingsImport: 'Ayarları içe aktar',
   settingsExported: 'Ayarlar dosyaya aktarıldı.',
@@ -44,7 +45,8 @@ export const strings = {
   apiKeySet: 'Anahtar kayıtlı',
   apiKeyMissing: 'Anahtar yok',
   apiKeySavedNow: 'Anahtar kaydedildi ✓',
-  apiKeyClearedNote: 'Alan, güvenlik gereği kayıt sonrası temizlenir. Anahtar şifreli kasada durur; tekrar göstermek gerekmez.',
+  apiKeyClearedNote:
+    'Alan, güvenlik gereği kayıt sonrası temizlenir. Anahtar şifreli kasada durur; tekrar göstermek gerekmez.',
   apiKeyPlaceholderSaved: '•••••••• (kayıtlı — güvenlik için gösterilmez)',
   show: 'göster',
   hide: 'gizle',
@@ -73,7 +75,8 @@ export const strings = {
   pttKey: 'Bas-konuş kısayolu',
   accent: 'Vurgu rengi',
   theme: 'Tema',
-  themeHint: 'Tema arka plan renklerini değiştirir; seçince vurgu rengi de o temaya döner. Vurguyu alttan ince ayarlayabilirsin.',
+  themeHint:
+    'Tema arka plan renklerini değiştirir; seçince vurgu rengi de o temaya döner. Vurguyu alttan ince ayarlayabilirsin.',
   intensity: 'Görsel yoğunluk',
   animationSpeed: 'Animasyon hızı',
   glow: 'Işıltı',
@@ -148,13 +151,15 @@ export const strings = {
   continuousLabel: 'Sürekli sohbet',
   continuousHint:
     'Cevap bitince mikrofon kendiliğinden dinlemeye döner; «Quatra» demene gerek kalmaz. Sessiz kalırsan sohbet beklemeye geçer.',
-  edgeVoiceHint: 'Edge sesleri ücretsiz ve doğaldır (internet ister). Çevrimdışıyken Windows sesine düşer.',
+  edgeVoiceHint:
+    'Edge sesleri ücretsiz ve doğaldır (internet ister). Çevrimdışıyken Windows sesine düşer.',
   memory: 'Hafıza',
   memoryHint:
     'Önemli bilgiler (isim, kalıcı tercihler, önemli tarihler) sohbet sırasında kendiliğinden öğrenilir; günlük konuşmalar kaydedilmez. «Hatırla: …» ile elle de ekleyebilirsin. Kayıtlar yalnızca bu cihazda saklanır.',
   memoryEnabled: 'Hafızayı sohbette kullan',
   memoryAutoLearn: 'Konuşmalardan otomatik öğren',
-  memoryAutoLearnHint: 'Yalnızca kalıcı değer taşıyan bilgiler öğrenilir (isim, tercih, önemli tarih).',
+  memoryAutoLearnHint:
+    'Yalnızca kalıcı değer taşıyan bilgiler öğrenilir (isim, tercih, önemli tarih).',
   memoryEngine: 'Hafıza motoru',
   memoryEngineLocal: 'Yerel (varsayılan — veriler cihazında kalır)',
   memoryEngineMem0: 'mem0 (bulut — GitHub mem0 entegrasyonu, anahtar gerekir)',
@@ -175,7 +180,8 @@ export const strings = {
   micEcho: 'Yankı önleme',
   micGain: 'Otomatik kazanç',
   vadSensitivity: 'Mikrofon hassasiyeti',
-  vadSensitiveHint: 'Sesin algılanmıyorsa hassasiyeti artır (1); çok fazla tetikleniyorsa azalt (10).',
+  vadSensitiveHint:
+    'Sesin algılanmıyorsa hassasiyeti artır (1); çok fazla tetikleniyorsa azalt (10).',
   micDevice: 'Mikrofon cihazı',
   micDeviceDefault: 'Sistem varsayılanı',
   micDeviceHint:
@@ -224,7 +230,8 @@ export const strings = {
   bargeInHint:
     'Quatra konuşurken sen seslenirsen çalma hemen durur ve dinlemeye geçer — GPT ses modu gibi.',
   wakeWord: 'Uyandırma kelimesi',
-  wakeWordHint: 'Bağlamda mikrofon açık kalır; kelimeyi duyunca komut dinlemeye geçer. Groq anahtarı gerekir.',
+  wakeWordHint:
+    'Bağlamda mikrofon açık kalır; kelimeyi duyunca komut dinlemeye geçer. Groq anahtarı gerekir.',
   wakeNeedsGroq: 'Uyandırma kelimesi için Groq anahtarı gerekli (Ayarlar → AI Sağlayıcı).',
   wakeDetected: '«Quatra» duyuldu — dinliyorum…',
   wakeGreeting: 'Efendim?',

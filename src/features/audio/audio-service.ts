@@ -67,7 +67,7 @@ export function vadThresholdOf(sensitivity: number): number {
 /** Hayalet transkript koruması: bu tepe seviyesinin altındaki kayıtlar sessizlik sayılır. */
 export function minPeakOf(sensitivity: number): number {
   const s = Math.min(10, Math.max(1, sensitivity));
-  return 0.10 + (10 - s) * 0.012; // 5 → 0.16 · 10 → 0.10 · 1 → 0.208
+  return 0.1 + (10 - s) * 0.012; // 5 → 0.16 · 10 → 0.10 · 1 → 0.208
 }
 
 export function pickRecorderMime(): string {
@@ -287,7 +287,9 @@ export class AudioService {
           }
         }
       }
-      useAssistantStore.getState().setLevels(this.currentLevel, useAssistantStore.getState().speakLevel);
+      useAssistantStore
+        .getState()
+        .setLevels(this.currentLevel, useAssistantStore.getState().speakLevel);
       this.raf = requestAnimationFrame(tick);
     };
     this.raf = requestAnimationFrame(tick);
@@ -335,7 +337,8 @@ export class AudioService {
     // Uyarlanabilir gürültü tabanı: sessiz ortam seviyesini ölçer, eşiği ona göre yükseltir.
     let ambient = 0.04;
     const baseThreshold =
-      options.threshold ?? vadThresholdOf(useSettingsStore.getState().settings.voice.vadSensitivity);
+      options.threshold ??
+      vadThresholdOf(useSettingsStore.getState().settings.voice.vadSensitivity);
     const minPeak = minPeakOf(useSettingsStore.getState().settings.voice.vadSensitivity);
 
     return await new Promise<RecordOutcome>((resolve) => {
@@ -439,7 +442,9 @@ export class AudioService {
   }
 
   /** Kaydı Groq Whisper ile metne çevirir (main süreç üzerinden). */
-  async transcribe(audio: Blob): Promise<{ ok: true; text: string } | { ok: false; message: string }> {
+  async transcribe(
+    audio: Blob,
+  ): Promise<{ ok: true; text: string } | { ok: false; message: string }> {
     if (!window.quatra) {
       return { ok: false, message: 'Ses tanıma yalnızca masaüstü uygulamasında çalışır.' };
     }
@@ -586,7 +591,13 @@ export class AudioService {
   }
 
   /** Sistem TTS'i (çevrimdışı yedek). */
-  private speakSystem(text: string, rate: number, pitch: number, voiceName: string, seq: number): void {
+  private speakSystem(
+    text: string,
+    rate: number,
+    pitch: number,
+    voiceName: string,
+    seq: number,
+  ): void {
     if (!('speechSynthesis' in window)) {
       this.onError('Bu sistemde ses çıkışı (TTS) yok. Cevap yazılı olarak gösterildi.');
       this.nextSpeak(); // kuyruk kilitli kalmasın
@@ -598,7 +609,8 @@ export class AudioService {
     utterance.rate = rate;
     utterance.pitch = pitch;
     const voices = window.speechSynthesis.getVoices();
-    const voice = voices.find((v) => v.name === voiceName) ?? voices.find((v) => v.lang.startsWith('tr'));
+    const voice =
+      voices.find((v) => v.name === voiceName) ?? voices.find((v) => v.lang.startsWith('tr'));
     if (voice) utterance.voice = voice;
     utterance.onstart = () => {
       if (seq !== this.speakSeq) return;
@@ -642,7 +654,8 @@ export class AudioService {
 
   isSpeaking(): boolean {
     return (
-      ('speechSynthesis' in window && window.speechSynthesis.speaking) || this.playingSource !== null
+      ('speechSynthesis' in window && window.speechSynthesis.speaking) ||
+      this.playingSource !== null
     );
   }
 

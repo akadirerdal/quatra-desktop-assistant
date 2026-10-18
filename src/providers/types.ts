@@ -110,7 +110,11 @@ export function mapHttpError(status: number): ProviderError {
     return new ProviderError('auth', 'Hesapta bakiye yetersiz olabilir.', status);
   }
   if (status === 429) {
-    return new ProviderError('rate_limit', 'Hız limitine takıldı, kısa süre sonra yeniden dene.', status);
+    return new ProviderError(
+      'rate_limit',
+      'Hız limitine takıldı, kısa süre sonra yeniden dene.',
+      status,
+    );
   }
   if (status === 404) {
     return new ProviderError('unsupported', 'Model bulunamadı veya bu hesapta yok.', status);
@@ -119,14 +123,21 @@ export function mapHttpError(status: number): ProviderError {
     return new ProviderError('server', 'Sağlayıcı sunucusu şu an hata veriyor.', status);
   }
   if (status >= 400) {
-    return new ProviderError('bad_request', 'İstek geçersiz — model veya parametreler uyumsuz olabilir.', status);
+    return new ProviderError(
+      'bad_request',
+      'İstek geçersiz — model veya parametreler uyumsuz olabilir.',
+      status,
+    );
   }
   return new ProviderError('unknown', 'Beklenmeyen sağlayıcı hatası.', status);
 }
 
 export interface ProviderAdapter {
   chat(req: ProviderChatRequest): Promise<ProviderChatResponse>;
-  chatStream(req: ProviderChatRequest, onDelta: (text: string) => void): Promise<ProviderChatResponse>;
+  chatStream(
+    req: ProviderChatRequest,
+    onDelta: (text: string) => void,
+  ): Promise<ProviderChatResponse>;
   listModels(): Promise<ModelInfo[]>;
   testConnection(model: string): Promise<ConnectionTestResult>;
 }

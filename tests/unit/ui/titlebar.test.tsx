@@ -6,14 +6,15 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { TitleBar } from '../../../src/features/assistant/TitleBar';
+import { installBridgeMock, removeBridgeMock, type BridgeMock } from '../../helpers/bridge';
 
-function setPlatform(platform: string): void {
-  (window as unknown as { quatra?: { platform?: string } }).quatra = { platform };
+function setPlatform(platform: BridgeMock['platform']): void {
+  installBridgeMock({ platform });
 }
 
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { quatra?: unknown }).quatra;
+  removeBridgeMock();
 });
 
 describe('TitleBar', () => {

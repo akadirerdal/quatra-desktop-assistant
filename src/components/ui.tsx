@@ -67,11 +67,7 @@ export function Select(props: {
   options: Array<{ value: string; label: string; disabled?: boolean }>;
 }): React.JSX.Element {
   return (
-    <select
-      className="select"
-      value={props.value}
-      onChange={(e) => props.onChange(e.target.value)}
-    >
+    <select className="select" value={props.value} onChange={(e) => props.onChange(e.target.value)}>
       {props.options.map((o) => (
         <option key={o.value} value={o.value} disabled={o.disabled}>
           {o.label}

@@ -1,6 +1,6 @@
 # Quatra — Mikrofon & Ses İşleme Sistemi · "Ses Stüdyosu" Planı
 
-> **Kaynak:** Kullanıcının 16.10.2026 tarihli *"Professional Microphone & Audio Processing System"* prompt'u (OBS Studio esinli iş akışı; görsel dil Quatra'nın kendi premium-karanlık tasarımı — OBS markası/görselleri kopyalanmaz).
+> **Kaynak:** Kullanıcının 16.10.2026 tarihli _"Professional Microphone & Audio Processing System"_ prompt'u (OBS Studio esinli iş akışı; görsel dil Quatra'nın kendi premium-karanlık tasarımı — OBS markası/görselleri kopyalanmaz).
 > **Durum:** 📝 Planlama — bu turda **kod yazılmadı**. Uygulama aşamalı (S1–S8); her aşama `npm run verify` + commit ile kapanır.
 > **İlişkili:** `EKSIKLER.md` #5 (mikrofon kilidi kaldırma → S1'de uygulanır) · `V1-UPDATE.md` A paketi (V1-01..05 öncülü) · `SORULAR.md` #11–13 · Kod: `src/features/audio/*`, `src/features/settings/SettingsPanel.tsx`, `src/state/settings-schema.ts`
 
@@ -9,6 +9,7 @@
 Quatra'ya gerçek zamanlı çalışan profesyonel bir mikrofon zinciri ve **"Ses Stüdyosu"** ekranı: cihaz yönetimi, canlı mixer, gerçek DSP filtreleri, presetler, teşhis.
 
 Değişmez ilkeler:
+
 - **Gerçek işlem:** her kontrol gerçek ses örneklerini değiştirir; sahte/gösterimlik kontrol yok (proje kuralı).
 - **Ham ↔ işlenmiş ayrımı:** iki ayrı ölçüm noktası; UI ikisini ayrı gösterir.
 - **Asistan hattı öncelik:** uyandırma, barge-in, STT ve TTS davranışları bozulmaz; TTS çıkışı bu zincirden etkilenmez.
@@ -18,57 +19,58 @@ Değişmez ilkeler:
 
 ## 2. Mevcut durum (kod haritası — 16.10.2026)
 
-| Parça | Yer | Ne yapıyor |
-|---|---|---|
-| Capture | `src/features/audio/audio-service.ts` | `getUserMedia` (gürültü/yankı/AGC kısıtları + cihaz seçimi `exact`; cihaz yoksa varsayılana düşme); AudioContext; ölü akış tespiti + kendiliğinden yeniden açma |
-| Zincir (bugün) | aynı dosya | `source → analyser` (**HAM tap**) + `source → gainNode` (ek kazanç + gürültü kapısı, 40ms rampalı) `→ MediaStreamDestination` |
-| Seviye/kapı matematiği | `src/features/audio/mic-levels.ts` | `gainValueOf`, `gateThresholdOf`, `gateDecision` (tek kare, **yalnız ham seviye**, 400ms hold) — saf ve testli |
-| Kayıt → STT | `audio-service.ts` | MediaRecorder **işlenmiş akıştan** kaydeder → `window.quatra.stt.transcribe` → MAIN → Groq Whisper (ses diske yazılmaz; yalnız bellekte tutulup gönderilir) |
-| Uyandırma | `src/features/audio/wake-word.ts` | Sürekli burst kaydı (eşik 0.06 sabit) + fuzzy "Quatra" eşleşmesi; `pause/resume`; "quatra + komut" tek nefeste |
-| VAD/hayalet koruması | `audio-service.ts` + `assistant-controller.ts` | `vadThresholdOf` (hassasiyet 1..10), `minPeakOf`, uyarlanabilir ortam tabanı; boş/ filtrelenmiş STT = "duyulmadı" |
-| Barge-in | `audio-service.ts` (aynı seviye döngüsü) | RMS birikimi (250ms) + konuşma başlayınca TTS'i kesme |
-| TTS | `audio-service.ts` (ayrı AudioContext) | Edge neural (IPC) / sistem TTS; çıkış analyser'ı gerçek seviye verir |
-| Ayarlar | `src/state/settings-schema.ts` (`voice.*`) | `micNoiseSuppression/EchoCancellation/AutoGain`, `vadSensitivity`, `micGainLevel`, `micGateLevel`, `inputDeviceId`, `sleepAfterSec`, `continuous`, `bargeIn`, `sttEngine`, `ttsEngine` |
-| UI | `src/features/settings/SettingsPanel.tsx` | Ayarlar (9 kategori) → **Ses ve Giriş**: canlı seviye, cihaz listesi, 3 sn test + dinleme, kademeli katman seçicileri, hassasiyet, uyku süresi |
-| Testler | `tests/unit/audio/*` | `mic-constraints`, `audio-graph`, `mic-levels`, `wake-word` |
+| Parça                  | Yer                                            | Ne yapıyor                                                                                                                                                                             |
+| ---------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Capture                | `src/features/audio/audio-service.ts`          | `getUserMedia` (gürültü/yankı/AGC kısıtları + cihaz seçimi `exact`; cihaz yoksa varsayılana düşme); AudioContext; ölü akış tespiti + kendiliğinden yeniden açma                        |
+| Zincir (bugün)         | aynı dosya                                     | `source → analyser` (**HAM tap**) + `source → gainNode` (ek kazanç + gürültü kapısı, 40ms rampalı) `→ MediaStreamDestination`                                                          |
+| Seviye/kapı matematiği | `src/features/audio/mic-levels.ts`             | `gainValueOf`, `gateThresholdOf`, `gateDecision` (tek kare, **yalnız ham seviye**, 400ms hold) — saf ve testli                                                                         |
+| Kayıt → STT            | `audio-service.ts`                             | MediaRecorder **işlenmiş akıştan** kaydeder → `window.quatra.stt.transcribe` → MAIN → Groq Whisper (ses diske yazılmaz; yalnız bellekte tutulup gönderilir)                            |
+| Uyandırma              | `src/features/audio/wake-word.ts`              | Sürekli burst kaydı (eşik 0.06 sabit) + fuzzy "Quatra" eşleşmesi; `pause/resume`; "quatra + komut" tek nefeste                                                                         |
+| VAD/hayalet koruması   | `audio-service.ts` + `assistant-controller.ts` | `vadThresholdOf` (hassasiyet 1..10), `minPeakOf`, uyarlanabilir ortam tabanı; boş/ filtrelenmiş STT = "duyulmadı"                                                                      |
+| Barge-in               | `audio-service.ts` (aynı seviye döngüsü)       | RMS birikimi (250ms) + konuşma başlayınca TTS'i kesme                                                                                                                                  |
+| TTS                    | `audio-service.ts` (ayrı AudioContext)         | Edge neural (IPC) / sistem TTS; çıkış analyser'ı gerçek seviye verir                                                                                                                   |
+| Ayarlar                | `src/state/settings-schema.ts` (`voice.*`)     | `micNoiseSuppression/EchoCancellation/AutoGain`, `vadSensitivity`, `micGainLevel`, `micGateLevel`, `inputDeviceId`, `sleepAfterSec`, `continuous`, `bargeIn`, `sttEngine`, `ttsEngine` |
+| UI                     | `src/features/settings/SettingsPanel.tsx`      | Ayarlar (9 kategori) → **Ses ve Giriş**: canlı seviye, cihaz listesi, 3 sn test + dinleme, kademeli katman seçicileri, hassasiyet, uyku süresi                                         |
+| Testler                | `tests/unit/audio/*`                           | `mic-constraints`, `audio-graph`, `mic-levels`, `wake-word`                                                                                                                            |
 
 Seviye metriği: `rms(ham) × 3` (0..1). Yeni katmanda UI'ya dBFS gösterimi eklenecek (`20·log10`, taban −60 dB); motor aynı ham metrikle beslenmeye devam eder.
 
 Bilinen dersler (bu planı şekillendiriyor):
+
 - Kapı kararı kazançtan SONRA ölçülünce kilitleniyordu → **karar kaynağı her zaman ham seviye** (düzeltme `3e6ac42`).
 - Whisper sessizlikte hayalet cümle uyduruyordu → kalıp filtresi (`646a8ac`) + `minPeak` koruması.
 - Kullanıcı kararı: eski "ek kazanç + gürültü kapısı" katmanı **koddan kaldırılacak** (`EKSIKLER.md` #5) — yerini bu planın gerçek zinciri alır.
 
 ## 3. Prompt'un istediği modüller → bizim karşılıklar
 
-| Prompt modülü | Quatra'da karşılığı |
-|---|---|
-| AudioDeviceManager | `audio-service` cihaz bölümünün ayrıştırılmış hâli (`device-manager`): listeleme, seçim, kalıcılık, hotplug, izin/durum bilgisi |
-| AudioCaptureService | `audio-service.ts` (mevcut capture + watchdog korunur) |
-| AudioProcessingPipeline | **YENİ** `src/features/audio/dsp/` (saf çekirdek) + `pipeline-worklet.ts` (AudioWorklet sarmalayıcı) |
-| AudioFilter (arayüz + uygulamalar) | **YENİ** aynı çatı altında: her filtre saf `process(frame)` + parametre doğrulama + smoothing |
-| AudioLevelMeter | `mic-levels` genişler: ham + işlenmiş, peak/hold, dBFS ölçek |
-| AudioPresetManager | **YENİ**; örnekler `settings.json` içinde yeni `audio` bölümünde (cihazdan bağımsız parametreler) |
-| AudioRoutingService | `audio-service` içindeki ham/işlenmiş yönlendirme (wake/VAD = ham; kayıt/STT = işlenmiş) — mevcut yapı korunur, netleştirilir |
-| AudioDiagnostics | **YENİ** "Teşhis" alt bölümü + mevcut `diagnostics` kategorisine özet |
-| UI | Ayarlar → yeni **"Ses Stüdyosu"** kategorisi (yer kararı: `SORULAR.md` #11) |
+| Prompt modülü                      | Quatra'da karşılığı                                                                                                             |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| AudioDeviceManager                 | `audio-service` cihaz bölümünün ayrıştırılmış hâli (`device-manager`): listeleme, seçim, kalıcılık, hotplug, izin/durum bilgisi |
+| AudioCaptureService                | `audio-service.ts` (mevcut capture + watchdog korunur)                                                                          |
+| AudioProcessingPipeline            | **YENİ** `src/features/audio/dsp/` (saf çekirdek) + `pipeline-worklet.ts` (AudioWorklet sarmalayıcı)                            |
+| AudioFilter (arayüz + uygulamalar) | **YENİ** aynı çatı altında: her filtre saf `process(frame)` + parametre doğrulama + smoothing                                   |
+| AudioLevelMeter                    | `mic-levels` genişler: ham + işlenmiş, peak/hold, dBFS ölçek                                                                    |
+| AudioPresetManager                 | **YENİ**; örnekler `settings.json` içinde yeni `audio` bölümünde (cihazdan bağımsız parametreler)                               |
+| AudioRoutingService                | `audio-service` içindeki ham/işlenmiş yönlendirme (wake/VAD = ham; kayıt/STT = işlenmiş) — mevcut yapı korunur, netleştirilir   |
+| AudioDiagnostics                   | **YENİ** "Teşhis" alt bölümü + mevcut `diagnostics` kategorisine özet                                                           |
+| UI                                 | Ayarlar → yeni **"Ses Stüdyosu"** kategorisi (yer kararı: `SORULAR.md` #11)                                                     |
 
 Kural: mevcut servisler çoğaltılmaz; isimler mevcut mimariye uyarlanır; ilgisiz bölümler yeniden yazılmaz.
 
 ## 4. Filtreler — fizibilite ve plan
 
-| # | Filtre | Yöntem | Not |
-|---|---|---|---|
-| 1 | Gürültü bastırma | (a) Chromium dahili kısıt (bugün çalışıyor) — **varsayılan**; (b) RNNoise (WASM, AudioWorklet, BSD-3 lisans) — **opsiyonel motor** | RNNoise 48kHz/mono 10ms çerçeve ister → yalnız o modülde dönüştürme; lisans/boyut notları dokümana |
-| 2 | Gürültü kapısı | Saf DSP | open/close eşiği, attack/hold/release, hysteresis (hızlı aç-kapa yok); **karar kaynağı: ham seviye** (kilit dersi); UI'da açık/kapalı göstergesi |
-| 3 | Expander | Saf DSP | threshold/ratio/attack/release/çıkış kazancı; sessizi aniden kesmek yerine kademeli kısar |
-| 4 | Kompresör | Saf DSP (kendi çekirdeği) | threshold/ratio/attack/release/knee/makeup + **GR ölçeri** (GR'nin ölçülebilmesi için `DynamicsCompressorNode` yerine çekirdek tercih) |
-| 5 | Limiter | Saf DSP (lookahead) | ceiling + attack/release; zincirin son durağı |
-| 6 | EQ | Biquad (saf çekirdek) | Parametrik bantlar (frekans/gain/Q) + low-cut/HPF; hazır ayarlar: Doğal Ses / Derin Ses / Parlak Ses / Konuşma Netliği; frekans yanıtı grafiği katsayıdan hesaplanır (testli) |
-| 7 | AGC | Saf DSP | Hedef seviye + maksimum kazanç; ortam gürültüsünü yükseltmez; tamamen kapatılabilir |
-| 8 | De-esser | Saf DSP (bant bazlı) | Testleri geçmezse **çıkarılır** (prompt izin veriyor) — sahte kontrol yapılmaz |
-| 9 | HPF/LPF | Biquad | EQ ile aynı çatı; kolay |
-| — | Reverb/oda eko giderme | — | Güvenilir gerçek-zamanlı çözüm yok → **kapsam dışı**, dokümante edilir |
+| #   | Filtre                 | Yöntem                                                                                                                             | Not                                                                                                                                                                           |
+| --- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Gürültü bastırma       | (a) Chromium dahili kısıt (bugün çalışıyor) — **varsayılan**; (b) RNNoise (WASM, AudioWorklet, BSD-3 lisans) — **opsiyonel motor** | RNNoise 48kHz/mono 10ms çerçeve ister → yalnız o modülde dönüştürme; lisans/boyut notları dokümana                                                                            |
+| 2   | Gürültü kapısı         | Saf DSP                                                                                                                            | open/close eşiği, attack/hold/release, hysteresis (hızlı aç-kapa yok); **karar kaynağı: ham seviye** (kilit dersi); UI'da açık/kapalı göstergesi                              |
+| 3   | Expander               | Saf DSP                                                                                                                            | threshold/ratio/attack/release/çıkış kazancı; sessizi aniden kesmek yerine kademeli kısar                                                                                     |
+| 4   | Kompresör              | Saf DSP (kendi çekirdeği)                                                                                                          | threshold/ratio/attack/release/knee/makeup + **GR ölçeri** (GR'nin ölçülebilmesi için `DynamicsCompressorNode` yerine çekirdek tercih)                                        |
+| 5   | Limiter                | Saf DSP (lookahead)                                                                                                                | ceiling + attack/release; zincirin son durağı                                                                                                                                 |
+| 6   | EQ                     | Biquad (saf çekirdek)                                                                                                              | Parametrik bantlar (frekans/gain/Q) + low-cut/HPF; hazır ayarlar: Doğal Ses / Derin Ses / Parlak Ses / Konuşma Netliği; frekans yanıtı grafiği katsayıdan hesaplanır (testli) |
+| 7   | AGC                    | Saf DSP                                                                                                                            | Hedef seviye + maksimum kazanç; ortam gürültüsünü yükseltmez; tamamen kapatılabilir                                                                                           |
+| 8   | De-esser               | Saf DSP (bant bazlı)                                                                                                               | Testleri geçmezse **çıkarılır** (prompt izin veriyor) — sahte kontrol yapılmaz                                                                                                |
+| 9   | HPF/LPF                | Biquad                                                                                                                             | EQ ile aynı çatı; kolay                                                                                                                                                       |
+| —   | Reverb/oda eko giderme | —                                                                                                                                  | Güvenilir gerçek-zamanlı çözüm yok → **kapsam dışı**, dokümante edilir                                                                                                        |
 
 **Varsayılan zincir sırası (güvenli):** ham doğrulama/kanal → [seçili filtreler: bastırma → HPF → kapı/expander → kompresör → de-esser → EQ] → limiter → ölçüm → çıkış. Sıralama sürükle-bırak ile değiştirilebilir; **ilk (doğrulama) ve son (limiter) konumlar kilitli**.
 

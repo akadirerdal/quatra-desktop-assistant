@@ -60,9 +60,10 @@ export class AgentLoop {
     const log = appLogger.scoped('agent');
     const messages: ChatMessage[] = [
       { role: 'system', content: this.options.systemPrompt },
-      ...(this.options.context ?? []).map(
-        (m): ChatMessage => ({ role: m.role, content: m.content }),
-      ),
+      ...(this.options.context ?? []).map((m): ChatMessage => ({
+        role: m.role,
+        content: m.content,
+      })),
       { role: 'user', content: userText },
     ];
     let iterations = 0;
@@ -171,7 +172,12 @@ export class AgentLoop {
       return { tool: name, ok: false, error: 'Bilinmeyen görev adı.' };
     }
     // 1. İzin kontrolü (native katmanda zorunlu; model bypass edemez).
-    const check = await this.options.permissions.check(name, tool.permission, tool.requiresConfirmation, rawArgs);
+    const check = await this.options.permissions.check(
+      name,
+      tool.permission,
+      tool.requiresConfirmation,
+      rawArgs,
+    );
     if (!check.allowed) {
       return { tool: name, ok: false, error: check.reason ?? 'İzin verilmedi.' };
     }

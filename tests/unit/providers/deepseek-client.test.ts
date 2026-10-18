@@ -49,21 +49,22 @@ describe('DeepSeekClient.chat', () => {
   });
 
   it('tool_calls cevabını ayrıştırır', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () =>
-      jsonResponse({
-        choices: [
-          {
-            finish_reason: 'tool_calls',
-            message: {
-              content: '',
-              tool_calls: [
-                { id: 'call_1', function: { name: 'sysinfo', arguments: '{}' } },
-              ],
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        jsonResponse({
+          choices: [
+            {
+              finish_reason: 'tool_calls',
+              message: {
+                content: '',
+                tool_calls: [{ id: 'call_1', function: { name: 'sysinfo', arguments: '{}' } }],
+              },
             },
-          },
-        ],
-      }),
-    ));
+          ],
+        }),
+      ),
+    );
     const res = await makeClient().chat({
       model: 'deepseek-chat',
       messages: [{ role: 'user', content: 'bilgi ver' }],
@@ -73,12 +74,15 @@ describe('DeepSeekClient.chat', () => {
   });
 
   it('usage alanını ayrıştırır (V1-19)', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () =>
-      jsonResponse({
-        choices: [{ finish_reason: 'stop', message: { content: 'ok' } }],
-        usage: { prompt_tokens: 11, completion_tokens: 4, total_tokens: 15 },
-      }),
-    ));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        jsonResponse({
+          choices: [{ finish_reason: 'stop', message: { content: 'ok' } }],
+          usage: { prompt_tokens: 11, completion_tokens: 4, total_tokens: 15 },
+        }),
+      ),
+    );
     const res = await makeClient().chat({
       model: 'deepseek-chat',
       messages: [{ role: 'user', content: 'x' }],
@@ -87,10 +91,16 @@ describe('DeepSeekClient.chat', () => {
   });
 
   it('401 → auth hatası (mesaj secret içermez)', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ error: { message: 'bad key' } }, 401)));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ error: { message: 'bad key' } }, 401)),
+    );
     const err = await makeClient()
       .chat({ model: 'deepseek-chat', messages: [{ role: 'user', content: 'x' }] })
-      .then(() => null, (e: unknown) => e);
+      .then(
+        () => null,
+        (e: unknown) => e,
+      );
     expect(err).toBeInstanceOf(ProviderError);
     expect((err as ProviderError).code).toBe('auth');
     expect((err as ProviderError).message).not.toContain('test-key-not-real');
@@ -98,10 +108,16 @@ describe('DeepSeekClient.chat', () => {
   });
 
   it('404 → unsupported (model yok)', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({}, 404)));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({}, 404)),
+    );
     const err = await makeClient()
       .chat({ model: 'olmayan-model', messages: [{ role: 'user', content: 'x' }] })
-      .then(() => null, (e: unknown) => e);
+      .then(
+        () => null,
+        (e: unknown) => e,
+      );
     expect((err as ProviderError).code).toBe('unsupported');
   });
 
@@ -123,47 +139,72 @@ describe('DeepSeekClient.chat', () => {
   });
 
   it('429 → retry limiti dolunca rate_limit hatası', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({}, 429)));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({}, 429)),
+    );
     const err = await makeClient({ maxRetries: 2 })
       .chat({ model: 'deepseek-chat', messages: [{ role: 'user', content: 'x' }] })
-      .then(() => null, (e: unknown) => e);
+      .then(
+        () => null,
+        (e: unknown) => e,
+      );
     expect((err as ProviderError).code).toBe('rate_limit');
   });
 
   it('ağ hatası (TypeError) → network', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => {
-      throw new TypeError('fetch failed');
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new TypeError('fetch failed');
+      }),
+    );
     const err = await makeClient()
       .chat({ model: 'deepseek-chat', messages: [{ role: 'user', content: 'x' }] })
-      .then(() => null, (e: unknown) => e);
+      .then(
+        () => null,
+        (e: unknown) => e,
+      );
     expect((err as ProviderError).code).toBe('network');
   });
 
   it('timeout → timeout hatası', async () => {
-    vi.stubGlobal('fetch', vi.fn((_url: string, init: RequestInit) =>
-      new Promise((_res, rej) => {
-        init.signal?.addEventListener('abort', () => rej(new DOMException('aborted', 'AbortError')));
-      }),
-    ));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        (_url: string, init: RequestInit) =>
+          new Promise((_res, rej) => {
+            init.signal?.addEventListener('abort', () =>
+              rej(new DOMException('aborted', 'AbortError')),
+            );
+          }),
+      ),
+    );
     const err = await makeClient({ timeoutMs: 10 })
       .chat({ model: 'deepseek-chat', messages: [{ role: 'user', content: 'x' }] })
-      .then(() => null, (e: unknown) => e);
+      .then(
+        () => null,
+        (e: unknown) => e,
+      );
     expect((err as ProviderError).code).toBe('timeout');
   });
 
   it('kullanıcı iptali → cancelled', async () => {
-    vi.stubGlobal('fetch', vi.fn((_url: string, init: RequestInit) =>
-      new Promise((_res, rej) => {
-        const signal = init.signal;
-        const abortErr = new DOMException('aborted', 'AbortError');
-        if (signal?.aborted) {
-          rej(abortErr);
-          return;
-        }
-        signal?.addEventListener('abort', () => rej(abortErr));
-      }),
-    ));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        (_url: string, init: RequestInit) =>
+          new Promise((_res, rej) => {
+            const signal = init.signal;
+            const abortErr = new DOMException('aborted', 'AbortError');
+            if (signal?.aborted) {
+              rej(abortErr);
+              return;
+            }
+            signal?.addEventListener('abort', () => rej(abortErr));
+          }),
+      ),
+    );
     const controller = new AbortController();
     const p = makeClient().chat({
       model: 'deepseek-chat',
@@ -171,7 +212,10 @@ describe('DeepSeekClient.chat', () => {
       signal: controller.signal,
     });
     controller.abort();
-    const err = await p.then(() => null, (e: unknown) => e);
+    const err = await p.then(
+      () => null,
+      (e: unknown) => e,
+    );
     expect((err as ProviderError).code).toBe('cancelled');
   });
 
@@ -180,7 +224,10 @@ describe('DeepSeekClient.chat', () => {
     vi.stubGlobal('fetch', mock);
     const err = await makeClient({ getApiKey: () => '' })
       .chat({ model: 'deepseek-chat', messages: [{ role: 'user', content: 'x' }] })
-      .then(() => null, (e: unknown) => e);
+      .then(
+        () => null,
+        (e: unknown) => e,
+      );
     expect((err as ProviderError).code).toBe('auth');
     expect(mock).not.toHaveBeenCalled();
   });
@@ -200,7 +247,10 @@ describe('DeepSeekClient.chatStream', () => {
         ctrl.close();
       },
     });
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(stream, { status: 200 })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(stream, { status: 200 })),
+    );
 
     const deltas: string[] = [];
     const res = await makeClient().chatStream(
@@ -218,12 +268,21 @@ describe('DeepSeekClient.chatStream', () => {
       'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"c1","function":{"name":"sysinfo","arguments":"{}"}}]},"finish_reason":null}]}\n\n' +
       'data: {"choices":[{"delta":{},"finish_reason":"tool_calls"}]}\n\n' +
       'data: [DONE]\n\n';
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(
-      new ReadableStream<Uint8Array>({
-        start(ctrl) { ctrl.enqueue(encoder.encode(sse)); ctrl.close(); },
-      }),
-      { status: 200 },
-    )));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            new ReadableStream<Uint8Array>({
+              start(ctrl) {
+                ctrl.enqueue(encoder.encode(sse));
+                ctrl.close();
+              },
+            }),
+            { status: 200 },
+          ),
+      ),
+    );
 
     const res = await makeClient().chatStream(
       { model: 'deepseek-chat', messages: [{ role: 'user', content: 'x' }] },
@@ -235,17 +294,23 @@ describe('DeepSeekClient.chatStream', () => {
 
 describe('DeepSeekClient.listModels / testConnection', () => {
   it('modelleri çeker', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () =>
-      jsonResponse({ data: [{ id: 'deepseek-chat' }, { id: 'deepseek-reasoner' }] }),
-    ));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        jsonResponse({ data: [{ id: 'deepseek-chat' }, { id: 'deepseek-reasoner' }] }),
+      ),
+    );
     const models = await makeClient().listModels();
     expect(models.map((m) => m.id)).toEqual(['deepseek-chat', 'deepseek-reasoner']);
   });
 
   it('testConnection gerçek istek atar ve gecikmeyi döner', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () =>
-      jsonResponse({ choices: [{ finish_reason: 'stop', message: { content: 'pong' } }] }),
-    ));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        jsonResponse({ choices: [{ finish_reason: 'stop', message: { content: 'pong' } }] }),
+      ),
+    );
     const res = await makeClient().testConnection('deepseek-chat');
     expect(res.ok).toBe(true);
     expect(res.model).toBe('deepseek-chat');
@@ -253,10 +318,16 @@ describe('DeepSeekClient.listModels / testConnection', () => {
   });
 
   it('testConnection başarısızsa hatayı yükseltir (sahte başarı yok)', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({}, 401)));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({}, 401)),
+    );
     const err = await makeClient()
       .testConnection('deepseek-chat')
-      .then(() => null, (e: unknown) => e);
+      .then(
+        () => null,
+        (e: unknown) => e,
+      );
     expect((err as ProviderError).code).toBe('auth');
   });
 });

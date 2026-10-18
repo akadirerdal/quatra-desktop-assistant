@@ -6,9 +6,12 @@
   "author": "aerdal <aerdal0969@gmail.com>",
   "main": "dist-electron/main.cjs",
   "type": "module",
+  "engines": {
+    "node": ">=22.22.2 <25"
+  },
   "scripts": {
     "dev": "vite",
-    "dev:electron": "npm run build:main && concurrently -k \"vite\" \"wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
+    "dev:electron": "concurrently -k \"vite\" \"wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 node scripts/dev-electron.mjs\"",
     "build": "tsc -b && vite build && npm run build:main",
     "build:main": "esbuild electron/main.ts --bundle --platform=node --format=cjs --external:electron --outfile=dist-electron/main.cjs && esbuild electron/preload.ts --bundle --platform=node --format=cjs --external:electron --outfile=dist-electron/preload.cjs",
     "test": "vitest run",
@@ -16,11 +19,12 @@
     "typecheck": "tsc --noEmit && tsc -p tsconfig.node.json --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "verify": "npm run typecheck && npm run lint && npm run test && npm run check:secrets",
+    "format:check": "prettier --check .",
+    "verify": "npm run typecheck && npm run lint && npm run format:check && npm run test && npm run check:secrets",
     "check:secrets": "node scripts/check-secrets.mjs",
     "package:win": "npm run build && electron-builder --win nsis",
     "package:mac": "npm run build && electron-builder --mac",
-    "install:mac": "npm run package:mac && (pkill -x Quatra || true) && rm -rf /Applications/Quatra.app && ditto release/mac-arm64/Quatra.app /Applications/Quatra.app && open /Applications/Quatra.app"
+    "install:mac": "npm run package:mac && node scripts/install-mac.mjs"
   },
   "dependencies": {
     "msedge-tts": "^2.1.0",

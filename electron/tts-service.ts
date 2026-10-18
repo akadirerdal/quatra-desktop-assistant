@@ -26,7 +26,10 @@ export async function listEdgeVoices(): Promise<EdgeVoice[]> {
       gender: String(v.Gender),
     }));
   } catch {
-    throw new ProviderError('network', 'Edge ses listesi alınamadı — internet bağlantısını kontrol et.');
+    throw new ProviderError(
+      'network',
+      'Edge ses listesi alınamadı — internet bağlantısını kontrol et.',
+    );
   } finally {
     try {
       tts.close();

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { ToolRegistry } from '../../../src/features/tools/registry';
 import { PermissionManager } from '../../../src/features/tools/permissions';
@@ -18,6 +18,12 @@ const native: NativeBridge = {
   rememberNotesDirectory: vi.fn(async () => undefined),
   getAppVersion: () => '0.1.0-test',
 };
+
+// Modül düzeyi mock çağrı geçmişi testler arasında sızmamalı (V1.2-081):
+// aksi halde bir testin assertion'ı önceki testin çağrısıyla yalancı pozitif geçer.
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe('ToolRegistry', () => {
   it('geçerli argümanla çalışır', async () => {
@@ -153,11 +159,9 @@ describe('builtin tools', () => {
   it('not_al dosya adını güvenli hale getirir', async () => {
     const reg = new ToolRegistry();
     for (const t of createBuiltinTools()) reg.register(t);
-    const r = await reg.execute(
-      'not_al',
-      '{"title":"rapor: 2026/10","content":"içerik"}',
-      { native },
-    );
+    const r = await reg.execute('not_al', '{"title":"rapor: 2026/10","content":"içerik"}', {
+      native,
+    });
     expect(r.ok).toBe(true);
     expect(native.writeNote).toHaveBeenCalledWith(
       expect.stringContaining('rapor: 2026/10'),

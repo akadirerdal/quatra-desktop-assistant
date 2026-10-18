@@ -191,7 +191,9 @@ export class AssistantController {
   }
 
   /** Kısayol/buton/uyandırma ile komut kaydını başlatır. */
-  async startCommandCapture(source: 'ptt' | 'button' | 'wake' | 'followup' | 'barge'): Promise<void> {
+  async startCommandCapture(
+    source: 'ptt' | 'button' | 'wake' | 'followup' | 'barge',
+  ): Promise<void> {
     const st = useAssistantStore.getState();
     if (this.listening || st.mutedByUser) return;
     if (st.status === 'speaking') {
@@ -494,9 +496,9 @@ export class AssistantController {
       const st0 = useAssistantStore.getState();
       const wasSpeaking = st0.status === 'speaking' || this.audio.isSpeaking();
       this.stopSpeaking();
-      useAssistantStore.getState().setCaption(
-        wasSpeaking ? strings.stoppedSpeaking : strings.alreadySilent,
-      );
+      useAssistantStore
+        .getState()
+        .setCaption(wasSpeaking ? strings.stoppedSpeaking : strings.alreadySilent);
       if (this.conversationActive && !useAssistantStore.getState().mutedByUser) {
         this.scheduleFollowUp();
       }
@@ -511,7 +513,10 @@ export class AssistantController {
     }
 
     // Uyandırma kelimesi + tek kelime komut ("quatra" tek başına)
-    if (matchesWakeWord(lower, settings.activation.wakeWord) && lower.trim().split(/\s+/).length <= 2) {
+    if (
+      matchesWakeWord(lower, settings.activation.wakeWord) &&
+      lower.trim().split(/\s+/).length <= 2
+    ) {
       this.sayLocal(strings.wakeReady);
       return;
     }
@@ -588,7 +593,10 @@ export class AssistantController {
       this.sayLocal(strings.memoryEmpty);
       return;
     }
-    const recent = entries.slice(-5).map((e) => `- ${e.text}`).join('\n');
+    const recent = entries
+      .slice(-5)
+      .map((e) => `- ${e.text}`)
+      .join('\n');
     this.sayLocal(`${strings.memoryListPrefix} ${entries.length} kayıt:\n${recent}`);
   }
 

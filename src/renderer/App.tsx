@@ -24,7 +24,9 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { broken: boolean
       return (
         <div style={{ padding: 40, fontFamily: 'system-ui' }}>
           <h3>Quatra arayüzü yeniden başlatılmalı.</h3>
-          <p style={{ opacity: 0.7 }}>Bir bileşen beklenmedik şekilde durdu. Uygulama diğer bölümleriyle çalışmaya devam eder.</p>
+          <p style={{ opacity: 0.7 }}>
+            Bir bileşen beklenmedik şekilde durdu. Uygulama diğer bölümleriyle çalışmaya devam eder.
+          </p>
           <button
             onClick={() => this.setState({ broken: false })}
             style={{ padding: '8px 14px', cursor: 'pointer' }}

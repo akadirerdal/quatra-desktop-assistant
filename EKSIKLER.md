@@ -2,7 +2,7 @@
 
 > Bu dosya iki kaynaktan beslenir: **(1)** kullanıcının inceleme sırasında bildirdiği eksikler, **(2)** geliştirme tarafında bilinen ve dürüstçe belgelenmiş sınırlar.
 > Her geliştirme turunda güncellenir; bir madde çözülünce ilgili yerden çıkarılıp ✅ bölümüne taşınır.
-> Son güncelleme: 16.10.2026 · Durum işaretleri: ⬜ açık · 🟡 kısmen var · ✅ çözüldü
+> Son güncelleme: 18.10.2026 (Tur 12) · Durum işaretleri: ⬜ açık · 🟡 kısmen var · ✅ çözüldü
 
 ---
 
@@ -25,40 +25,48 @@ _Bu sıralama §9’daki kullanıcı maddeleriyle birleştirilip **`V1-UPDATE.md
 ---
 
 ## 1. Sesli deneyim
+
 - ⬜ **Uyandırma kelimesi buluta bağlı** — “Quatra” tespiti bile Groq Whisper’a gidip gelir; internet yokken uyandırma çalışmaz. (Tur 10 notu: yerel KWS model gömülmesi gerektirir → paketleme aşamasına bırakıldı; SORULAR #5.)
 - ⬜ **Sistem ses seviyesi / medya kontrolü yok** — “sesi kıs”, “şarkı değiştir” desteklenmiyor.
 - ⬜ **Yalnızca Türkçe** — başka dilde konuşma/arayüz yok.
 
 ## 2. Konuşma anlayışı
+
 - ⬜ **İnternetten güncel bilgi yok** — hava durumu, haber, fiyat gibi sorularda yalnız modelin kendi bilgisi var. (Phase 2 — tarayıcı köprüsü)
 
 ## 3. Araçlar / yetenekler
+
 - ⬜ **Dosya işlemleri asgari** — yalnız not yazma var; okuma, arama, taşıma, silme yok.
 - ⬜ **Ekran görüntüsü alma yok.**
 - ⬜ **Web sayfası okuma/özetleme yok** — tarayıcı köprüsü gelince gelecek.
 - ⬜ **Uygulama açma 7 uygulamayla sınırlı** — not defteri, hesap makinesi, dosya gezgini, komut istemi, PowerShell, Paint, Görev Yöneticisi. Liste kullanıcı onayıyla genişletilebilir.
 
 ## 4. Hafıza
+
 - ⬜ **Anlamsal tekrar yakalama yok** — aynı bilgi farklı kelimelerle iki kez kaydolabilir (ör. “efendim demesi” tercihi iki kayıt olarak duruyor). Çözüm: model tabanlı benzerlik kontrolü.
 - ⬜ **Tek kayıt silme sesli komutu yok** — “bunu unut” henüz yok; silme Ayarlar → Hafıza listesinden yapılıyor.
 - ⬜ **Kayıt düzenleme yok** — metin değiştirmek için silip yeniden eklemek gerekiyor.
 - ⬜ **Hafızada arama/filtreleme yok** — kayıt sayısı artınca gerekli olacak.
 
 ## 5. Arayüz
+
 - ⬜ **Konuşma geçmişi görüntülenemiyor** — altyazılar kaybolduktan sonra geriye dönük okunamıyor (chat panelli tasarım bilinçli olarak yok; istenirse “geçmiş” görünümü eklenir). (Karar bekliyor — SORULAR/V1-UPDATE-H.)
 - ⬜ **Yazıyla komut girişi yok** — bilinçli (ses öncelikli); klavye girişi alanı opsiyonel olarak eklenebilir.
 
 ## 6. Güvenlik ve veri
 
 ## 7. Platform / kurulum
-- ⬜ **macOS hiç test edilmedi** — Windows için geliştirildi.
+
+- 🟡 **macOS doğrulaması sürüyor** — uyarlama kodda tamamlandı (uygulama eşlemesi, trafik ışıklı pencere + uygulama menüsü, mikrofon izni akışı, şablon tepsi simgesi); geliştirme artık macOS'ta yürüyor, uçtan uca doğrulama devam ediyor (bkz. docs/platform-matrix.md).
 - ⬜ **Final kurulum dosyası henüz yok** — şu an kaynak koddan çalışıyor; NSIS kurulum ürün bitince üretilecek.
 - ⬜ **Otomatik güncelleme yok.**
 
 ## 8. Altyapı
+
 - ⬜ **Çevrimdışı mod yok** — sistem TTS dışında beyin ve ses tanıma internet ister.
 
 ## 9. Kullanıcı incelemesinden gelenler
+
 > İnceleme sırasında bildirdiğin eksikler buraya tarihiyle işlenir; çözülenler ✅ bölümüne taşınır.
 > **Not:** Tur 7’deki tüm maddeler v1 planına alındı → bkz. `V1-UPDATE.md`.
 
@@ -78,7 +86,7 @@ _Bu sıralama §9’daki kullanıcı maddeleriyle birleştirilip **`V1-UPDATE.md
 1. ✅ **KRİTİK — uygulamada mikrofon “ölü”: ses hiç alınmıyordu** — bildirim (16.10): “Windows’ta ses temiz, uygulamada ses yok; test ettim, bazen alıyor ama çoğu zaman hiç almıyor.”
    **Kök sebep:** gürültü kapısı (kullanıcıda “düşük” açık) seviyeyi kazanç düğümünden **sonra** ölçüyordu; kapı kapandığı anda seviye ~0 okunuyor ve kapı bir daha açılamıyordu (kendini kilitliyordu) → tüm kayıtlar sonsuza dek “sessizlik”. Log kanıtı: art arda `kayıt sonu: sessizlik`.
    **Düzeltme (Tur 10 ek):** analyser ham kaynağa taşındı (kazançtan önce → kapı ham seviyeyle karar verir, kilitlenemez); askıya düşen AudioContext kendiliğinden resume ediliyor; kopan cihaz akışı (çıkarılan mikrofon) otomatik yeniden açılıyor. Regresyon testleri: kapı kararı (+4), zincir bağlantısı (+3). **Gerçek mikrofonla son doğrulama: kullanıcıda.**
-2. ✅ **Mikrofon kalibrasyonu (ölçümle, 16.10):** “Kendin ses vererek test edip botun en rahat anlayacağı ayarları yap” istemiyle: `scripts/mic-tanilama.cjs` hoparlörden test cümlesi çalınırken gerçek Chromium hattıyla ölçtü (3 profil × 40 sn). Bulgular: **oto kazanç bu makinede kritik** (konuşma tepesi 0.45 ↔ kapalıyken 0.05), **gürültü bastırma yararlı** (ortam sıçramaları 0.135→0.101), ortam tabanı çok sakin (~0.017-0.019). Uygulanan: hassasiyet 6→**8**, gürültü kapısı “düşük”→**kapalı**; NS/AEC/AGC açık kaldı. Ek yazılım (NVIDIA Broadcast) şu an gereksiz — veri temiz. *(16.10 akşamı: kullanıcı isteğiyle tüm mikrofon ayarları baştan kurulmak üzere sıfırlandı — ayrıntı TODO “Mikrofon ayarları sıfırlandı” kaydında.)*
+2. ✅ **Mikrofon kalibrasyonu (ölçümle, 16.10):** “Kendin ses vererek test edip botun en rahat anlayacağı ayarları yap” istemiyle: `scripts/mic-tanilama.cjs` hoparlörden test cümlesi çalınırken gerçek Chromium hattıyla ölçtü (3 profil × 40 sn). Bulgular: **oto kazanç bu makinede kritik** (konuşma tepesi 0.45 ↔ kapalıyken 0.05), **gürültü bastırma yararlı** (ortam sıçramaları 0.135→0.101), ortam tabanı çok sakin (~0.017-0.019). Uygulanan: hassasiyet 6→**8**, gürültü kapısı “düşük”→**kapalı**; NS/AEC/AGC açık kaldı. Ek yazılım (NVIDIA Broadcast) şu an gereksiz — veri temiz. _(16.10 akşamı: kullanıcı isteğiyle tüm mikrofon ayarları baştan kurulmak üzere sıfırlandı — ayrıntı TODO “Mikrofon ayarları sıfırlandı” kaydında.)_
 3. ✅ **Mac’e kurulum (“bunu Mac’e direkt nasıl yüklerim?”)** — iki yol netleştirildi ve repo tarafı hazırlandı: (1) kaynaktan çalıştırma (Node LTS + `git clone` + `npm install` + `npm run dev:electron`), (2) gerçek uygulama: `npm run package:mac` → DMG (yalnız macOS’ta üretilir). Hazırlananlar: `build.mac` bloğu (dmg · `NSMicrophoneUsageDescription` · imzasız yerel derleme), macOS tepsi simgesi (`tray.png` + retina `@2x`), platforma duyarlı mikrofon izni mesajı, paket simgesi `build/icon.png`; ayrıca `files` listesine `build/**/*` eklendi (kurulu sürümde tepsi simgesi eksik kalıyordu — Windows NSIS’i de düzeltir). İlk çalıştırmada macOS mikrofon iznini sorar; reddedilirse mesaj artık macOS yolunu gösterir. macOS uygulama eşlemesi **eklendi ✅ (Tur 12, 18.10):** not defteri→TextEdit · hesap makinesi→Calculator · dosya gezgini→Finder · komut istemi→Terminal · görev yöneticisi→Activity Monitor; Paint'in macOS karşılığı yok — dürüst hata döner. Uçtan uca doğrulama gerçek Mac'te yapılacak.
 4. ✅ **STT hayalet cümleleri (“Altyazı M.K.”) — kullanıcı söylemediği metinler altyazıda çıkıyordu:** Bildirim (16.10): “benim söylemediğim şeyleri duyuyorsun; altyazıda ‘Altyazı M.K.’ var — logları kontrol et.” Kanıt: `transcripts.jsonl`’da “Altyazı M.K.” **6 kez**, “İzlediğiniz için teşekkür ederim.” **2 kez** — hepsi kullanıcının konuşmadığı anlarda (log eşleşmesi: 09:27:35 kaydı, tepe=0.27 → model künye uydurdu). **Kök sebep:** Groq Whisper’ın sessizlik/gürültüde uydurduğu klasik altyazı kalıpları. **Düzeltme:** `stripHallucination` filtresi (~11 kalıp: Altyazı M.K. · M.K. · İzlediğiniz için teşekkür ederim · Abone olmayı unutmayın · Subtitles by… · Amara.org…): eşleşirse kayıt “duyulmadı” sayılır — altyazıya ve agent’a ulaşmaz, uyandırma sessizce devam eder; filtrelenen ham çıktı log’a yazılır. Boş STT sonucu artık hata balonu değil, “duyulmadı” mesajı. +23 test.
 5. 🟡 **Mikrofon kilidi kaldırılacak** — kullanıcı isteği (16.10 akşamı): “şu mikrofon kilidi kaldırılcak, bunu not et.” Kastedilen: mikrofonu kilitleyebilen **gürültü kapısı** mekanizması (eski ölü-mikrofon olayının kaynağı — kapı, seviyeyi kazançtan sonra ölçüp kendini kilitleyebiliyordu). Plan: sonraki mikrofon turunda kapı özelliği koddan tamamen sökülecek (kayıt zinciri + “Yazılım ses katmanı” arayüzü); ek kazanç katmanının kalıp kalmayacağı uygulama sırasında birlikte netleştirilecek. Not: kapı şu an zaten “kapalı” (varsayılan) — görünür davranış aynı; bu kayıt koddan kaldırma işidir. Ayrıntılı plan: `MIKROFON.md` (S1).
@@ -86,6 +94,7 @@ _Bu sıralama §9’daki kullanıcı maddeleriyle birleştirilip **`V1-UPDATE.md
 _(Yeni bildirim geldikçe buraya eklenir.)_
 
 ## ✅ Çözülenler
+
 - ✅ **(Tur 9, 16.10) Ölü görünüm kontrolleri gerçek oldu** — vurgu rengi artık tüm arayüze uygulanıyor (eskiden yalnızca visualizer çizimine gidiyordu); "Arayüz ölçeği" ve "Hareketi azalt" artık gerçekten etkili; tema altyapısı eklendi (7 tema) → V1-15.
 - ✅ **(Tur 9, 16.10) Mikrofon düğmesi yenilendi (V1-16)** — eski MIC rozeti yerine “Ekolayzır” (C) düğmesi: 4 çubuk dinlerken gerçek mikrofon seviyesiyle oynar; muted görselindeki kırmızı çapraz çizgi kaldırıldı (sakin, kesikli çizgi). Kullanıcı kabul etti.
 - ✅ **(Tur 10, 16.10) Hafıza silme koruması** — `remove`/`clear` artık dosyayı silmeden önce `memory.json.bak` yedeği bırakıyor; silme olayları log’a düşüyor (sessiz veri kaybı bitti). Ayrıca 16.10’da sessizce boşaltılan hafıza geri yüklendi (6 kayıt).

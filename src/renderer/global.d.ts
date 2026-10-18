@@ -34,15 +34,28 @@ export interface QuatraBridge {
       voice: string,
       rate: number,
       pitch: number,
-    ): Promise<{ ok: boolean; audio?: ArrayBuffer; mime?: string; code?: string; message?: string }>;
+    ): Promise<{
+      ok: boolean;
+      audio?: ArrayBuffer;
+      mime?: string;
+      code?: string;
+      message?: string;
+    }>;
   };
   shortcut: {
     register(accelerator: string): Promise<{ ok: boolean; message?: string }>;
     onTrigger(handler: () => void): () => void;
   };
   provider: {
-    test(model: string): Promise<{ ok: boolean; code?: string; message?: string; latencyMs?: number }>;
-    models(): Promise<{ ok: boolean; code?: string; message?: string; models?: Array<{ id: string }> }>;
+    test(
+      model: string,
+    ): Promise<{ ok: boolean; code?: string; message?: string; latencyMs?: number }>;
+    models(): Promise<{
+      ok: boolean;
+      code?: string;
+      message?: string;
+      models?: Array<{ id: string }>;
+    }>;
   };
   agent: {
     run(req: {
@@ -98,7 +111,10 @@ export interface QuatraBridge {
     }>;
   };
   notes: {
-    lastBackup(): Promise<{ ok: boolean; record: { target: string; backup: string; ts: string } | null }>;
+    lastBackup(): Promise<{
+      ok: boolean;
+      record: { target: string; backup: string; ts: string } | null;
+    }>;
     restore(): Promise<{ ok: boolean; message: string }>;
   };
   privacy: {
@@ -109,7 +125,10 @@ export interface QuatraBridge {
     add(
       text: string,
       source: 'user' | 'assistant',
-    ): Promise<{ ok: boolean; entry?: { id: string; text: string; createdAt: string; source: string } }>;
+    ): Promise<{
+      ok: boolean;
+      entry?: { id: string; text: string; createdAt: string; source: string };
+    }>;
     remove(id: string): Promise<{ ok: boolean }>;
     clear(): Promise<{ ok: boolean }>;
   };

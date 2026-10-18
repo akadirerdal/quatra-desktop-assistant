@@ -11,7 +11,10 @@ export type MemoryIntent =
 
 /** "adım ne?" gibi SORULAR yanlışlıkla kayıt kalıbına girmesin. */
 export function isNameQuestion(text: string): boolean {
-  return /(benim\s+)?(adım|ismim|adın)\s+ne\b/i.test(text) || /\b(adım|ismim|adın)\s+ne\??$/i.test(text.trim());
+  return (
+    /(benim\s+)?(adım|ismim|adın)\s+ne\b/i.test(text) ||
+    /\b(adım|ismim|adın)\s+ne\??$/i.test(text.trim())
+  );
 }
 
 /** Kullanıcı uzun/detaylı yanıt mı istiyor? */
@@ -28,7 +31,10 @@ export function detectSleepCommand(text: string): boolean {
 
 /** Sesli durdurma komutu — Quatra susar, sohbet bağlamı korunur (V1-07). */
 export function detectStopSpeakingCommand(text: string): boolean {
-  const t = text.toLowerCase().trim().replace(/[.!?…]+$/u, '');
+  const t = text
+    .toLowerCase()
+    .trim()
+    .replace(/[.!?…]+$/u, '');
   return /^(sus|sussana|sus bakalım|sus artık|artık sus|kes sesini|sesini kes|sessiz ol|konuşma|yeter|yeter artık|dur)(?:[\s,.!;:]|$)/.test(
     t,
   );
@@ -36,12 +42,21 @@ export function detectStopSpeakingCommand(text: string): boolean {
 
 /** Sözlü izin yanıtı — "evet"/"hayır" ailesini çözer (V1-09). Anlaşılmazsa null. */
 export function parseConfirmAnswer(text: string): 'yes' | 'no' | null {
-  const t = text.toLowerCase().trim().replace(/[.!?…]+$/u, '');
-  if (/^(evet|onaylıyorum|onaylarım|onayla|tamam|olur|kabul|izin ver|tabii|elbette)(?:[\s,.!;:]|$)/.test(t)) {
+  const t = text
+    .toLowerCase()
+    .trim()
+    .replace(/[.!?…]+$/u, '');
+  if (
+    /^(evet|onaylıyorum|onaylarım|onayla|tamam|olur|kabul|izin ver|tabii|elbette)(?:[\s,.!;:]|$)/.test(
+      t,
+    )
+  ) {
     return 'yes';
   }
   if (
-    /^(hayır|yok|iptal|reddet|reddediyorum|vazgeç|istemiyorum|izin verme|olmasın)(?:[\s,.!;:]|$)/.test(t)
+    /^(hayır|yok|iptal|reddet|reddediyorum|vazgeç|istemiyorum|izin verme|olmasın)(?:[\s,.!;:]|$)/.test(
+      t,
+    )
   ) {
     return 'no';
   }
@@ -90,12 +105,18 @@ export function parseMemoryIntent(text: string): MemoryIntent {
   if (isNameQuestion(t)) return null;
   const nameMatch = t.match(/^(benim adım|adım|ismim|benim ismim)\s+(.+)$/i);
   if (nameMatch?.[2]) {
-    const name = nameMatch[2].replace(/[.!?,]+$/g, '').trim().slice(0, 60);
+    const name = nameMatch[2]
+      .replace(/[.!?,]+$/g, '')
+      .trim()
+      .slice(0, 60);
     if (name && !/^ne\b/i.test(name)) return { kind: 'name', name };
   }
   const surnameMatch = t.match(/^(benim soyadım|soyadım|soyismim)\s+(.+)$/i);
   if (surnameMatch?.[2]) {
-    const surname = surnameMatch[2].replace(/[.!?,]+$/g, '').trim().slice(0, 60);
+    const surname = surnameMatch[2]
+      .replace(/[.!?,]+$/g, '')
+      .trim()
+      .slice(0, 60);
     if (surname && !/^ne\b/i.test(surname)) return { kind: 'surname', surname };
   }
   const rememberMatch = t.match(

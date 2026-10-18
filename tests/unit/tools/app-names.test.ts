@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeAppName, appTarget, allowedAppNames } from '../../../src/features/tools/app-names';
+import {
+  normalizeAppName,
+  appTarget,
+  allowedAppNames,
+} from '../../../src/features/tools/app-names';
 
 describe('normalizeAppName', () => {
   it('Türkçe komutları kanonik uygulamaya çevirir', () => {

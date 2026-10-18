@@ -32,7 +32,9 @@ function bootUserDataPath(): void {
   try {
     const appDataDir = app.getPath('appData');
     const stable = path.join(appDataDir, 'Quatra');
-    const legacyDirs = ['quatra-desktop-assistant', 'Electron'].map((d) => path.join(appDataDir, d));
+    const legacyDirs = ['quatra-desktop-assistant', 'Electron'].map((d) =>
+      path.join(appDataDir, d),
+    );
     fs.mkdirSync(stable, { recursive: true });
     for (const dir of legacyDirs) {
       for (const file of ['credentials.json', 'settings.json']) {
@@ -136,7 +138,8 @@ function createWindow(): void {
   mainWindow.webContents.on('did-finish-load', () => {
     log.info('renderer yüklendi');
     // E2E doğrulama kancası (yalnız QUATRA_E2E env ile; normal kullanımda çalışmaz).
-    if (process.env['QUATRA_E2E'] === 'credentials') {      void mainWindow?.webContents
+    if (process.env['QUATRA_E2E'] === 'credentials') {
+      void mainWindow?.webContents
         .executeJavaScript(
           `(async () => {
             const setRes = await window.quatra.credentials.set('deepseek', 'e2e-test-key-123');

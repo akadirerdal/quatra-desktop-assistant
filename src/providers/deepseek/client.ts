@@ -132,10 +132,15 @@ export class DeepSeekClient implements ProviderAdapter {
     // Stream'ler tekrarlanmaz (non-idempotent); iptal/zaman aşımı dışarı taşar.
     const { signal, controller, timer } = this.prepareSignal(req.signal);
     try {
-      const res = await this.request('POST', '/chat/completions', {
-        ...this.buildBody(req),
-        stream: true,
-      }, signal);
+      const res = await this.request(
+        'POST',
+        '/chat/completions',
+        {
+          ...this.buildBody(req),
+          stream: true,
+        },
+        signal,
+      );
       if (!res.ok) throw mapHttpError(res.status);
       return await this.readStream(res, onDelta, signal);
     } catch (e) {

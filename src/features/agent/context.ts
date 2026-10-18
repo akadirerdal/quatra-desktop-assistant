@@ -20,7 +20,8 @@ export function appendContextTurn(
   maxChars = CONTEXT_MAX_CHARS,
 ): ContextTurn[] {
   let turns = [...history, { user, assistant }];
-  const charsOf = (h: ContextTurn[]) => h.reduce((a, t) => a + t.user.length + t.assistant.length, 0);
+  const charsOf = (h: ContextTurn[]) =>
+    h.reduce((a, t) => a + t.user.length + t.assistant.length, 0);
   while (turns.length > maxTurns) turns = turns.slice(1);
   while (turns.length > 1 && charsOf(turns) > maxChars) turns = turns.slice(1);
   return turns;

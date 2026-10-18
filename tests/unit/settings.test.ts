@@ -44,8 +44,10 @@ describe('settings store persistence', () => {
 
     await useSettingsStore.getState().update({ assistantName: 'Aurora' });
     expect(useSettingsStore.getState().settings.assistantName).toBe('Aurora');
-    expect(backend).toBeDefined();
-    // Yeni bir load, kaydedilen değeri geri getirmeli.
+    // Yeni bir load, kaydedilen değeri gerçekten geri getirmeli (boş/mock değil).
+    await useSettingsStore.getState().load();
+    expect(useSettingsStore.getState().settings.assistantName).toBe('Aurora');
+    expect(useSettingsStore.getState().saveError).toBeNull();
     const raw = await backend.load();
     expect((raw as { assistantName?: string }).assistantName).toBe('Aurora');
   });

@@ -16,7 +16,7 @@ Electron + Vite + React + TypeScript ile geliştirilir. Beyin: **DeepSeek** · K
 
 **🎙 Ses**
 
-- Uyandırma kelimesi **“Quatra”** (*kuatra/quatro* gibi telaffuzlar da tanınır) → **“Efendim?”** → komutun.
+- Uyandırma kelimesi **“Quatra”** (_kuatra/quatro_ gibi telaffuzlar da tanınır) → **“Efendim?”** → komutun.
 - **Sürekli sohbet** (varsayılan açık): yanıt bitince kendiliğinden dinlemeye döner — tekrar “Quatra” demene gerek kalmaz; sessiz kalırsan beklemeye geçer (varsayılan 5 sn, ayarlanabilir).
 - **Bas-konuş** (global): Windows’ta `Ctrl+Shift+Space` · macOS’te `⌘⇧Space` — Ayarlar’dan değiştirilebilir.
 - **Barge-in:** Quatra konuşurken sözünü kesersen anında susar ve dinler.
@@ -47,7 +47,7 @@ Electron + Vite + React + TypeScript ile geliştirilir. Beyin: **DeepSeek** · K
 - Windows açılışında başlat (kurulu sürümlerde; kaynak modda dürüstçe “desteklenmez” işaretlidir).
 - 7 tema, arayüz ölçeği, hareketi azaltma.
 - İşlem kaydı (“İşlem Kaydı”), not yedeği + tek tıkla geri alma, token sayaçları, teşhis, ayar dışa/içe aktarma (API anahtarları dahil edilmez).
-- Pencere: Windows’ta özel başlık çubuğu; macOS’te yerel trafik ışıkları + uygulama menüsü. İlk açılışta tam ekran (F11 / ⌃⌘F).
+- Pencere: Windows’ta özel başlık çubuğu; macOS’te yerel trafik ışıkları + uygulama menüsü. Her açılışta tam ekran (F11 / ⌃⌘F).
 
 ## Nasıl çalışır
 
@@ -104,20 +104,20 @@ Kurulum dosyaları yalnız ürün onaylanınca üretilip paylaşılır. O zamana
 
 **“Quatra”** de → “Efendim?” → komutunu söyle. Aktif sohbette uyandırma kelimesi gerekmez; sessizlik beklemeye alır.
 
-| Söyle | Ne olur |
-|---|---|
-| “Quatra, not defterini aç” | Not Defteri (Windows) / TextEdit (macOS) açılır |
-| “Hesap makinesini aç” | Hesap Makinesi / Calculator |
-| “Görev yöneticisini aç” | Görev Yöneticisi / Activity Monitor |
-| “10 dakika sonra çayı hatırlat” | Yerel hatırlatıcı (2 sn – 24 saat); zamanı gelince sesli haber verir |
-| “hatırla: yarın sınavım var” | Yerel hafızaya sessizce kaydeder |
-| “adım ne?” | Hafızadan yanıtlar |
-| “yazılım moduna geç” / “normal moda geç” | Çalışma modunu değiştirir (Pro / Hızlı) |
-| “detaylı anlat” | Kısa yanıt yerine uzun yanıt ister |
-| “sus” | Anında susar |
-| “uyu” | Sohbeti bitirir — mikrofon açık kalır |
-| “bilgisayar bilgisi ver” | `sysinfo` aracı çalışır |
-| “github.com’u aç” | Adresi varsayılan tarayıcıda açar (yalnız http/https) |
+| Söyle                                    | Ne olur                                                              |
+| ---------------------------------------- | -------------------------------------------------------------------- |
+| “Quatra, not defterini aç”               | Not Defteri (Windows) / TextEdit (macOS) açılır                      |
+| “Hesap makinesini aç”                    | Hesap Makinesi / Calculator                                          |
+| “Görev yöneticisini aç”                  | Görev Yöneticisi / Activity Monitor                                  |
+| “10 dakika sonra çayı hatırlat”          | Yerel hatırlatıcı (2 sn – 24 saat); zamanı gelince sesli haber verir |
+| “hatırla: yarın sınavım var”             | Yerel hafızaya sessizce kaydeder                                     |
+| “adım ne?”                               | Hafızadan yanıtlar                                                   |
+| “yazılım moduna geç” / “normal moda geç” | Çalışma modunu değiştirir (Pro / Hızlı)                              |
+| “detaylı anlat”                          | Kısa yanıt yerine uzun yanıt ister                                   |
+| “sus”                                    | Anında susar                                                         |
+| “uyu”                                    | Sohbeti bitirir — mikrofon açık kalır                                |
+| “bilgisayar bilgisi ver”                 | `sysinfo` aracı çalışır                                              |
+| “github.com’u aç”                        | Adresi varsayılan tarayıcıda açar (yalnız http/https)                |
 
 Hassas işlemler (pano okuma, not dosyası yazma) önce sözlü “evet/hayır” onayı ister.
 
@@ -125,38 +125,38 @@ Hassas işlemler (pano okuma, not dosyası yazma) önce sözlü “evet/hayır�
 
 Ayarlar dokuz bölümden oluşur:
 
-| Bölüm | İçinde ne var |
-|---|---|
-| **Genel** | Açılış / otomatik başlatma, ayarları dışa & içe aktarma (anahtarlar hariç), sürüm |
-| **AI Sağlayıcı** | DeepSeek ve Groq anahtarları, gerçek bağlantı testi, model listesi |
-| **Ses ve Giriş** | Canlı seviyeli mikrofon testi, giriş cihazı, VAD hassasiyeti, yakalama filtreleri, TTS ses/hız/perde |
-| **Etkinleştirme** | Bas-konuş kısayolu, uyandırma kelimesi ve sürekli sohbet anahtarları |
-| **Görünüm** | 7 tema, vurgu rengi, arayüz ölçeği, hareketi azaltma |
-| **Hafıza** | Hafıza listesi ve yönetimi, motor (yerel / mem0), otomatik öğrenme |
-| **Gizlilik** | Konuşma metinleri (varsayılan kapalı) ve silme |
-| **İşlem Kaydı** | Quatra’nın yaptıklarının kaydı — görüntüle & temizle |
-| **Teşhis** | Günlükler, token kullanımı, sürüm bilgisi |
+| Bölüm             | İçinde ne var                                                                                        |
+| ----------------- | ---------------------------------------------------------------------------------------------------- |
+| **Genel**         | Açılış / otomatik başlatma, ayarları dışa & içe aktarma (anahtarlar hariç), sürüm                    |
+| **AI Sağlayıcı**  | DeepSeek ve Groq anahtarları, gerçek bağlantı testi, model listesi                                   |
+| **Ses ve Giriş**  | Canlı seviyeli mikrofon testi, giriş cihazı, VAD hassasiyeti, yakalama filtreleri, TTS ses/hız/perde |
+| **Etkinleştirme** | Bas-konuş kısayolu, uyandırma kelimesi ve sürekli sohbet anahtarları                                 |
+| **Görünüm**       | 7 tema, vurgu rengi, arayüz ölçeği, hareketi azaltma                                                 |
+| **Hafıza**        | Hafıza listesi ve yönetimi, motor (yerel / mem0), otomatik öğrenme                                   |
+| **Gizlilik**      | Konuşma metinleri (varsayılan kapalı) ve silme                                                       |
+| **İşlem Kaydı**   | Quatra’nın yaptıklarının kaydı — görüntüle & temizle                                                 |
+| **Teşhis**        | Günlükler, token kullanımı, sürüm bilgisi                                                            |
 
 **Model seviyeleri** (alt çubuktaki model pill’inden):
 
-| Seviye | Model | Sıcaklık | Token |
-|---|---|---|---|
-| Düşük | deepseek-chat | 0.3 | 1024 |
-| Varsayılan | deepseek-chat | 0.7 | 2048 |
-| Yüksek | deepseek-reasoner | 0.7 | 4096 |
-| Max | deepseek-reasoner | 1.0 | 8192 |
-| Ultra Max | deepseek-reasoner | 1.2 | 8192 |
+| Seviye     | Model             | Sıcaklık | Token |
+| ---------- | ----------------- | -------- | ----- |
+| Düşük      | deepseek-chat     | 0.3      | 1024  |
+| Varsayılan | deepseek-chat     | 0.7      | 2048  |
+| Yüksek     | deepseek-reasoner | 0.7      | 4096  |
+| Max        | deepseek-reasoner | 1.0      | 8192  |
+| Ultra Max  | deepseek-reasoner | 1.2      | 8192  |
 
 ## Araçlar ve izinler
 
-| Araç | Seviye | Ne yapar |
-|---|---|---|
-| `sysinfo` | safe | İşletim sistemi & uygulama bilgisi |
-| `open_app` | low-risk | Yalnız izinli listedeki uygulamayı açar: not defteri, hesap makinesi, dosya gezgini, komut istemi / PowerShell, görev yöneticisi, Paint (Windows); TextEdit, Calculator, Finder, Terminal, Activity Monitor (macOS) |
-| `open_url` | low-risk | http/https bağlantısını varsayılan tarayıcıda açar |
-| `not_al` | low-risk + onay | Seçtiğin klasöre markdown not yazar (klasör hatırlanır; var olan not üzerine yazılmadan önce yedeklenir) |
-| `clipboard_yaz` | low-risk | Metni panoya kopyalar |
-| `clipboard_oku` | sensitive + onay | Panodaki metni okur |
+| Araç            | Seviye           | Ne yapar                                                                                                                                                                                                            |
+| --------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sysinfo`       | safe             | İşletim sistemi & uygulama bilgisi                                                                                                                                                                                  |
+| `open_app`      | low-risk         | Yalnız izinli listedeki uygulamayı açar: not defteri, hesap makinesi, dosya gezgini, komut istemi / PowerShell, görev yöneticisi, Paint (Windows); TextEdit, Calculator, Finder, Terminal, Activity Monitor (macOS) |
+| `open_url`      | low-risk         | http/https bağlantısını varsayılan tarayıcıda açar                                                                                                                                                                  |
+| `not_al`        | low-risk + onay  | Seçtiğin klasöre markdown not yazar (klasör hatırlanır; var olan not üzerine yazılmadan önce yedeklenir)                                                                                                            |
+| `clipboard_yaz` | low-risk         | Metni panoya kopyalar                                                                                                                                                                                               |
+| `clipboard_oku` | sensitive + onay | Panodaki metni okur                                                                                                                                                                                                 |
 
 İzinler native katmanda uygulanır — model kendi kendine izin veremez.
 
@@ -164,20 +164,20 @@ Ayarlar dokuz bölümden oluşur:
 
 **Verilerin yeri:**
 
-| Windows | macOS |
-|---|---|
+| Windows            | macOS                                  |
+| ------------------ | -------------------------------------- |
 | `%APPDATA%\Quatra` | `~/Library/Application Support/Quatra` |
 
-| Dosya | İçerik |
-|---|---|
-| `credentials.json` | API anahtarları — işletim sistemi kasasıyla şifreli (DPAPI / Keychain); yalnız ana süreç okuyabilir |
-| `settings.json` (+ `.bak`) | Ayarlar; atomik yazım, bozulmada yedekten kurtarma |
-| `memory.json` (+ `.bak`) | Yerel hafıza kayıtları; silmeler yedeklenir |
-| `logs/quatra.log` | Döngüsel günlük (~1 MB rotasyon); sırlar redact’lanır |
-| `audit.jsonl` | İşlem kaydı — son 800 girdi, redact’lı |
-| `transcripts.jsonl` | Konuşma metinleri — **yalnız sen açarsan**; silinebilir |
-| `token-usage.json` | Token sayaçları (aylık + toplam) |
-| `notes-dir.txt` | Seçtiğin not klasörü |
+| Dosya                      | İçerik                                                                                              |
+| -------------------------- | --------------------------------------------------------------------------------------------------- |
+| `credentials.json`         | API anahtarları — işletim sistemi kasasıyla şifreli (DPAPI / Keychain); yalnız ana süreç okuyabilir |
+| `settings.json` (+ `.bak`) | Ayarlar; atomik yazım, bozulmada yedekten kurtarma                                                  |
+| `memory.json` (+ `.bak`)   | Yerel hafıza kayıtları; silmeler yedeklenir                                                         |
+| `logs/quatra.log`          | Döngüsel günlük (~1 MB rotasyon); sırlar redact’lanır                                               |
+| `audit.jsonl`              | İşlem kaydı — son 800 girdi, redact’lı                                                              |
+| `transcripts.jsonl`        | Konuşma metinleri — **yalnız sen açarsan**; silinebilir                                             |
+| `token-usage.json`         | Token sayaçları (aylık + toplam)                                                                    |
+| `notes-dir.txt`            | Seçtiğin not klasörü                                                                                |
 
 **Makineden dışarı ne çıkar:** komut metnin Groq’a (yazıya çevirme) ve DeepSeek’e (yanıt) gider; yanıt metni seslendirme için Microsoft Edge TTS uç noktasına gider. Ses kaydı saklanmaz. İsteğe bağlı mem0 motorunu açarsan hafıza oraya eşitlenir — aksi halde her şey yerelde kalır. API anahtarları makineden ayrılmaz.
 
@@ -196,19 +196,19 @@ npm run format        # Prettier
 
 **Proje haritası:**
 
-| Alan | Yer |
-|---|---|
-| Electron ana süreç — pencere, tepsi, kısayollar, IPC, kasa, işlem kaydı | `electron/` |
-| Ses hattı — yakalama, seviye, VAD, kayıt, barge-in, TTS kuyruğu | `src/features/audio/` |
-| Uyandırma kelimesi | `src/features/audio/wake-word.ts` |
-| Asistan akışı — uyandır → yanıtla → yeniden dinle | `src/features/assistant/assistant-controller.ts` |
-| Agent döngüsü, akış, bağlam | `src/features/agent/` |
-| Araçlar ve izinler | `src/features/tools/` |
-| Sağlayıcılar — DeepSeek istemcisi, Groq transkripsiyon | `src/providers/` |
-| Hafıza deposu ve çıkarımı | `src/services/memory/` |
-| Ayar şeması (zod) ve store’lar (zustand) | `src/state/` |
-| Arayüz — ana ekran, ayarlar, başlık çubuğu | `src/features/`, `src/renderer/` |
-| Testler (vitest) | `tests/` |
+| Alan                                                                    | Yer                                              |
+| ----------------------------------------------------------------------- | ------------------------------------------------ |
+| Electron ana süreç — pencere, tepsi, kısayollar, IPC, kasa, işlem kaydı | `electron/`                                      |
+| Ses hattı — yakalama, seviye, VAD, kayıt, barge-in, TTS kuyruğu         | `src/features/audio/`                            |
+| Uyandırma kelimesi                                                      | `src/features/audio/wake-word.ts`                |
+| Asistan akışı — uyandır → yanıtla → yeniden dinle                       | `src/features/assistant/assistant-controller.ts` |
+| Agent döngüsü, akış, bağlam                                             | `src/features/agent/`                            |
+| Araçlar ve izinler                                                      | `src/features/tools/`                            |
+| Sağlayıcılar — DeepSeek istemcisi, Groq transkripsiyon                  | `src/providers/`                                 |
+| Hafıza deposu ve çıkarımı                                               | `src/services/memory/`                           |
+| Ayar şeması (zod) ve store’lar (zustand)                                | `src/state/`                                     |
+| Arayüz — ana ekran, ayarlar, başlık çubuğu                              | `src/features/`, `src/renderer/`                 |
+| Testler (vitest)                                                        | `tests/`                                         |
 
 Windows kolaylığı: `scripts/quatra-baslat.vbs` geliştirme uygulamasını gizli çalıştırır (masaüstü kısayolu dostu).
 
@@ -222,7 +222,7 @@ Windows kolaylığı: `scripts/quatra-baslat.vbs` geliştirme uygulamasını giz
 
 - Arayüz ve ses Türkçe; henüz İngilizce arayüz yok.
 - Uyandırma kelimesi Groq üzerinden çalışır — internet ister. Tamamen yerel (çevrimdışı) uyandırma motoru planlıdır.
-- Sistem ses seviyesi ve çıkış cihazı seçimi yok — uygulama bunları “desteklenmiyor” olarak işaretler, taklit etmez.
+- Sistem ses seviyesi ve çıkış cihazı seçimi henüz yok.
 - Edge Neural TTS internet ister; çevrimdışıyken sistem sesine düşer.
 - Linux test edilmedi; hedef Windows ve macOS.
 - Otomatik güncelleme yok. Paketli derlemeler imzasız → paketleme başlayınca işletim sistemi güvenlik uyarısı çıkabilir.
@@ -230,14 +230,14 @@ Windows kolaylığı: `scripts/quatra-baslat.vbs` geliştirme uygulamasını giz
 
 ## Sorun giderme
 
-| Sorun | Bak |
-|---|---|
-| Quatra sesimi duymuyor | Mikrofon düğmesinin durumu; Ayarlar → Ses ve Giriş → canlı seviye testi; sistem mikrofon izni |
-| Uyandırma kelimesi çalışmıyor | Groq anahtarı girili mi? “Quatra” kelimesini net söyle; Ayarlar → Etkinleştirme’ye bak |
-| Ses çıkışı yok | Edge TTS internet ister; çevrimdışıysa sistem sesi devralır — Windows’ta ek sesler: Ayarlar → Saat ve Dil → Konuşma → Sesleri ekle |
-| Pencere kapandı ama uygulama açık | Tepsi modudur — tepsi simgesinden göster; çıkış için tepsi menüsü |
-| Sağlayıcı hataları | Ayarlar → AI Sağlayıcı → **Test et** / **Modelleri getir** gerçek hatayı gösterir |
-| Günlükler nerede? | Ayarlar → Teşhis ya da `%APPDATA%\Quatra\logs\quatra.log` (macOS: `~/Library/Application Support/Quatra`) |
+| Sorun                             | Bak                                                                                                                                |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Quatra sesimi duymuyor            | Mikrofon düğmesinin durumu; Ayarlar → Ses ve Giriş → canlı seviye testi; sistem mikrofon izni                                      |
+| Uyandırma kelimesi çalışmıyor     | Groq anahtarı girili mi? “Quatra” kelimesini net söyle; Ayarlar → Etkinleştirme’ye bak                                             |
+| Ses çıkışı yok                    | Edge TTS internet ister; çevrimdışıysa sistem sesi devralır — Windows’ta ek sesler: Ayarlar → Saat ve Dil → Konuşma → Sesleri ekle |
+| Pencere kapandı ama uygulama açık | Tepsi modudur — tepsi simgesinden göster; çıkış için tepsi menüsü                                                                  |
+| Sağlayıcı hataları                | Ayarlar → AI Sağlayıcı → **Test et** / **Modelleri getir** gerçek hatayı gösterir                                                  |
+| Günlükler nerede?                 | Ayarlar → Teşhis ya da `%APPDATA%\Quatra\logs\quatra.log` (macOS: `~/Library/Application Support/Quatra`)                          |
 
 ## Belgeler
 

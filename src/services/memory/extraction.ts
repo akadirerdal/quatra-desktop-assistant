@@ -130,9 +130,7 @@ const SINGULAR_KEY_MAP: Record<string, string> = {
 };
 
 function singularKeyOf(text: string): string | null {
-  const m = text
-    .toLowerCase()
-    .match(/^([^:：\n]{2,30})\s*[:：]/);
+  const m = text.toLowerCase().match(/^([^:：\n]{2,30})\s*[:：]/);
   if (!m) return null;
   const key = m[1]!.trim().replace(/^kullanıcının\s+|^kullanıcı\s+/, '');
   return SINGULAR_KEY_MAP[key] ?? null;

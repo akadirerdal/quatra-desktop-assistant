@@ -10,7 +10,12 @@ import { createNativeBridge } from './native';
 import { DeepSeekClient } from '../src/providers/deepseek/client';
 import { transcribeAudio } from '../src/providers/groq/transcribe';
 import { ProviderError } from '../src/providers/types';
-import { cancelActiveAgent, clearAgentContext, resolveAgentConfirm, runAgent } from './agent-service';
+import {
+  cancelActiveAgent,
+  clearAgentContext,
+  resolveAgentConfirm,
+  runAgent,
+} from './agent-service';
 import { listEdgeVoices, synthesizeEdge } from './tts-service';
 import { clearLogFile, logDir, logFilePath, openLogsFolder } from './log-file';
 import { registerMemoryIpc } from './memory';
@@ -53,7 +58,10 @@ export function registerIpc(win: BrowserWindow): void {
   // ---------------------------------------------------------------- provider (DeepSeek)
   ipcMain.handle('provider:test', async (_e, model: string) => {
     try {
-      const client = new DeepSeekClient({ getApiKey: () => getApiKey('deepseek'), timeoutMs: 30_000 });
+      const client = new DeepSeekClient({
+        getApiKey: () => getApiKey('deepseek'),
+        timeoutMs: 30_000,
+      });
       const res = await client.testConnection(String(model));
       return { ok: true, latencyMs: res.latencyMs };
     } catch (e) {
@@ -63,7 +71,10 @@ export function registerIpc(win: BrowserWindow): void {
   });
   ipcMain.handle('provider:models', async () => {
     try {
-      const client = new DeepSeekClient({ getApiKey: () => getApiKey('deepseek'), timeoutMs: 30_000 });
+      const client = new DeepSeekClient({
+        getApiKey: () => getApiKey('deepseek'),
+        timeoutMs: 30_000,
+      });
       const models = await client.listModels();
       return { ok: true, models };
     } catch (e) {
@@ -91,7 +102,8 @@ export function registerIpc(win: BrowserWindow): void {
           ...(result.filtered ? { filtered: result.filtered } : {}),
         };
       } catch (e) {
-        const err = e instanceof ProviderError ? e : new ProviderError('unknown', 'Ses tanıma başarısız.');
+        const err =
+          e instanceof ProviderError ? e : new ProviderError('unknown', 'Ses tanıma başarısız.');
         return { ok: false, code: err.code, message: err.message };
       }
     },
@@ -103,7 +115,8 @@ export function registerIpc(win: BrowserWindow): void {
       const voices = await listEdgeVoices();
       return { ok: true, voices };
     } catch (e) {
-      const err = e instanceof ProviderError ? e : new ProviderError('unknown', 'Ses listesi alınamadı.');
+      const err =
+        e instanceof ProviderError ? e : new ProviderError('unknown', 'Ses listesi alınamadı.');
       return { ok: false, code: err.code, message: err.message };
     }
   });
@@ -111,12 +124,21 @@ export function registerIpc(win: BrowserWindow): void {
     'tts:synthesize',
     async (_e, text: string, voice: string, rate: number, pitch: number) => {
       try {
-        const res = await synthesizeEdge(String(text), String(voice ?? ''), Number(rate) || 1, Number(pitch) || 1);
+        const res = await synthesizeEdge(
+          String(text),
+          String(voice ?? ''),
+          Number(rate) || 1,
+          Number(pitch) || 1,
+        );
         // Buffer → ArrayBuffer (IPC aktarımı)
-        const ab = res.audio.buffer.slice(res.audio.byteOffset, res.audio.byteOffset + res.audio.byteLength);
+        const ab = res.audio.buffer.slice(
+          res.audio.byteOffset,
+          res.audio.byteOffset + res.audio.byteLength,
+        );
         return { ok: true, audio: ab as ArrayBuffer, mime: res.mime };
       } catch (e) {
-        const err = e instanceof ProviderError ? e : new ProviderError('unknown', 'Ses sentezi başarısız.');
+        const err =
+          e instanceof ProviderError ? e : new ProviderError('unknown', 'Ses sentezi başarısız.');
         return { ok: false, code: err.code, message: err.message };
       }
     },
@@ -243,7 +265,10 @@ export function registerIpc(win: BrowserWindow): void {
         log.info(`global kısayol kayıtlı: ${combo}`);
         return { ok: true };
       }
-      return { ok: false, message: `"${combo}" kaydedilemedi (başka uygulama kullanıyor olabilir).` };
+      return {
+        ok: false,
+        message: `"${combo}" kaydedilemedi (başka uygulama kullanıyor olabilir).`,
+      };
     } catch {
       return { ok: false, message: 'Kısayol kaydedilemedi.' };
     }

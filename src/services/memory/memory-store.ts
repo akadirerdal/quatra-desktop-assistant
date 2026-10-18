@@ -45,7 +45,12 @@ export class MemoryStore {
       // Aynı/çok benzer kayıt zaten var — sessizce geri dön.
       return existing;
     }
-    const entry: MemoryEntry = { id: newId(), text: trimmed, createdAt: new Date().toISOString(), source };
+    const entry: MemoryEntry = {
+      id: newId(),
+      text: trimmed,
+      createdAt: new Date().toISOString(),
+      source,
+    };
     entries.push(entry);
     if (entries.length > this.maxEntries) entries.splice(0, entries.length - this.maxEntries);
     await this.save(entries);

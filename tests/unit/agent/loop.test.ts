@@ -4,7 +4,11 @@ import { ToolRegistry } from '../../../src/features/tools/registry';
 import { PermissionManager } from '../../../src/features/tools/permissions';
 import { AgentLoop } from '../../../src/features/agent/loop';
 import type { NativeBridge } from '../../../src/features/tools/types';
-import type { ProviderAdapter, ProviderChatRequest, ProviderChatResponse } from '../../../src/providers/types';
+import type {
+  ProviderAdapter,
+  ProviderChatRequest,
+  ProviderChatResponse,
+} from '../../../src/providers/types';
 
 // Sahte native köprü — gerçek OS erişimi YOK.
 const native: NativeBridge = {
@@ -225,40 +229,51 @@ describe('AgentLoop — tool çağrısı', () => {
   });
 
   it('yavaş tool loopu kilitlemez — timeout sonucu döner', async () => {
-    const provider = scriptedProvider([
-      {
-        response: {
-          content: '',
-          toolCalls: [{ id: 'c1', name: 'yavas', arguments: '{}' }],
-          finishReason: 'tool_calls',
+    // Gerçek 5 sn'lik timer yerine sahte saat: test deterministik ve anında (V1.2-168).
+    vi.useFakeTimers();
+    try {
+      const provider = scriptedProvider([
+        {
+          response: {
+            content: '',
+            toolCalls: [{ id: 'c1', name: 'yavas', arguments: '{}' }],
+            finishReason: 'tool_calls',
+          },
         },
-      },
-      { response: { content: 'yavaş tool zaman aşımına uğradı', finishReason: 'stop' } },
-    ]);
-    const registry = new ToolRegistry({ timeoutMs: 50 });
-    registry.register({
-      name: 'yavas',
-      description: 'yavaş',
-      schema: z.object({}),
-      parameters: { type: 'object', properties: {} },
-      permission: 'safe',
-      run: async () => {
-        await new Promise((r) => setTimeout(r, 5000));
-        return { done: true };
-      },
-    });
-    const loop = new AgentLoop({
-      provider,
-      registry,
-      permissions,
-      native,
-      model: 'x',
-      systemPrompt: 'test',
-    });
-    const started = Date.now();
-    const res = await loop.run('yavaş iş');
-    expect(Date.now() - started).toBeLessThan(3000);
-    expect(res.text).toBe('yavaş tool zaman aşımına uğradı');
+        { response: { content: 'yavaş tool zaman aşımına uğradı', finishReason: 'stop' } },
+      ]);
+      const registry = new ToolRegistry({ timeoutMs: 50 });
+      let toolFinished = false;
+      registry.register({
+        name: 'yavas',
+        description: 'yavaş',
+        schema: z.object({}),
+        parameters: { type: 'object', properties: {} },
+        permission: 'safe',
+        run: async () => {
+          await new Promise((r) => setTimeout(r, 5000));
+          toolFinished = true;
+          return { done: true };
+        },
+      });
+      const loop = new AgentLoop({
+        provider,
+        registry,
+        permissions,
+        native,
+        model: 'x',
+        systemPrompt: 'test',
+      });
+      const p = loop.run('yavaş iş');
+      await vi.advanceTimersByTimeAsync(0); // mikro görevleri boşalt: tool başlasın, timeout kurulsun
+      await vi.advanceTimersByTimeAsync(60); // registry timeout'u (50ms) ateşlenir
+      const res = await p;
+      expect(res.text).toBe('yavaş tool zaman aşımına uğradı');
+      // Timeout 5 sn'lik tool timer'ından önce kazandı: tool hiç tamamlanmadı.
+      expect(toolFinished).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('kullanıcı iptali loopu durdurur', async () => {

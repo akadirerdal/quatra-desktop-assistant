@@ -3,24 +3,23 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { SettingsPanel } from '../../../src/features/settings/SettingsPanel';
 import { AssistantController } from '../../../src/features/assistant/assistant-controller';
+import { installBridgeMock, removeBridgeMock, type BridgeMock } from '../../helpers/bridge';
 
 let savedBy: Record<string, string> = {};
 let hasState: Record<string, boolean> = {};
+let bridge: BridgeMock;
 
-function installBridge(): void {
-  (window as unknown as { quatra: unknown }).quatra = {
-    version: '0.1.0',
-    settings: {
-      load: async () => null,
-      save: async () => ({ ok: true }),
-      exportFile: async () => ({ ok: true, canceled: true }),
-      importFile: async () => ({ ok: true, canceled: true }),
-    },
+// Ortak mock: eksik alan derleme hatası verir (V1.2-026). Burada yalnızca
+// anahtar akışını kaydeden davranış override edilir.
+beforeEach(() => {
+  savedBy = {};
+  hasState = {};
+  bridge = installBridgeMock({
     credentials: {
       has: async (id: string) => !!hasState[id],
       available: async () => true,
-      set: async (id: string, k: string) => {
-        savedBy[id] = k;
+      set: async (id: string, key: string) => {
+        savedBy[id] = key;
         hasState[id] = true;
         return { ok: true };
       },
@@ -29,64 +28,12 @@ function installBridge(): void {
         return { ok: true };
       },
     },
-    provider: {
-      test: async () => ({ ok: true, latencyMs: 5 }),
-      models: async () => ({ ok: true, models: [{ id: 'deepseek-chat' }, { id: 'deepseek-reasoner' }] }),
-    },
-    stt: { transcribe: async () => ({ ok: true, text: 'test' }) },
-    tts: { voices: async () => ({ ok: false, message: 'test köprüsü' }) },
-    shortcut: { register: async () => ({ ok: true }), onTrigger: () => () => undefined },
-    agent: {
-      run: async () => ({ started: true }),
-      cancel: async () => ({ ok: true }),
-      clearContext: async () => ({ ok: true }),
-      onEvent: () => () => undefined,
-    },
-    tools: { pickDirectory: async () => null },
-    app: {
-      version: async () => '0.1.0',
-      rendererReady: () => undefined,
-      getLaunchAtLogin: async () => ({ ok: true, supported: false, enabled: false }),
-      setLaunchAtLogin: async () => ({ ok: false, supported: false }),
-      onCommand: () => () => undefined,
-    },
-    audit: {
-      list: async () => ({ ok: true, entries: [] }),
-      clear: async () => ({ ok: true }),
-    },
-    usage: {
-      get: async () => ({
-        ok: true,
-        month: '2026-10',
-        monthUsage: { prompt: 0, completion: 0, requests: 0 },
-        total: { prompt: 0, completion: 0, requests: 0 },
-      }),
-    },
-    notes: {
-      lastBackup: async () => ({ ok: true, record: null }),
-      restore: async () => ({ ok: false, message: 'yok' }),
-    },
-    privacy: { clearTranscripts: async () => ({ ok: true }) },
-    log: {
-      openLogs: async () => ({ ok: true }),
-      path: async () => ({ ok: true }),
-      clear: async () => ({ ok: true }),
-      rendererError: () => undefined,
-      info: () => undefined,
-    },
-    window: { minimize: () => undefined, toggleMaximize: () => undefined, close: () => undefined },
-  };
-}
-
-beforeEach(() => {
-  savedBy = {};
-  hasState = {};
-  installBridge();
+  });
 });
 
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { quatra?: unknown }).quatra;
+  removeBridgeMock();
 });
 
 describe('SettingsPanel — API anahtarı akışı', () => {
@@ -108,7 +55,7 @@ describe('SettingsPanel — API anahtarı akışı', () => {
   });
 
   it('başarısız kayıtta hata mesajı gösterir', async () => {
-    (window as unknown as { quatra: { credentials: { set: unknown } } }).quatra.credentials.set = async () => ({
+    bridge.credentials.set = async () => ({
       ok: false,
       error: 'Sistem kasası yok',
     });

@@ -4,7 +4,12 @@
  * Kullanım:
  *   node scripts/mic-analiz.mjs <olcum.json> [--play=<bas1>:<bit1>,<bas2>:<bit2>]
  *
- * --play epoch ms cinsindendir (PowerShell: [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()).
+ * Ölçüm dosyasını üretme (repo kökünden):
+ *   Windows: .\node_modules\electron\dist\electron.exe scripts\mic-tanilama.cjs --out=C:\...\olcum.json
+ *   macOS  : npx electron scripts/mic-tanilama.cjs --out=/tmp/quatra-olcum.json
+ *
+ * --play epoch ms cinsindendir (PowerShell: [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds();
+ * macOS/Node: node -e "console.log(Date.now())").
  * Verilmezse tüm örnekler "base" sayılır. Hoparlörden test cümlesi çalınan pencereler
  * "SPEECH", kalan her yer "BASE" (ortam) olarak raporlanır; ayrıca her hassasiyet
  * kademesi için VAD/minPeak uygunluğu tablo halinde listelenir.

@@ -129,7 +129,9 @@ body {
   border-radius: 2px;
   background: var(--muted);
   transform-origin: center;
-  transition: transform 0.12s ease, background-color 0.3s ease;
+  transition:
+    transform 0.12s ease,
+    background-color 0.3s ease;
 }
 .micEq.is-listening i {
   background: var(--accent);

@@ -1,0 +1,6 @@
+# V1.2-078: Platformlar arası tutarlı satır sonları.
+# Depo içeriği LF olarak tutulur; Windows toolları için .bat/.cmd/.vbs istisnadır.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.vbs text eol=crlf

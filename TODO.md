@@ -15,16 +15,17 @@
 
 **Hakimiyet matrisi (raporlanan vs gerçek):**
 
-| Raporlanan özellik | Repo'daki gerçek | Kanıt |
-|---|---|---|
-| DeepSeek sesli konuşma | ❌ **Yok** | `App.tsx` sadece statik başlık (`src/renderer/App.tsx:1-8`); DeepSeek referansı sıfır |
-| Tarayıcı arama + sayfa okuma | ❌ **Yok** | Playwright/Puppeteer/fetch entegrasyonu yok |
-| Masaüstü dosya listeleme/düzenleme | ❌ **Yok** | fs dosya-işlem kodu yok; `electron/main.ts` sadece pencere açar |
-| Uygulama açma / desktop kontrol | ❌ **Yok** | `shell.open*`, app-registry, izin sistemi yok |
+| Raporlanan özellik                 | Repo'daki gerçek | Kanıt                                                                                 |
+| ---------------------------------- | ---------------- | ------------------------------------------------------------------------------------- |
+| DeepSeek sesli konuşma             | ❌ **Yok**       | `App.tsx` sadece statik başlık (`src/renderer/App.tsx:1-8`); DeepSeek referansı sıfır |
+| Tarayıcı arama + sayfa okuma       | ❌ **Yok**       | Playwright/Puppeteer/fetch entegrasyonu yok                                           |
+| Masaüstü dosya listeleme/düzenleme | ❌ **Yok**       | fs dosya-işlem kodu yok; `electron/main.ts` sadece pencere açar                       |
+| Uygulama açma / desktop kontrol    | ❌ **Yok**       | `shell.open*`, app-registry, izin sistemi yok                                         |
 
 > ⚠️ **Not:** Raporlanan bu 4 özellik muhtemelen bu repo dışında (başka bir proje/`Jarvis Assistant` klasörü) denendi. Bu repoda izleri yok. Bu roadmap **sıfırdan sağlam kurulum** varsayar; dışarıdaki kod taşınacaksa önce bu repoya uyarlanıp test edilmeli.
 
 **Gerçekten var olanlar (✅ kanıtlı):**
+
 - Electron 33 + Vite 6 + React 18 + TS 5.6 strict iskeleti; `electron/main.ts`, `electron/preload.ts` (boş contextBridge)
 - `src/core/`: config (statik object), logger (console sarmalayıcı), event-bus (basit pub/sub)
 - `src/modules/plugins/plugin-manager.ts`: register/unregister/list/runCommand
@@ -32,13 +33,14 @@
 - CI (`.github/workflows/ci.yml`), `.gitignore` (node_modules/dist hariç); **`.env` koruması yok**
 
 **Kritik riskler (özet):**
+
 1. **Secret sızıntı yüzeyi:** repo'da `.env` ignore edilmiyor; hiçbir credential yönetimi yok. (P0)
 2. **Kapsam patlaması:** 10 faz (crypto trading dahil) tek release'e sığmaz → MVP kilitlenmeli. (P0)
 3. **Güvenlik:** shell açıklığı, prompt injection koruması, izin sistemi, log redaction hiç yok. (P0)
 4. **Yanıltıcı durum riski:** "çalışıyor" sanılan özellikler yok → UI'da sahte bağlantı/ölü buton yasağı baştan enforce edilmeli. (P1)
-5. **Tek makine testi:** macOS hiç doğrulanamadı (bu makinede Win). (P2)
+5. **Tek makine testi:** geliştirme artık macOS'ta; macOS uyarlaması kodda tamamlandı, cihaz üzerinde doğrulama sürüyor — Windows doğrulaması önceki Windows makinesinde yapıldı. (P2)
 
-**Süreklilik kararları (korunur):** Electron'da kal (Rust yok, prompt istisnası); CSS modules; zustand; i18n sadece tr+en; V1 ses: Web Speech + `speechSynthesis`; izolasyon ilkeleri (bkz §2).
+**Süreklilik kararları (korunur):** Electron'da kal (Rust yok, prompt istisnası); CSS modules; zustand; i18n sadece tr+en; V1 ses: **Groq Whisper** (STT, bulut) + **Edge Neural TTS** (çevrimdışıyken sistem sesine düşer); izolasyon ilkeleri (bkz §2).
 
 **Sağlayıcı kararı (yeni):** Birincil **DeepSeek** (`deepseek-chat` / `deepseek-reasoner`), ikincil Groq. `ProviderAdapter` interface'i ikisini de kapsar; V1'de sadece DeepSeek adapter'ı çalışır, Groq P2'dir. Model ID'leri hardcode edilmez, gerçek liste çekilip validate edilir.
 
@@ -69,6 +71,7 @@ MVP bitti denmesi için: uygulama açılır; API key'i güvenli girer; yazar/sö
 ## 3. FAZLAR
 
 ### Phase 0 — Audit and Foundation ✅ (2026-10-16)
+
 - [x] **0.1 Repo denetimi** ✅ — hiçbir ürün özelliği yoktu; sıfırdan sağlam kurulum yapıldı.
 - [x] **[P0] 0.2 Secret hijyeni** ✅ — `.gitignore` (.env korumalı), `.env.example`, `src/utils/redact.ts` + testler, `scripts/check-secrets.mjs` (`verify` içinde).
 - [x] **[P0] 0.3 Sağlayıcı abstraction** ✅ — `src/providers/types.ts` (ProviderAdapter, ProviderError, mapHttpError).
@@ -81,6 +84,7 @@ MVP bitti denmesi için: uygulama açılır; API key'i güvenli girer; yazar/sö
 ---
 
 ### Phase 1 — Reliable Core Assistant (MVP'nin kalbi)
+
 - [ ] **[P0] 1.1 DeepSeek adapter (gerçek entegrasyon)**
   - ✅ 2026-10-15 — `src/providers/deepseek/client.ts`: streaming (SSE), timeout + AbortController, 429/5xx bounded-backoff retry, 401/404/429/5xx ayrıştırma, tool_calls parse (normal + stream), testConnection, listModels. 15 mock-network testi (credentials'sız) ✅
 - [x] **[P0] 1.2 Gerçek bağlantı testi + model seçimi** ✅ — Settings "Test et" gerçek istek atar (main süreçte), "Modelleri getir" gerçek listModels çağırır; başarısızlık dürüst gösterilir. (Gerçek anahtarla doğrulama kullanıcıda.)
@@ -99,6 +103,7 @@ MVP bitti denmesi için: uygulama açılır; API key'i güvenli girer; yazar/sö
 ---
 
 ### Phase 2 — Browser and Desktop Agent
+
 > Önce hazır çözüm değerlendirmesi (karar sırası): **Playwright** (verimli, bakımlı, Win+mac) öncelikli; `browser-use` (Python/LLM-orkestrasyon) API ve lisans yeniden değerlendirilir; MCP tabanlı desktop araçları uyumluluk kontrolünden geçer. DeepSeek tool-calling formatı hepsiyle test edilmeden adapter yazılmaz.
 
 - [ ] **[P1] 2.1 Playwright köprüsü (izole browser servisi)**
@@ -116,6 +121,7 @@ MVP bitti denmesi için: uygulama açılır; API key'i güvenli girer; yazar/sö
 ---
 
 ### Phase 3 — Memory and Personalization
+
 - [ ] **[P1] 3.1 Kısa süreli bağlam** — session context + clear; token bütçesi ile kırpma. Verification: context trim testleri.
 - [ ] **[P2] 3.2 Tercihler** — ayarlardan beslenen kişiselleştirme (isim, ton, dil). Settings V1 üstüne. Verification: persistence testleri.
 - [ ] **[P2] 3.3 Uzun süreli hafıza (opt-in)** — lokal SQLite: kayıt **kullanıcı onaylı**; UI'da "Quatra şunu hatırlıyor" listesi; silme/düzenleme tek tıkla; hafıza kullanımı net etiketli ("hatırlıyorum" != "öğrendim/train ettim").
@@ -125,6 +131,7 @@ MVP bitti denmesi için: uygulama açılır; API key'i güvenli girer; yazar/sö
 ---
 
 ### Phase 4 — Security and Reliability
+
 - [ ] **[P0] 4.1 İzin çekirdeği sıkılaştırma** — sensitive her zaman onay; shell **varsayılan kapalı**; allowlist dışı open-app red; native-layer enforce; bypass deneme testleri (farklı tool adı/bozuk arg).
 - [ ] **[P0] 4.2 Prompt injection savunması (site + dosya + tool çıktısı)** — tüm dış içerik untrusted; sistem prompt'unda sert sınır; injection test paketi.
 - [x] **[P0] 4.3 Secret yönetimi final** ✅ (kısmen erken tamamlandı) — Electron `safeStorage` (Windows DPAPI / macOS Keychain) ile şifreli kasa (`electron/credentials.ts`); anahtar renderer'a asla dönmez; redact testleri + `check:secrets` CI taraması var. keytar gerekmedi.
@@ -135,6 +142,7 @@ MVP bitti denmesi için: uygulama açılır; API key'i güvenli girer; yazar/sö
 ---
 
 ### Phase 5 — Telegram and Remote Access
+
 - [ ] **[P2] 5.1 Bot iskeleti** — long-polling; **desktop Telegram'sız tam çalışır** (opsiyonel servis; çökse bile app etkilenmez).
 - [ ] **[P2] 5.2 Kimlik doğrulama** — yalnız allowlisted chat-ID; diğerleri reddedilir + loglanır; rate limit.
 - [ ] **[P2] 5.3 Uzak görev** — task submit → durum (kuyrukta/çalışıyor/bitti/hata) → sonuç teslimi; uzun görevler için iş yönetimi + zaman aşımı; offline'da kuyruk + yeniden bağlanma.
@@ -143,6 +151,7 @@ MVP bitti denmesi için: uygulama açılır; API key'i güvenli girer; yazar/sö
 ---
 
 ### Phase 6 — Cross-Platform Release
+
 - [ ] **[P1] 6.1 Windows paketleme** — electron-builder NSIS; imzasız sürüm uyarısı doc'lu; temiz kurulum testi.
 - [ ] **[P2] 6.2 macOS paketleme** — dmg/zip; notarization maliyeti doc'lu; mic/accessibility izinleri; **bu makinede doğrulanamaz → unverified etiketli**.
 - [ ] **[P2] 6.3 Platform izinleri ve arka plan** — autostart/start-minimized/tray platform matrisi; desteklenmiyorsa "unavailable".
@@ -152,7 +161,9 @@ MVP bitti denmesi için: uygulama açılır; API key'i güvenli girer; yazar/sö
 ---
 
 ### Phase 7 — Controlled Self-Improvement
+
 > Kural: asistan kendi çalışan kodunu sessizce değiştiremez; izin sistemini bypass edemez.
+
 - [ ] **[P3] 7.1 Repo analiz araçları** — read-only tarama: TODO taraması, lint/type raporu, test sonucu özeti.
 - [ ] **[P3] 7.2 Öneri üretimi** — patch/diff **önerisi** üretir; izole git branch/worktree'de uygular; ana dalı asla doğrudan değiştirmez.
 - [ ] **[P3] 7.3 Doğrulama + onay akışı** — branch'te `verify`+test koşar; diff özeti + risk notu sunar; **kullanıcı onayı** olmadan merge/aktivasyon yok; rollback prosedürü (tag/branch) yazılı.
@@ -160,6 +171,7 @@ MVP bitti denmesi için: uygulama açılır; API key'i güvenli girer; yazar/sö
 ---
 
 ### Phase 8 — Cryptocurrency Agent Orchestration (gelecek; MVP dışı)
+
 - [ ] **[P3] 8.1 Read-only veri toplama** — piyasa verisi ajanı; kaynak + timestamp; veri kalitesi kontrolleri.
 - [ ] **[P3] 8.2 Backtest + paper trading** — gerçek para YOK; strateji değerlendirme + risk raporu; bağımsız doğrulama ajanı (çapraz kontrol).
 - [ ] **[P3] 8.3 Koordinatör + limitler** — pozisyon/exposure limitleri; tüm raporlar tek koordinatörde; **canlı işlem yalnız insan onayıyla** ve ayrı faz; exchange credential'ları secure store'da.
@@ -167,6 +179,7 @@ MVP bitti denmesi için: uygulama açılır; API key'i güvenli girer; yazar/sö
 ---
 
 ### Phase 9 — Advanced Optimization
+
 - [ ] **[P3] 9.1 Model yönlendirme** — basit görev → ucuz model, karmaşık → `deepseek-reasoner`; kural tabanlı, ölçerek açılır. (Not: manuel mod geçişi — Flash/Pro/Max pill + "yazılım moduna geç" komutu — Phase 1.5c'de MVP'ye alındı; burada kalan: görev karmaşıklığına göre OTOMATİK yönlendirme.)
 - [ ] **[P3] 9.2 Fallback provider** — Groq adapter'ı ikincil; circuit-breaker devralır.
 - [ ] **[P3] 9.3 Maliyet/latency izleme** — token sayacı + gecikme metrikleri; regresyon testleri (kalite düşüşü alarmı).
@@ -174,25 +187,29 @@ MVP bitti denmesi için: uygulama açılır; API key'i güvenli girer; yazar/sö
 ---
 
 ## 4. Definition of Done (her görev için)
+
 1. Kod + test + hata senaryoları + güvenlik etkisi + (gerekliyse) doküman. 2. `npm run verify` yeşil. 3. Kabul kriterleri kanıtlı. 4. Secret/log taraması temiz.
-Durum etiketleri: ✅ tamam | 🟡 kısmi | ⛔ blocked | ⬜ başlanmadı.
+   Durum etiketleri: ✅ tamam | 🟡 kısmi | ⛔ blocked | ⬜ başlanmadı.
 
 ## 5. Risk Kaydı
-| # | Risk | Etki | Önlem | Durum |
-|---|---|---|---|---|
-| R1 | Kapsam patlaması (10 faz) | Ürün bitmez | MVP kilidi §1 | ✅ planlı |
-| R2 | Secret sızıntısı | Ciddi | 0.2 + 4.3 + CI taraması | ⬜ |
-| R3 | Prompt injection (web/dosya) | Ciddi | 4.2 test paketi | ⬜ |
-| R4 | Sahte "çalışıyor" UI | Güven kaybı | Ölü buton yasağı + 1.2 gerçek testler | ⬜ |
-| R5 | Mic sızıntısı (kapanmama) | Gizlilik | watchdog + fault testi | ⬜ |
-| R6 | macOS doğrulanamıyor | Release gecikmesi | 6.2/6.5 "unverified" dürüstlüğü | ⬜ |
+
+| #   | Risk                         | Etki              | Önlem                                 | Durum     |
+| --- | ---------------------------- | ----------------- | ------------------------------------- | --------- |
+| R1  | Kapsam patlaması (10 faz)    | Ürün bitmez       | MVP kilidi §1                         | ✅ planlı |
+| R2  | Secret sızıntısı             | Ciddi             | 0.2 + 4.3 + CI taraması               | ⬜        |
+| R3  | Prompt injection (web/dosya) | Ciddi             | 4.2 test paketi                       | ⬜        |
+| R4  | Sahte "çalışıyor" UI         | Güven kaybı       | Ölü buton yasağı + 1.2 gerçek testler | ⬜        |
+| R5  | Mic sızıntısı (kapanmama)    | Gizlilik          | watchdog + fault testi                | ⬜        |
+| R6  | macOS doğrulanamıyor         | Release gecikmesi | 6.2/6.5 "unverified" dürüstlüğü       | ⬜        |
 
 ## 6. Next 3 Tasks to Implement
+
 1. ⬜ **[P2] Phase 2.1–2.2 — Playwright browser köprüsü + untrusted içerik özeti** (sayfa okuma gerçek, injection testli)
-2. ⬜ **[P1] Phase 3.1 — Kısa süreli konuşma bağlamı** (session context + clear + token bütçesi)
+2. ✅ **[P1] Phase 3.1 — Kısa süreli konuşma bağlamı** (session context + clear + token bütçesi) — uygulandı: `src/features/agent/context.ts` (V1-10, Tur 10)
 3. ⬜ **[P1] Phase 4.1–4.4 — İzin sıkılaştırma + audit log + dosya backup/undo**
 
 ## 7. Aktif Adım Takibi
+
 - **Tamamlanan:** Phase 0 ✅, Phase 1 ✅ + geri bildirim turları ✅ (2026-10-16):
   - Model seviyeleri, Groq Whisper STT, uyandırma kelimesi, global PTT, sürekli sohbet, Edge Neural TTS, kalıcı veri yolu
   - **Hafıza (yeni):** "hatırla: …" komutu + Ayarlar → Hafıza paneli (liste/sil/temizle/etkinleştirme). Kayıtlar yalnız yerel `memory.json`; ilgili olanlar prompt bağlamına eklenir. 7 test.
@@ -209,6 +226,7 @@ Durum etiketleri: ✅ tamam | 🟡 kısmi | ⛔ blocked | ⬜ başlanmadı.
 **Tur 3 (hafıza v3 — mem0):** model tool'u unutsa bile konuşma sonrası garantili çıkarım; GitHub **mem0** (67K ⭐, Apache-2.0) REST entegrasyonu — opsiyonel "mem0" motoru (Ayarlar → Hafıza; anahtar kasada); çöp ad kayıtları açılışta temizlenir; isim kaydı değiştirme usulü. 149 test.
 
 **Tur 4 (hafıza v4 — "insan gibi hatırla"):** geri bildirim: "her şeyi kaydediyor, 'Hatırladım' diyor, istekleri yanlış anlıyor".
+
 - **Sessiz öğrenme:** sistem prompt + tool talimatı — kayıt işlemi kullanıcıya asla bildirilmez ("hatırladım/not aldım" yasak); yerel onay "Aklımda ✓".
 - **Kalite kapıları:** `hasMemorySignal` (kişisel sinyal yoksa çıkarım çağrısı hiç yapılmaz) + katı `EXTRACTION_PROMPT` (KAYDET/KAYDETME listeleri) + `isGarbageEntry` + `isNearDuplicate` (yakın tekrar engeli) + tekil kayıt güncelleme (isim/yaş/meslek… eskisini değiştirir).
 - **Ayarlar:** "Konuşmalardan otomatik öğren" anahtarı (varsayılan açık) — `memory.autoLearn`.
@@ -216,24 +234,29 @@ Durum etiketleri: ✅ tamam | 🟡 kısmi | ⛔ blocked | ⬜ başlanmadı.
 - **Kanıt:** 156 test ✅
 
 **Tur 5 (kullanım kılavuzu PDF):** kullanıcı hafızayı onayladı ("hafıza da çalışıyor, güzel oldu") ve "neyin nerede çalıştığını" öğrenebilmek için tüm yapılanları kapsayan bir PDF istedi.
+
 - `scripts/quatra-kilavuz.py` (reportlab + Windows Arial — Türkçe karakterler gömülü) → `docs/Quatra-Kullanim-Kilavuzu.pdf` (~120 KB): ekran rehberi, sesli kullanım akışı, gerçek yetenekler + model seviyeleri, hafıza sistemi, 8 ayar bölümü, veri/gizlilik yerleşimi, sorun giderme tablosu, dürüst sınırlar, hızlı komut kartı, teknik kod haritası.
 - PDF masaüstüne kopyalandı (`Quatra-Kullanim-Kilavuzu.pdf`); kılavuz her sürümde `python scripts/quatra-kilavuz.py` ile yeniden üretilir.
 
 **Tur 6 (eksikler listesi):** kullanıcı talimatı: "not al — eksikleri not ediyorsun".
+
 - `EKSIKLER.md` oluşturuldu (repo kökü): sesli deneyim, konuşma anlayışı, araçlar, hafıza, arayüz, güvenlik, platform, altyapı başlıklarında bilinen tüm eksikler + "kullanıcı incelemesinden gelenler" bölümü + ✅ çözülenler bölümü.
 - Kural: kullanıcı inceleme sırasında eksik bildirdikçe buraya işlenir; çözülen madde ✅ bölümüne taşınır.
 
 **Tur 7 (inceleme bildirimleri — yalnız not):** kullanıcı "şimdilik sadece not et" dedi; bu turda kod değişikliği YOK.
+
 - Bildirimler (EKSIKLER.md §9'a işlendi): mikrofon ayarları artırılsın + mikrofon testi; kazanç/gürültü engelleme açık-kapalı yerine kademeli; mikrofon sürekli açık, yalnız "Quatra" tetiklesin, uykuya geçmeyi reddetmesin; sessizlikte uyku süresi ayarlanabilir olsun (varsayılan 5 sn); daha fazla tema (tartışma); mikrofon kapatma simgesi yenilenecek (tartışma); Windows açılışında otomatik başlatma (Ayarlar'dan aç/kapat); izin istekleri sözlü olsun — ekranda baloncuk çıkmasın.
 - Geliştirici v1 öncelik önerisi EKSIKLER.md başına eklendi: bağlam, hatırlatıcı, akış+sus, yerel uyandırma, yedek sağlayıcı, tepsi+otomatik başlatma, kurulum+güncelleme, audit+yedek, maliyet.
 - Doğrulanan mevcut durum: mikrofon cihazı seçimi yok (varsayılan cihaz); takip süreleri sabit kod içinde (ayarlanabilir değil).
 
 **Tur 8 (Vol 1 Update listesi):** kullanıcı "vol 1 update olarak bi liste oluştur ve burdaki tüm maddeleri ekle" dedi.
+
 - `V1-UPDATE.md` oluşturuldu: 21 numaralı madde, 7 paket halinde (A mikrofon, B sesli deneyim, C zeka, D arka plan, E görsel, F güvenlik, G dağıtım) + H "v1'de değerlendirilecek" + I "kapsam dışı".
 - Kaynak etiketleri: 👤 kullanıcı bildirimi, 🔧 geliştirici tespiti; her madde tamamlanınca ✅ + EKSIKLER.md ile senkron.
 - EKSIKLER.md v1 bölümü ve §9, V1-UPDATE.md'ye bağlandı (tek doğru kaynak).
 
 **Tur 9 (E paketi — tema sistemi + MIC konseptleri):** kullanıcı "E paketinden başlayalım" dedi.
+
 - **Tema sistemi (V1-15):** `src/renderer/themes.ts` — 7 hazır tema (Gece Moru, Okyanus, Zümrüt, Gün Batımı, Gül, Grafit, Şafak) + saf yardımcılar (`mixHex`, `accentFamily`, `buildThemeVars`, `applyAppearance`); şema `appearance.theme`; Ayarlar → Görünüm'de tema seçici (tema seçimi vurguyu da temaya döndürür; alttan ince ayar yapılabilir).
 - **Ölü kontroller bulundu ve düzeltildi:** (1) vurgu rengi CSS'e hiç uygulanmıyordu — yalnız canvas'a gidiyordu; (2) "Arayüz ölçeği" hiçbir yere bağlı değildi; (3) "Hareketi azalt" yalnız canvas'ı etkiliyordu. Artık üçü de gerçek: CSS değişkenleri + `body zoom` + `reduced-motion` sınıfı.
 - **Stil:** sabit vurgu/panel rgba'ları değişkenleştirildi (`color-mix`, `--glass`, `--overlay`, `--on-accent`); Visualizer'daki sabit renkler temaya bağlandı (#b9acf5 → türetilmiş parlak vurgu, #5a5d6e → tema muted). Şafak (aydınlık) tema dahil — aydınlık kontrast turu kullanıcıyla yapılacak.

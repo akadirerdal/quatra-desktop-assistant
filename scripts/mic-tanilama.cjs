@@ -6,8 +6,12 @@
  * gürültü kapısı ayarlarını gerçek veriyle seçmek (bkz. TODO.md kalibrasyon notu).
  *
  * Kullanım (repo kökünden):
- *   .\node_modules\electron\dist\electron.exe scripts\mic-tanilama.cjs `
- *     --seconds=40 --profile=app --out=C:\...\olcum.json
+ *   Windows:
+ *     .\node_modules\electron\dist\electron.exe scripts\mic-tanilama.cjs `
+ *       --seconds=40 --profile=app --out=C:\...\olcum.json
+ *   macOS (npx electron, repo kökünden):
+ *     npx electron scripts/mic-tanilama.cjs \
+ *       --seconds=40 --profile=app --out=/tmp/olcum.json
  *
  * Profiller:
  *   app    : uygulama ayarlarının eşi (NS+AEC+AGC açık) — varsayılan
@@ -18,7 +22,7 @@
  * Çıktı JSON: { ok, t0Epoch, trackLabel, samples: [[tMs, level], ...] }
  * Ölçüm sırasında hoparlörden konuşma çalınır; t0Epoch ile zamanlar eşlenir.
  */
-const { app, BrowserWindow, session } = require('electron');
+const { app, BrowserWindow } = require('electron');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -31,15 +35,35 @@ function getArg(name, defValue) {
 
 const seconds = Math.min(120, Math.max(3, Number(getArg('seconds', '40')) || 40));
 const profile = getArg('profile', 'app');
-const outFile = getArg('out', path.join(os.tmpdir(), 'quatra-mic-olcum.json'));
+// V1.2-163: tahmin edilebilir /tmp yolu yerine süreç-özel dizin (mkdtempSync).
+const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'quatra-mic-'));
+const outFile = getArg('out', path.join(tmpDir, 'olcum.json'));
 
 const PROFILES = {
   app: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
-  raw: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 },
-  nsauto: { echoCancellation: true, noiseSuppression: false, autoGainControl: true, channelCount: 1 },
-  noagc: { echoCancellation: true, noiseSuppression: true, autoGainControl: false, channelCount: 1 },
+  raw: {
+    echoCancellation: false,
+    noiseSuppression: false,
+    autoGainControl: false,
+    channelCount: 1,
+  },
+  nsauto: {
+    echoCancellation: true,
+    noiseSuppression: false,
+    autoGainControl: true,
+    channelCount: 1,
+  },
+  noagc: {
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: false,
+    channelCount: 1,
+  },
 };
 
+// Bu fonksiyonun gövdesi executeJavaScript ile SAYFADA çalışır; AudioContext ve
+// requestAnimationFrame orada tanımlıdır, Node lint bağlamında bilinmez (V1.2-164).
+/* eslint-disable no-undef */
 /** Renderer içinde çalışır: ~60 Hz seviye zaman serisi toplar ve döndürür. */
 function rendererMeasure(opts) {
   return (async () => {
@@ -90,19 +114,26 @@ function rendererMeasure(opts) {
     }
   })();
 }
+/* eslint-enable no-undef */
 
 app.whenReady().then(async () => {
-  session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) =>
-    cb(permission === 'media'),
-  );
-  session.defaultSession.setPermissionCheckHandler((_wc, permission) => permission === 'media');
-
   const win = new BrowserWindow({
     show: false,
     webPreferences: { backgroundThrottling: false },
   });
+
+  // V1.2-163: medya izni YALNIZCA bu test penceresinin webContents'ine verilir;
+  // başka pencere/webContents aynı oturumda izin alamaz (blanket izin yok).
+  const target = win.webContents;
+  win.webContents.session.setPermissionRequestHandler((wc, permission, cb) =>
+    cb(wc === target && permission === 'media'),
+  );
+  win.webContents.session.setPermissionCheckHandler(
+    (wc, permission) => wc === target && permission === 'media',
+  );
+
   // file:// güvenli bağlam sayılır; about:blank/data: getUserMedia için güvenilmez.
-  const htmlPath = path.join(os.tmpdir(), 'quatra-mic-olcum.html');
+  const htmlPath = path.join(tmpDir, 'olcum.html');
   fs.writeFileSync(htmlPath, '<!doctype html><meta charset="utf-8"><title>mic</title>');
   await win.loadFile(htmlPath);
 
@@ -137,5 +168,14 @@ app.whenReady().then(async () => {
     console.error('MEASURE_FAIL ' + result.error);
   }
   console.log('RESULT_FILE=' + outFile);
+  // V1.2-163: geçici HTML'i sil; sonuç dosyası başka yerdeyse geçici dizini de kaldır.
+  try {
+    fs.rmSync(htmlPath, { force: true });
+  } catch {
+    // yok say — temizlik amaçlı
+  }
+  if (path.resolve(path.dirname(outFile)) !== tmpDir) {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
   app.exit(result.ok ? 0 : 1);
 });
