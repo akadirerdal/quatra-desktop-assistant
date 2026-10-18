@@ -306,6 +306,7 @@ export async function runAgent(win: BrowserWindow, req: AgentRunRequest): Promis
           // V1.2: medya açan araçlarda wake servisi duraklatılır (müzik kendi kendine uyandırmasın).
           if (info.ok && (info.tool === 'open_url' || info.tool === 'open_app')) {
             emit({ type: 'media', requestId });
+            log.info('media event emit edildi');
           }
         },
       });

@@ -755,6 +755,7 @@ export class AssistantController {
       case 'media': {
         // V1.2: medya (müzik/uygulama) açıldı — wake servisi duraklatılır; müzik
         // kendi kendine uyandırmayı tetiklemesin. 30 sn sonra (veya PTT ile) yeniden devreye girer.
+        window.quatra?.log.info('wake', 'media event alındı — wake duraklatılıyor');
         this.wake?.pause();
         if (this.mediaResumeTimer) clearTimeout(this.mediaResumeTimer);
         this.mediaResumeTimer = setTimeout(() => {
