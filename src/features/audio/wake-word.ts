@@ -263,7 +263,11 @@ export class WakeWordService {
       if (matched) this.callbacks.onTranscript?.(`>>> EŞLEŞTİ (${this.options.wakeWord})`);
       if (matched) {
         this.paused = true; // komut akışı bitene dek yeni burst yok
-        this.callbacks.onWake(res.text);
+        try {
+          this.callbacks.onWake(res.text);
+        } catch (e) {
+          this.callbacks.onError(`onWake hatası: ${String(e)}`);
+        }
         await sleep(cooldownMs);
         if (!this.holdRequested) this.paused = false;
       }
