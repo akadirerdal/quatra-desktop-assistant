@@ -304,6 +304,23 @@ void app.whenReady().then(() => {
     });
   });
 
+  // V1.2: Web Speech API (uyandırma) + mikrofon izni.
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
+    const ok = [
+      'media',
+      'audioCapture',
+      'microphone',
+      'speechRecognition',
+      'notifications',
+    ].includes(permission);
+    callback(ok);
+  });
+  session.defaultSession.setPermissionCheckHandler((_wc, permission) => {
+    return ['media', 'audioCapture', 'microphone', 'speechRecognition', 'notifications'].includes(
+      permission,
+    );
+  });
+
   createWindow();
   if (mainWindow) createTray(mainWindow, quitApp);
 
