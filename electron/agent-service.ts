@@ -76,6 +76,7 @@ export type AgentEvent =
       argsSummary?: string;
     }
   | { type: 'caption'; requestId: string; text: string }
+  | { type: 'media'; requestId: string }
   | { type: 'done'; requestId: string; text: string; iterations: number; toolCalls: number }
   | { type: 'error'; requestId: string; category: string; message: string };
 
@@ -302,6 +303,10 @@ export async function runAgent(win: BrowserWindow, req: AgentRunRequest): Promis
             detail,
             ms: info.ms,
           });
+          // V1.2: medya açan araçlarda wake servisi duraklatılır (müzik kendi kendine uyandırmasın).
+          if (info.ok && (info.tool === 'open_url' || info.tool === 'open_app')) {
+            emit({ type: 'media', requestId });
+          }
         },
       });
 

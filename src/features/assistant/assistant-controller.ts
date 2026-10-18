@@ -69,6 +69,7 @@ export class AssistantController {
   private wakeWordInUse: string | null = null;
   /** Bekleyen takip dinlemesi — dispose'da iptal edilmeli (V1.2-001). */
   private followTimer: ReturnType<typeof setTimeout> | null = null;
+  private mediaResumeTimer: ReturnType<typeof setTimeout> | null = null;
   /** onAudioError durum sıfırlama zamanlayıcısı (V1.2-109). */
   private errorResetTimer: ReturnType<typeof setTimeout> | null = null;
   private onlineHandler: (() => void) | null = null;
@@ -114,6 +115,10 @@ export class AssistantController {
     if (this.followTimer) {
       clearTimeout(this.followTimer);
       this.followTimer = null;
+    }
+    if (this.mediaResumeTimer) {
+      clearTimeout(this.mediaResumeTimer);
+      this.mediaResumeTimer = null;
     }
     if (this.errorResetTimer) {
       clearTimeout(this.errorResetTimer);
@@ -559,6 +564,12 @@ export class AssistantController {
 
   /** Metin isteğini agent'a iletir. */
   send(text: string): void {
+    // Medya sonrası duraklatılmış wake servisini yeniden devreye al (kullanıcı aktif).
+    if (this.mediaResumeTimer) {
+      clearTimeout(this.mediaResumeTimer);
+      this.mediaResumeTimer = null;
+    }
+    this.resumeWake();
     const settings = useSettingsStore.getState().settings;
     const assistant = useAssistantStore.getState();
     const lower = text.toLowerCase();
@@ -741,6 +752,20 @@ export class AssistantController {
       case 'caption':
         store.setCaption(event.text);
         break;
+      case 'media': {
+        // V1.2: medya (müzik/uygulama) açıldı — wake servisi duraklatılır; müzik
+        // kendi kendine uyandırmayı tetiklemesin. 30 sn sonra (veya PTT ile) yeniden devreye girer.
+        this.wake?.pause();
+        if (this.mediaResumeTimer) clearTimeout(this.mediaResumeTimer);
+        this.mediaResumeTimer = setTimeout(() => {
+          this.mediaResumeTimer = null;
+          if (!useAssistantStore.getState().mutedByUser) this.resumeWake();
+        }, 30_000);
+        store.setCaption(
+          'Müzik/uygulama açıldı. Uyandırmak için mikrofon düğmesine bas veya 30 sn bekle.',
+        );
+        break;
+      }
       case 'sentence': {
         // Akış cümlesi (V1-06): yalnız GÜNCEL istek ve aktif akış sırasında okunur.
         if (event.requestId !== this.currentRequestId) break;

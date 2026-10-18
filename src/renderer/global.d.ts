@@ -144,6 +144,7 @@ export type AgentEvent =
   | { type: 'sentence'; requestId: string; text: string }
   | { type: 'confirm'; requestId: string; tool: string }
   | { type: 'caption'; requestId: string; text: string }
+  | { type: 'media'; requestId: string }
   | { type: 'done'; requestId: string; text: string; iterations: number; toolCalls: number }
   | { type: 'error'; requestId: string; category: string; message: string };
 
