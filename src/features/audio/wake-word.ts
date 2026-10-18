@@ -169,6 +169,14 @@ export class WakeWordService {
       clearTimeout(this.holdSafetyTimer);
       this.holdSafetyTimer = null;
     }
+    // Bloke eden recordCommand'ı hemen sonlandır (V1.2-001): aksi hâlde eski
+    // servis döngüsü 60 sn daha dinlemeye devam eder ve dispose edilmiş
+    // controller üzerinde onWake tetikler.
+    try {
+      this.audio.cancelRecording();
+    } catch {
+      // sessiz
+    }
   }
 
   /** Sohbet/komut sırasında uyandırma aramayı duraklat (cooldown sonrası açılmaz). */
@@ -213,6 +221,7 @@ export class WakeWordService {
           this.callbacks.onState?.('armed');
         } else {
           await sleep(300);
+          if (!this.running) return;
           continue;
         }
       }
@@ -237,6 +246,7 @@ export class WakeWordService {
       }
       if (outcome.kind === 'silence') {
         await sleep(150);
+        if (!this.running) return;
         continue;
       }
       // Çok kısa/sessiz patlamaları Whisper'a gönderme — gereksiz istek + rate limit (V1.2-mic).
@@ -257,6 +267,7 @@ export class WakeWordService {
         // Hız limitinde Groq kotası dolmuş — 15 sn bekle, arka arkaya istek atma.
         const rateLimited = /hız limiti|rate.?limit|429/i.test(res.message);
         await sleep(rateLimited ? 15000 : 2500);
+        if (!this.running) return;
         continue;
       }
       const matched = matchesWakeWord(res.text, this.options.wakeWord);
@@ -269,6 +280,7 @@ export class WakeWordService {
           this.callbacks.onError(`onWake hatası: ${String(e)}`);
         }
         await sleep(cooldownMs);
+        if (!this.running) return;
         if (!this.holdRequested) this.paused = false;
       }
     }
