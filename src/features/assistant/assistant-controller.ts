@@ -199,6 +199,9 @@ export class AssistantController {
               const st = useAssistantStore.getState();
               if (st.status === 'idle') st.setCaption(msg);
             },
+            onTranscript: (text) => {
+              window.quatra?.log.info('wake', `transkript: "${text}"`);
+            },
           },
         );
       }

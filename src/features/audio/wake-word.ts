@@ -39,7 +39,7 @@ export function matchesWakeWord(transcript: string, wakeWord: string): boolean {
     (t) =>
       t === target ||
       aliases.includes(t) ||
-      similarity(t, target) >= 0.66 ||
+      similarity(t, target) >= 0.6 ||
       (t.length > 3 && t.includes(target)) ||
       (target.length > 3 && target.includes(t)),
   );
@@ -105,6 +105,8 @@ export interface WakeWordCallbacks {
   onError: (message: string) => void;
   /** Dinleme döngüsü ilerledikçe durum bilgisi */
   onState?: (state: 'armed' | 'burst' | 'error') => void;
+  /** Her burst transkripti (teşhis için) — uyandırma eşleşmese de loglanır. */
+  onTranscript?: (text: string) => void;
 }
 
 export interface WakeWordOptions {
@@ -192,7 +194,7 @@ export class WakeWordService {
   }
 
   private async loop(): Promise<void> {
-    const burstMaxMs = this.options.burstMaxMs ?? 3500;
+    const burstMaxMs = this.options.burstMaxMs ?? 2000;
     const cooldownMs = this.options.cooldownMs ?? 2500;
 
     while (this.running) {
@@ -209,7 +211,7 @@ export class WakeWordService {
       this.callbacks.onState?.('armed');
       const outcome = await this.audio.recordCommand({
         maxMs: burstMaxMs,
-        silenceMs: 800,
+        silenceMs: 500,
         waitStartMs: 60_000, // uzun bekleme: kullanıcı ne zaman konuşursa
         threshold: 0.06,
       });
@@ -232,6 +234,7 @@ export class WakeWordService {
       this.callbacks.onState?.('burst');
       const res = await this.audio.transcribe(outcome.result.audio);
       if (!this.running) return;
+      this.callbacks.onTranscript?.(res.ok ? res.text : `[HATA: ${res.message}]`);
       if (!res.ok) {
         this.callbacks.onState?.('error');
         this.callbacks.onError(res.message);
