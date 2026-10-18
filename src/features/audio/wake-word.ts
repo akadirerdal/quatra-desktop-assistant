@@ -23,6 +23,15 @@ const WAKE_ALIASES = [
   'quatru',
   'kwatera',
   'quadrat',
+  // Whisper'ın "Quatra" için ürettiği kısa/bozuk çıktılar:
+  'qa',
+  'q',
+  'kva',
+  'kv',
+  'qu',
+  'ko',
+  'kwa',
+  'kw',
 ];
 
 /** Telaffuz alias'ları yalnızca varsayılan kelime için geçerli — kullanıcı özel kelime seçtiyse uygulanmaz. */
