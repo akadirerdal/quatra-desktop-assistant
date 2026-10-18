@@ -17,6 +17,10 @@ const WAKE_ALIASES = [
   'kotra',
   'kvatra',
   'kuatre',
+  'quadra',
+  'kwadra',
+  'cuatra',
+  'quatru',
 ];
 
 /** Telaffuz alias'ları yalnızca varsayılan kelime için geçerli — kullanıcı özel kelime seçtiyse uygulanmaz. */
@@ -39,7 +43,7 @@ export function matchesWakeWord(transcript: string, wakeWord: string): boolean {
     (t) =>
       t === target ||
       aliases.includes(t) ||
-      similarity(t, target) >= 0.6 ||
+      similarity(t, target) >= 0.5 ||
       (t.length > 3 && t.includes(target)) ||
       (target.length > 3 && target.includes(t)),
   );
@@ -234,7 +238,7 @@ export class WakeWordService {
       // Çok kısa/sessiz patlamaları Whisper'a gönderme — gereksiz istek + rate limit (V1.2-mic).
       if (
         outcome.kind === 'ok' &&
-        (outcome.result.durationMs < 700 || outcome.result.peakLevel < 0.22)
+        (outcome.result.durationMs < 700 || outcome.result.peakLevel < 0.15)
       ) {
         await sleep(150);
         continue;
