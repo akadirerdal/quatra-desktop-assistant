@@ -1,5 +1,5 @@
 /**
- * Visualizer — Quatra'nın merkez görseli.
+ * Visualizer — Lidra'nın merkez görseli.
  * - Gerçek mikrofon seviyesi store.micLevel'dan gelir (sahte animasyon YOK).
  * - Konuşma sırasında speakLevel gerçek sinyal yoksa dürüst nefes dalgası kullanılır.
  * - Math.random() kullanılmaz; tüm hareketler deterministiktir.
@@ -230,7 +230,7 @@ export function Visualizer(props: { width?: number; height?: number }): React.JS
       height={sizeH}
       style={{ width: sizeW, height: sizeH }}
       role="img"
-      aria-label="Quatra durum göstergesi"
+      aria-label="Lidra durum göstergesi"
       aria-live="polite"
     />
   );

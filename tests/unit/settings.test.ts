@@ -10,7 +10,7 @@ import { setSettingsBackend, useSettingsStore } from '../../src/state/settings-s
 describe('settings schema', () => {
   it('boş girdiye default döner', () => {
     const s = sanitizeSettings(null);
-    expect(s.assistantName).toBe('Quatra');
+    expect(s.assistantName).toBe('Lidra');
     expect(s.provider.flashModel).toBe('deepseek-chat');
     expect(s.voice.ttsEngine).toBe('edge');
     expect(s.voice.continuous).toBe(true);
@@ -67,7 +67,7 @@ describe('settings store persistence', () => {
   it('bozuk backend verisi defaultlara düşer ve loadError bildirilir (V1.2-072)', async () => {
     setSettingsBackend(new MemorySettingsBackend('çöp'));
     await useSettingsStore.getState().load();
-    expect(useSettingsStore.getState().settings.assistantName).toBe('Quatra');
+    expect(useSettingsStore.getState().settings.assistantName).toBe('Lidra');
     expect(useSettingsStore.getState().loadError).not.toBeNull();
   });
 
@@ -93,7 +93,7 @@ describe('settings store persistence', () => {
     await useSettingsStore.getState().load();
     await useSettingsStore.getState().update({ assistantName: 'X' });
     await useSettingsStore.getState().restoreDefaults();
-    expect(useSettingsStore.getState().settings.assistantName).toBe('Quatra');
+    expect(useSettingsStore.getState().settings.assistantName).toBe('Lidra');
   });
 
   it('hızlı ardışık update debounce ile tek yazıma iner, son durum kazanır (V1.2-010)', async () => {

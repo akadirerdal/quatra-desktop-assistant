@@ -58,7 +58,7 @@ const ActivationSchema = z.object({
   /** CommandOrControl: Windows'ta Ctrl, macOS'te ⌘ — kısayol her platformda doğal kalır. */
   pushToTalkKey: z.string().min(1).default('CommandOrControl+Shift+Space'),
   /** Uyandırma kelimesi (gerçek VAD + Whisper ile aranır). */
-  wakeWord: z.string().min(2).max(20).default('quatra'),
+  wakeWord: z.string().min(2).max(20).default('lidra'),
 });
 
 // V1.2-137: tema kimliklerinin tek kaynağı — themes.ts ThemeId bu listeyi kullanır.
@@ -96,7 +96,7 @@ const ToolsSchema = z.object({
 });
 
 export const SettingsSchema = z.object({
-  assistantName: z.string().min(1).max(40).default('Quatra'),
+  assistantName: z.string().min(1).max(40).default('Lidra'),
   personality: z.string().max(2000).default(''),
   language: z.enum(['tr']).default('tr'),
   provider: ProviderSchema.default(ProviderSchema.parse({})),

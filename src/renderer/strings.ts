@@ -39,14 +39,14 @@ export const strings = {
   diagnostics: 'Teşhis',
   assistantName: 'Asistan adı',
   personality: 'Kişilik / talimat',
-  personalityHint: 'Quatra sana nasıl hitap etsin, nasıl davransın? (isteğe bağlı)',
+  personalityHint: 'Lidra sana nasıl hitap etsin, nasıl davransın? (isteğe bağlı)',
   language: 'Dil',
   languageTrOnly: 'Şimdilik yalnızca Türkçe destekleniyor',
   version: 'Sürüm',
   launchAtLogin: isWindows ? 'Windows açılışında başlat' : 'Sistem açılışında başlat',
   launchAtLoginHint: isWindows
-    ? 'Bilgisayar açıldığında Quatra kendiliğinden başlar ve tepside bekler.'
-    : 'Bilgisayar açıldığında Quatra kendiliğinden başlar ve menü çubuğunda bekler.',
+    ? 'Bilgisayar açıldığında Lidra kendiliğinden başlar ve tepside bekler.'
+    : 'Bilgisayar açıldığında Lidra kendiliğinden başlar ve menü çubuğunda bekler.',
   launchAtLoginDev:
     'Yalnız kurulu (paketlenmiş) sürümde kullanılabilir; kaynak modda desteklenmez.',
   settingsExport: 'Ayarları dışa aktar',
@@ -105,7 +105,7 @@ export const strings = {
   preview: 'Önizleme',
   retainTranscripts: 'Konuşma metinlerini sakla (varsayılan kapalı)',
   transcriptsHint:
-    'Açıkken konuşma metinleri yerel dosyaya yazılır (Quatra klasörü → transcripts.jsonl). Ses kaydı hiçbir zaman tutulmaz.',
+    'Açıkken konuşma metinleri yerel dosyaya yazılır (Lidra klasörü → transcripts.jsonl). Ses kaydı hiçbir zaman tutulmaz.',
   clipboardRead: 'Pano okumaya izin ver',
   clearLogs: 'Günlükleri temizle',
   clearContext: 'Konuşma bağlamını temizle',
@@ -114,7 +114,7 @@ export const strings = {
   contextCleared: 'Konuşma bağlamı temizlendi.',
   transcriptsCleared: 'Konuşma kayıtları silindi.',
   records: 'İşlem Kaydı',
-  auditTitle: 'Quatra’nın yaptığı işler',
+  auditTitle: 'Lidra’nın yaptığı işler',
   auditEmpty: 'Henüz kayıtlı işlem yok.',
   auditRefresh: 'Yenile',
   auditClear: 'Kaydı temizle',
@@ -137,7 +137,7 @@ export const strings = {
   tools: 'Araçlar',
   recentErrors: 'Son hatalar',
   noErrors: 'Hata yok',
-  firstRunTitle: 'Quatra’yı kur',
+  firstRunTitle: 'Lidra’yı kur',
   firstRunBody: 'Başlamak için DeepSeek anahtarı gerekli. Bu işlem ~2 dakika sürer.',
   firstRunLater: 'Daha sonra',
   firstRunGo: 'Kuruluma geç',
@@ -173,7 +173,7 @@ export const strings = {
   ttsVoiceAuto: 'Otomatik (doğal Türkçe — Emel)',
   continuousLabel: 'Sürekli sohbet',
   continuousHint:
-    'Cevap bitince mikrofon kendiliğinden dinlemeye döner; «Quatra» demene gerek kalmaz. Sessiz kalırsan sohbet beklemeye geçer.',
+    'Cevap bitince mikrofon kendiliğinden dinlemeye döner; «Lidra» demene gerek kalmaz. Sessiz kalırsan sohbet beklemeye geçer.',
   edgeVoiceHint: isWindows
     ? 'Edge sesleri ücretsiz ve doğaldır (internet ister). Çevrimdışıyken Windows sesine düşer.'
     : 'Edge sesleri ücretsiz ve doğaldır (internet ister). Çevrimdışıyken sistem sesine düşer.',
@@ -221,8 +221,8 @@ export const strings = {
   levelHigh: 'Güçlü',
   sleepAfter: 'Uyku süresi (sessizlik)',
   sleepAfterHint:
-    'Sohbet sırasında bu süre boyunca hiç konuşmazsan beklemeye geçer; «Quatra» deyince geri döner.',
-  sleepAck: 'Tamam, beklemeye geçiyorum. «Quatra» deyince buradayım.',
+    'Sohbet sırasında bu süre boyunca hiç konuşmazsan beklemeye geçer; «Lidra» deyince geri döner.',
+  sleepAck: 'Tamam, beklemeye geçiyorum. «Lidra» deyince buradayım.',
   stoppedSpeaking: 'Sustum.',
   alreadySilent: 'Ben zaten susuyordum.',
   confirmAsk: 'Şunun için izin gerekiyor:',
@@ -252,12 +252,12 @@ export const strings = {
   micTestFailed: 'Mikrofon açılamadı.',
   bargeInLabel: 'Sözünü kesince dinle (barge-in)',
   bargeInHint:
-    'Quatra konuşurken sen seslenirsen çalma hemen durur ve dinlemeye geçer — GPT ses modu gibi.',
+    'Lidra konuşurken sen seslenirsen çalma hemen durur ve dinlemeye geçer — GPT ses modu gibi.',
   wakeWord: 'Uyandırma kelimesi',
   wakeWordHint:
     'Bağlamda mikrofon açık kalır; kelimeyi duyunca komut dinlemeye geçer. Groq anahtarı gerekir.',
   wakeNeedsGroq: 'Uyandırma kelimesi için Groq anahtarı gerekli (Ayarlar → AI Sağlayıcı).',
-  wakeDetected: '«Quatra» duyuldu — dinliyorum…',
+  wakeDetected: '«Lidra» duyuldu — dinliyorum…',
   wakeGreeting: 'Efendim?',
   wakeGreetingAlt: 'Buyur?',
   nameAnswer: 'Adın',
@@ -275,7 +275,7 @@ export const strings = {
   micDenied: 'Mikrofon izni reddedildi. Sistem ayarlarından izin ver.',
   micNone: 'Mikrofon bulunamadı.',
   offlineNote: 'İnternet yok — yerel araçlar çalışır, AI yanıtı gelmez.',
-  errorBoundaryTitle: 'Quatra arayüzü yeniden başlatılmalı.',
+  errorBoundaryTitle: 'Lidra arayüzü yeniden başlatılmalı.',
   errorBoundaryBody:
     'Bir bileşen beklenmedik şekilde durdu. Uygulama diğer bölümleriyle çalışmaya devam eder.',
   errorBoundaryRetry: 'Tekrar dene',

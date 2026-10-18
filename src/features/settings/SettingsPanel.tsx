@@ -242,7 +242,7 @@ function GeneralSection(): React.JSX.Element {
       </div>
       <div className="field">
         <label>{strings.version}</label>
-        <div className="statusHint">Quatra {version}</div>
+        <div className="statusHint">Lidra {version}</div>
       </div>
       <div className="field row between">
         <label style={{ margin: 0 }}>{strings.launchAtLogin}</label>
@@ -911,7 +911,7 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
       </div>
       <div className="field row">
         <Button
-          onClick={() => props.controller.testVoice('Merhaba, ben Quatra. Ses sistemim çalışıyor.')}
+          onClick={() => props.controller.testVoice('Merhaba, ben Lidra. Ses sistemim çalışıyor.')}
         >
           {strings.testVoice}
         </Button>
@@ -1063,7 +1063,7 @@ function ActivationSection(): React.JSX.Element {
             options={[
               { value: 'manual', label: strings.modeManual },
               { value: 'push_to_talk', label: strings.modePtt },
-              { value: 'wake_word', label: 'Uyandırma kelimesi («Quatra»)' },
+              { value: 'wake_word', label: 'Uyandırma kelimesi («Lidra»)' },
             ]}
           />
         </Labeled>

@@ -34,9 +34,24 @@ const WAKE_ALIASES = [
   'kw',
 ];
 
+/** Lidra için telaffuz varyantları (Whisper'ın sık çıktıkları). */
+const LIDRA_ALIASES = [
+  'lidra',
+  'lidar',
+  'lidr',
+  'lider',
+  'liedra',
+  'lidrah',
+  'lidraa',
+  'litra',
+  'lendra',
+];
+
 /** Telaffuz alias'ları yalnızca varsayılan kelime için geçerli — kullanıcı özel kelime seçtiyse uygulanmaz. */
 function aliasesFor(target: string): readonly string[] {
-  return target === 'quatra' ? WAKE_ALIASES : [];
+  if (target === 'quatra') return WAKE_ALIASES;
+  if (target === 'lidra') return LIDRA_ALIASES;
+  return [];
 }
 
 /** Normalize + bulanık eşleşme: "kuatra", "quatro", "kotra" gibi telaffuzları da yakalar. */
@@ -55,7 +70,7 @@ export function matchesWakeWord(transcript: string, wakeWord: string): boolean {
       t === target ||
       aliases.includes(t) ||
       (t.length >= 4 &&
-        (t[0] === 'q' || t[0] === 'k' || t[0] === 'c') &&
+        (t[0] === 'q' || t[0] === 'k' || t[0] === 'c' || t[0] === 'l') &&
         similarity(t, target) >= 0.5) ||
       (t.length > 3 && t.includes(target)) ||
       (target.length > 3 && t.length >= 2 && target.includes(t)),
