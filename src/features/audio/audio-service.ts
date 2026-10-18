@@ -516,6 +516,8 @@ export class AudioService {
     return this.recording;
   }
 
+  private transcribeController: AbortController | null = null;
+
   /** Kaydı Groq Whisper ile metne çevirir (main süreç üzerinden). */
   async transcribe(
     audio: Blob,
@@ -529,10 +531,15 @@ export class AudioService {
     if (!window.quatra) {
       return { ok: false, message: 'Ses tanıma yalnızca masaüstü uygulamasında çalışır.' };
     }
+    const controller = new AbortController();
+    this.transcribeController = controller;
     try {
       const started = Date.now();
       const buffer = await audio.arrayBuffer();
       const res = await window.quatra.stt.transcribe(buffer, audio.type || 'audio/webm', language);
+      if (controller.signal.aborted) {
+        return { ok: false, message: 'Ses tanıma iptal edildi.' };
+      }
       if (res.ok) {
         const text = (res.text ?? '').trim();
         const ms = Date.now() - started;
@@ -547,9 +554,25 @@ export class AudioService {
       this.logEvent(`STT HATA: ${res.message ?? 'boş sonuç'}`);
       return { ok: false, message: res.message ?? 'Sesin anlaşılamadı.' };
     } catch {
+      if (controller.signal.aborted) {
+        this.logEvent('STT iptal edildi');
+        return { ok: false, message: 'Ses tanıma iptal edildi.' };
+      }
       this.logEvent('STT HATA: istisna');
       return { ok: false, message: 'Ses tanıma başarısız oldu.' };
+    } finally {
+      if (this.transcribeController === controller) this.transcribeController = null;
     }
+  }
+
+  /** Devam eden transkribe iptal et (wake servisi dispose'unda kullanılır). */
+  cancelTranscribe(): void {
+    try {
+      this.transcribeController?.abort();
+    } catch {
+      // sessiz
+    }
+    this.transcribeController = null;
   }
 
   // ---------------------------------------------------------------- TTS

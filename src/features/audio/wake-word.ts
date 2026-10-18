@@ -178,11 +178,12 @@ export class WakeWordService {
       clearTimeout(this.holdSafetyTimer);
       this.holdSafetyTimer = null;
     }
-    // Bloke eden recordCommand'ı hemen sonlandır (V1.2-001): aksi hâlde eski
+    // Bloke eden recordCommand/transcribe'ı hemen sonlandır (V1.2-001): aksi hâlde eski
     // servis döngüsü 60 sn daha dinlemeye devam eder ve dispose edilmiş
     // controller üzerinde onWake tetikler.
     try {
       this.audio.cancelRecording();
+      this.audio.cancelTranscribe();
     } catch {
       // sessiz
     }
