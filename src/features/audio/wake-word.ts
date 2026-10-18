@@ -124,6 +124,8 @@ export class WakeWordService {
   private starting: Promise<boolean> | null = null;
   /** start() beklerken stop() çağrılırsa başlatma iptal edilir. */
   private startToken = 0;
+  /** V1.2-mic: sustur/hold unutulursa mikrofon sonsuza dek kapalı kalmasın — güvenlik ağı. */
+  private holdSafetyTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private readonly audio: AudioService,
@@ -153,15 +155,33 @@ export class WakeWordService {
   stop(): void {
     this.startToken += 1; // bekleyen start() iptal
     this.running = false;
+    if (this.holdSafetyTimer) {
+      clearTimeout(this.holdSafetyTimer);
+      this.holdSafetyTimer = null;
+    }
   }
 
   /** Sohbet/komut sırasında uyandırma aramayı duraklat (cooldown sonrası açılmaz). */
   pause(): void {
     this.holdRequested = true;
     this.paused = true;
+    // Güvenlik ağı: controller resume çağırmayı unutsa bile mikrofon 20 sn sonra yeniden devreye girsin.
+    if (this.holdSafetyTimer) clearTimeout(this.holdSafetyTimer);
+    this.holdSafetyTimer = setTimeout(() => {
+      this.holdSafetyTimer = null;
+      if (this.running && this.holdRequested) {
+        this.holdRequested = false;
+        this.paused = false;
+        this.callbacks.onState?.('armed');
+      }
+    }, 20_000);
   }
 
   resume(): void {
+    if (this.holdSafetyTimer) {
+      clearTimeout(this.holdSafetyTimer);
+      this.holdSafetyTimer = null;
+    }
     this.holdRequested = false;
     this.paused = false;
     this.callbacks.onState?.('armed');
@@ -177,8 +197,14 @@ export class WakeWordService {
 
     while (this.running) {
       if (this.paused) {
-        await sleep(300);
-        continue;
+        // Güvenlik ağı: holdRequested temizlendi ama paused unutulduysa kendini toparla.
+        if (!this.holdRequested && !this.audio.isRecording()) {
+          this.paused = false;
+          this.callbacks.onState?.('armed');
+        } else {
+          await sleep(300);
+          continue;
+        }
       }
       this.callbacks.onState?.('armed');
       const outcome = await this.audio.recordCommand({
