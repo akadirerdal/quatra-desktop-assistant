@@ -255,7 +255,9 @@ export class WakeWordService {
         await sleep(rateLimited ? 15000 : 2500);
         continue;
       }
-      if (matchesWakeWord(res.text, this.options.wakeWord)) {
+      const matched = matchesWakeWord(res.text, this.options.wakeWord);
+      if (matched) this.callbacks.onTranscript?.(`>>> EŞLEŞTİ (${this.options.wakeWord})`);
+      if (matched) {
         this.paused = true; // komut akışı bitene dek yeni burst yok
         this.callbacks.onWake(res.text);
         await sleep(cooldownMs);
