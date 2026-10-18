@@ -21,6 +21,8 @@ const WAKE_ALIASES = [
   'kwadra',
   'cuatra',
   'quatru',
+  'kwatera',
+  'quadrat',
 ];
 
 /** Telaffuz alias'ları yalnızca varsayılan kelime için geçerli — kullanıcı özel kelime seçtiyse uygulanmaz. */
@@ -246,7 +248,7 @@ export class WakeWordService {
         continue;
       }
       this.callbacks.onState?.('burst');
-      const res = await this.audio.transcribe(outcome.result.audio);
+      const res = await this.audio.transcribe(outcome.result.audio, 'en');
       if (!this.running) return;
       this.callbacks.onTranscript?.(res.ok ? res.text : `[HATA: ${res.message}]`);
       if (!res.ok) {

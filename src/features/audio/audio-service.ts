@@ -519,6 +519,7 @@ export class AudioService {
   /** Kaydı Groq Whisper ile metne çevirir (main süreç üzerinden). */
   async transcribe(
     audio: Blob,
+    language = 'tr',
   ): Promise<{ ok: true; text: string } | { ok: false; message: string }> {
     const engine = useSettingsStore.getState().settings.voice.sttEngine;
     if (engine === 'off') {
@@ -531,7 +532,7 @@ export class AudioService {
     try {
       const started = Date.now();
       const buffer = await audio.arrayBuffer();
-      const res = await window.quatra.stt.transcribe(buffer, audio.type || 'audio/webm', 'tr');
+      const res = await window.quatra.stt.transcribe(buffer, audio.type || 'audio/webm', language);
       if (res.ok) {
         const text = (res.text ?? '').trim();
         const ms = Date.now() - started;
