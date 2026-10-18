@@ -5,10 +5,17 @@ import './app.css';
 
 // Yakalanan renderer hataları günlük dosyasına iletilir (main süreç redact'lar).
 window.addEventListener('error', (e) => {
-  window.quatra?.log.rendererError('error', `${e.message} @ ${e.filename}:${e.lineno}`);
+  window.quatra?.log.rendererError(
+    'error',
+    `${e.message} @ ${e.filename}:${e.lineno}\n${e.error?.stack ?? ''}`,
+  );
 });
 window.addEventListener('unhandledrejection', (e) => {
-  window.quatra?.log.rendererError('warn', `unhandledrejection: ${String(e.reason)}`);
+  const reason = e.reason as { stack?: string; message?: string } | undefined;
+  window.quatra?.log.rendererError(
+    'error',
+    `unhandledrejection: ${reason?.stack ?? reason?.message ?? String(e.reason)}`,
+  );
 });
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(

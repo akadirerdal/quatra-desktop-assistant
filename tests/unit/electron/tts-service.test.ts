@@ -110,10 +110,11 @@ describe('tts-service', () => {
     vi.useFakeTimers();
     mockState.autoFinish = false;
     const p = synthesizeEdge('uzun', 'tr-TR-EmelNeural', 1, 1);
+    const assertion = expect(p).rejects.toMatchObject({ code: 'timeout' });
     await vi.advanceTimersByTimeAsync(0);
     expect(mockState.streams).toHaveLength(1); // metadata tamam, akış kuruldu
     await vi.advanceTimersByTimeAsync(25_000);
-    await expect(p).rejects.toMatchObject({ code: 'timeout' });
+    await assertion;
     expect(mockState.instances[0]!.closed).toBe(true);
   });
 

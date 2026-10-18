@@ -3,7 +3,8 @@
  * Güvenlik: contextIsolation açık, nodeIntegration kapalı, CSP header'lı.
  * Çökme koruması: main asla sessizce ölmez; renderer çökerse pencere yenilenir.
  */
-import { app, BrowserWindow, session, Menu, shell } from 'electron';
+import { app, BrowserWindow, dialog, session, Menu, shell } from 'electron';
+import { autoUpdater } from 'electron-updater';
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -305,6 +306,36 @@ void app.whenReady().then(() => {
 
   createWindow();
   if (mainWindow) createTray(mainWindow, quitApp);
+
+  // V1.2-004: otomatik güncelleme (yalnız paketlenmiş sürümde; dev'de kapalı).
+  if (!isDev) {
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
+    autoUpdater.on('update-available', (info) => log.info(`güncelleme mevcut: ${info.version}`));
+    autoUpdater.on('update-downloaded', async (info) => {
+      log.info(`güncelleme indirildi: ${info.version}`);
+      try {
+        const opts = {
+          type: 'info' as const,
+          title: 'Güncelleme hazır',
+          message: `Quatra ${info.version} indirildi.`,
+          detail: 'Yeniden başlatınca kurulacak. Şimdi yeniden başlatılsın mı?',
+          buttons: ['Şimdi yeniden başlat', 'Sonra'],
+          defaultId: 0,
+        };
+        const res = mainWindow
+          ? await dialog.showMessageBox(mainWindow, opts)
+          : await dialog.showMessageBox(opts);
+        if (res.response === 0) autoUpdater.quitAndInstall();
+      } catch (e) {
+        log.warn(`güncelleme diyaloğu gösterilemedi: ${String(e)}`);
+      }
+    });
+    autoUpdater.on('error', (e) => log.warn(`güncelleme hatası: ${String(e)}`));
+    void autoUpdater
+      .checkForUpdatesAndNotify()
+      .catch((e) => log.warn(`güncelleme kontrolü başarısız: ${String(e)}`));
+  }
 
   app.on('activate', () => {
     // macOS: Dock simgesine tıklanınca pencere yoksa kur, gizliyse öne getir.

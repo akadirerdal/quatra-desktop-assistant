@@ -4,12 +4,15 @@
  * macOS: yerel trafik ışıkları kullanılır (hiddenInset) — özel düğmeler GÖSTERİLMEZ;
  * kopya düğme göstermek yanıltıcı olurdu.
  */
+import { useSettingsStore } from '../../state/settings-store';
+
 export function TitleBar(): React.JSX.Element {
   const isMac = window.quatra?.platform === 'darwin';
+  const assistantName = useSettingsStore((s) => s.settings.assistantName) || 'Quatra';
   return (
     <div className={isMac ? 'titlebar mac' : 'titlebar'}>
       <div className="titlebarDrag">
-        <span className="titlebarTitle">Quatra</span>
+        <span className="titlebarTitle">{assistantName}</span>
       </div>
       {!isMac && (
         <div className="titlebarControls">

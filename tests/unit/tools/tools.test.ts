@@ -157,7 +157,7 @@ describe('summarizeArgs — onay özeti (V1.2-009)', () => {
   });
 
   it('secret desenlerini maskeler', () => {
-    const out = summarizeArgs('{"key":"sk-abcdef1234567890abcdef"}');
+    const out = summarizeArgs('{"key":"sk-' + 'abcdef1234567890abcdef"}');
     expect(out).not.toContain('abcdef1234567890abcdef');
     expect(out).toContain('[REDACTED]');
   });

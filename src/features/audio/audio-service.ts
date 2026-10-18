@@ -520,6 +520,11 @@ export class AudioService {
   async transcribe(
     audio: Blob,
   ): Promise<{ ok: true; text: string } | { ok: false; message: string }> {
+    const engine = useSettingsStore.getState().settings.voice.sttEngine;
+    if (engine === 'off') {
+      this.logEvent('STT kapalı (ayar: off)');
+      return { ok: false, message: 'Ses tanıma kapalı (Ayarlar → Ses → Ses tanıma motoru).' };
+    }
     if (!window.quatra) {
       return { ok: false, message: 'Ses tanıma yalnızca masaüstü uygulamasında çalışır.' };
     }

@@ -105,7 +105,7 @@ export function BottomBar(): React.JSX.Element {
         {popup === 'model' && (
           <div className="popup" role="menu" aria-label={strings.modelSelect}>
             <div className="popupTitle">DeepSeek · {strings.modelSelect}</div>
-            {modelsLoading && <div className="popupHint">{strings.testing}</div>}
+            {modelsLoading && <div className="popupHint">Modeller yükleniyor…</div>}
             {modelsError && <div className="popupHint warn">{modelsError}</div>}
             {MODEL_TIERS.map((t) => (
               <button

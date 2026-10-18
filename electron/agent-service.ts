@@ -244,11 +244,11 @@ export async function runAgent(win: BrowserWindow, req: AgentRunRequest): Promis
       });
     }
 
+    const assistantName = (saved.assistantName || 'Quatra').trim() || 'Quatra';
+    const basePrompt = DEFAULT_SYSTEM_PROMPT.replace(/^Sen Quatra,/, `Sen ${assistantName},`);
     const systemPrompt =
       (memoryBlock ? `${memoryBlock}\n\n` : '') +
-      (req.personality
-        ? `${DEFAULT_SYSTEM_PROMPT}\nKullanıcı tercihi: ${req.personality}`
-        : DEFAULT_SYSTEM_PROMPT) +
+      (req.personality ? `${basePrompt}\nKullanıcı tercihi: ${req.personality}` : basePrompt) +
       // V1.2-005: kaydetme talimatı yalnız otomatik öğrenme açıkken prompt'a girer.
       (autoLearn ? `\n${MEMORY_INSTRUCTION}` : '') +
       (req.detailed

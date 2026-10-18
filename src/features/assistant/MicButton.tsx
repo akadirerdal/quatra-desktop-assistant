@@ -21,6 +21,11 @@ export function MicButton(props: { onToggle: () => void }): React.JSX.Element {
   const micLevel = useAssistantStore((s) => s.micLevel);
   const speakLevel = useAssistantStore((s) => s.speakLevel);
   const reducedMotion = useSettingsStore((s) => s.settings.appearance.reducedMotion);
+  const systemReducedMotion =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reduced = reducedMotion || systemReducedMotion;
 
   const isOff = status === 'muted' || status === 'error' || mutedByUser;
 
@@ -28,9 +33,9 @@ export function MicButton(props: { onToggle: () => void }): React.JSX.Element {
   if (isOff) {
     scales = OFF;
   } else if (status === 'listening') {
-    scales = reducedMotion ? ACTIVE_STATIC : eqBarScales(micLevel);
+    scales = reduced ? ACTIVE_STATIC : eqBarScales(micLevel);
   } else if (status === 'speaking') {
-    scales = !reducedMotion && speakLevel > 0.02 ? eqBarScales(speakLevel) : ACTIVE_STATIC;
+    scales = !reduced && speakLevel > 0.02 ? eqBarScales(speakLevel) : ACTIVE_STATIC;
   } else if (status === 'processing') {
     scales = THINKING;
   } else {

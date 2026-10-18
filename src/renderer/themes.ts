@@ -305,6 +305,7 @@ export function applyAppearance(app: {
   for (const [key, value] of Object.entries(buildThemeVars(app.theme, app.accent))) {
     root.style.setProperty(key, value);
   }
+  root.style.colorScheme = buildThemeVars(app.theme, app.accent)['--color-scheme'];
   // V1.2-144: zoom #root'ta uygulanır; body'deki zoom vh/fixed öğeleri kaydırıyordu.
   const zoomTarget = document.getElementById('root') ?? document.body;
   zoomTarget.style.setProperty('zoom', String(app.uiScale));

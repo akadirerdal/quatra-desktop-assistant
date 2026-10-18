@@ -2,7 +2,7 @@
  * Uygulama kökü — ErrorBoundary, ayarlar yükleme, first-run, PTT, Esc, mod döngüsü.
  */
 import { Component, useEffect, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
 import { MainScreen } from '../features/assistant/MainScreen';
 import { TitleBar } from '../features/assistant/TitleBar';
 import { SettingsPanel } from '../features/settings/SettingsPanel';
@@ -19,6 +19,13 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { broken: boolean
   static getDerivedStateFromError(): { broken: boolean } {
     return { broken: true };
   }
+  componentDidCatch(error: Error, info: ErrorInfo): void {
+    console.error('[ErrorBoundary]', error, info.componentStack);
+    window.quatra?.log.rendererError(
+      'error',
+      `${error.name}: ${error.message}\n${info.componentStack ?? ''}`,
+    );
+  }
   render(): ReactNode {
     if (this.state.broken) {
       return (
@@ -27,12 +34,20 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { broken: boolean
           <p style={{ opacity: 0.7 }}>
             Bir bileşen beklenmedik şekilde durdu. Uygulama diğer bölümleriyle çalışmaya devam eder.
           </p>
-          <button
-            onClick={() => this.setState({ broken: false })}
-            style={{ padding: '8px 14px', cursor: 'pointer' }}
-          >
-            Tekrar dene
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => this.setState({ broken: false })}
+              style={{ padding: '8px 14px', cursor: 'pointer' }}
+            >
+              Tekrar dene
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              style={{ padding: '8px 14px', cursor: 'pointer' }}
+            >
+              Yeniden yükle
+            </button>
+          </div>
         </div>
       );
     }
@@ -67,6 +82,8 @@ export function App(): React.JSX.Element {
           setSettingsOpen(false);
           return;
         }
+        // V1.2-126: açıq bir popup varsa interrupt etme; popup kendi Esc'siyle kapanır.
+        if (document.querySelector('.popup')) return;
         controller.interrupt();
       }
     };

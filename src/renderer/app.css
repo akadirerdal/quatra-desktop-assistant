@@ -37,6 +37,11 @@ body {
   overflow: hidden;
   user-select: none;
 }
+input,
+textarea,
+.selectable {
+  user-select: text;
+}
 
 .app {
   position: relative;
@@ -164,6 +169,8 @@ body {
 .titlebarDrag {
   flex: 1;
   height: 100%;
+  display: flex;
+  align-items: center;
 }
 .titlebarControls {
   display: flex;
@@ -244,7 +251,7 @@ body {
   border-radius: 10px;
   padding: 6px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
-  z-index: 25;
+  z-index: 15;
 }
 .popupTitle {
   font-size: 10.5px;
@@ -443,10 +450,19 @@ body {
 .input:focus,
 .select:focus {
   border-color: var(--accent-dim);
+  outline: 2px solid var(--accent-dim);
+  outline-offset: 1px;
 }
 textarea.input {
   resize: vertical;
   min-height: 60px;
+}
+.btn:focus-visible,
+.pill:focus-visible,
+.navItem:focus-visible,
+.micEq:focus-visible {
+  outline: 2px solid var(--accent-bright);
+  outline-offset: 2px;
 }
 
 .btn {

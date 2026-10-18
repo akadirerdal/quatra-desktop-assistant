@@ -27,6 +27,7 @@
     "install:mac": "npm run package:mac && node scripts/install-mac.mjs"
   },
   "dependencies": {
+    "electron-updater": "^6.8.9",
     "msedge-tts": "^2.1.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -78,21 +79,31 @@
     },
     "mac": {
       "target": [
-        "dmg"
+        "dmg",
+        "zip"
       ],
       "category": "public.app-category.productivity",
       "icon": "build/icon.png",
-      "hardenedRuntime": false,
-      "identity": null,
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
       "extendInfo": {
         "NSMicrophoneUsageDescription": "Quatra, sesli komutlarını duyabilmek için mikrofona erişir."
-      }
+      },
+      "identity": null
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "deleteAppDataOnUninstall": false
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "akadirerdal",
+      "repo": "quatra-desktop-assistant",
+      "releaseType": "release"
     }
   }
 }
