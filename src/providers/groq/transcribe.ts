@@ -60,6 +60,8 @@ export interface TranscribeResult {
   model: string;
   /** Hayalet kalıp filtrelendiyse ham model çıktısı (yalnız log/teşhis için). */
   filtered?: string;
+  /** verbose_json'dan gelen toplam süre (ms) — teşhis için. */
+  durationMs?: number;
 }
 
 export async function transcribeAudio(options: TranscribeOptions): Promise<TranscribeResult> {
@@ -83,7 +85,8 @@ export async function transcribeAudio(options: TranscribeOptions): Promise<Trans
     const form = new FormData();
     form.append('model', MODEL);
     if (options.language) form.append('language', options.language);
-    form.append('response_format', 'json');
+    form.append('response_format', 'verbose_json');
+    form.append('temperature', '0');
     form.append('file', new Blob([ab], { type: options.mimeType || 'audio/webm' }), 'ses.webm');
 
     const res = await fetch(`${GROQ_BASE}/audio/transcriptions`, {
@@ -107,11 +110,17 @@ export async function transcribeAudio(options: TranscribeOptions): Promise<Trans
       throw new ProviderError('server', 'Ses tanıma servisi hata verdi.', res.status);
     }
 
-    const data = (await res.json()) as { text?: string };
+    const data = (await res.json()) as {
+      text?: string;
+      segments?: Array<{ start: number; end: number; text: string }>;
+      duration?: number;
+    };
     const raw = (data.text ?? '').trim();
     const text = stripHallucination(raw);
     const result: TranscribeResult = { text, model: MODEL };
     if (raw && !text) result.filtered = raw; // hayalet kalıp — teşhis için ham çıktı taşınır
+    // V1.2: verbose_json — segment süresi teşhis için (isteğe bağlı).
+    if (typeof data.duration === 'number') result.durationMs = Math.round(data.duration * 1000);
     return result;
   } catch (e) {
     if (e instanceof ProviderError) throw e;
