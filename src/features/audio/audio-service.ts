@@ -39,7 +39,7 @@ export type RecordOutcome =
   | { kind: 'busy' } // başka bir kayıt sürüyor (hata değil; caller bekler/atlar)
   | { kind: 'error'; message: string };
 
-/** Hassasiyet (1..10) → VAD eşiği (düşük değer = daha hassas). */
+/** Ayar → getUserMedia mikrofon kısıtları (gürültü/yankı/kazanç filtresi + isteğe bağlı cihaz). */
 export function buildMicConstraints(
   voice: {
     micNoiseSuppression: boolean;
@@ -86,17 +86,49 @@ export function micPermissionHint(platform: string): string {
     : 'Windows Ayarlar → Gizlilik → Mikrofon’dan izin ver.';
 }
 
+/** getUserMedia hatasını ada göre ayrıştırır — "bulunamadı" ile "meşgul/izin yok" karışmasın. */
+export function micErrorMessage(e: unknown, platform: string): string {
+  const name =
+    typeof e === 'object' && e !== null && 'name' in e ? String((e as { name: unknown }).name) : '';
+  switch (name) {
+    case 'NotAllowedError':
+    case 'SecurityError':
+      return `Mikrofon izni reddedildi. ${micPermissionHint(platform)}`;
+    case 'NotFoundError':
+    case 'DevicesNotFoundError':
+      return 'Mikrofon bulunamadı — bir mikrofon bağlı mı?';
+    case 'NotReadableError':
+    case 'TrackStartError':
+      return 'Mikrofon başka bir uygulama tarafından kullanılıyor — o uygulamayı kapatıp tekrar dene.';
+    case 'OverconstrainedError':
+      return 'Seçili mikrofon bu ayarları desteklemiyor — Ayarlar’dan başka bir cihaz seç.';
+    case 'AbortError':
+      return 'Mikrofon başlatılamadı — tekrar dene.';
+    default:
+      return 'Mikrofon bulunamadı.';
+  }
+}
+
 export class AudioService {
   private stream: MediaStream | null = null;
   private audioCtx: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
   private gainNode: GainNode | null = null;
   private processedStream: MediaStream | null = null;
+  /** Açık olan mikrofon açılış sözü — single-flight (paralel açılışta kaynak sızıntısı olmasın). */
+  private micPending: Promise<boolean> | null = null;
+  /** releaseMic nesli: askıdaki açılış bitince kendini iptal eder (geçersiz akış sızmaz). */
+  private micEpoch = 0;
+  /** Seviye döngüsü nesli: eski RAF döngüleri kendiliğinden kapanır. */
+  private levelLoopGen = 0;
   private gateOpenUntil = 0;
   private lastResumeAt = 0;
   private raf = 0;
   private currentLevel = 0;
   private recording = false;
+  /** Kayıt meşguliyet kilidi — await'ten ÖNCE alınır (çift MediaRecorder engeli). */
+  private recordLatch = false;
+  private activeRecorder: MediaRecorder | null = null;
   private cancelRequested = false;
   private playCtx: AudioContext | null = null;
   private playingSource: AudioBufferSourceNode | null = null;
@@ -135,6 +167,22 @@ export class AudioService {
       this.releaseMic();
     }
     if (this.stream) return true;
+    // Single-flight: iki hızlı aktivasyon (PTT + uyandırma) paralel açmaya kalkarsa
+    // stream/ctx/analyser alanları ezilir ve ilk MediaStream + AudioContext sızar.
+    // Aynı açılış sözü paylaşılır; ikinci çağrı yeni bir açılış BAŞLATMAZ.
+    if (!this.micPending) {
+      this.micPending = this.openMic()
+        .catch(() => false)
+        .finally(() => {
+          this.micPending = null;
+        });
+    }
+    return this.micPending;
+  }
+
+  /** Mikrofonu gerçekten açar (ensureMic gövdesi) — tek uçuş sözüyle sarılır. */
+  private async openMic(): Promise<boolean> {
+    const epoch = this.micEpoch;
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
         this.onError('Mikrofon bulunamadı.');
@@ -177,14 +225,14 @@ export class AudioService {
         `mic açıldı — gürültü:${constraints.noiseSuppression ? 'A' : 'K'} yankı:${constraints.echoCancellation ? 'A' : 'K'} kazanç:${constraints.autoGainControl ? 'A' : 'K'} cihaz:${voice.inputDeviceId ? 'seçili' : 'varsayılan'}`,
       );
     } catch (e) {
-      const denied =
-        e instanceof DOMException && (e.name === 'NotAllowedError' || e.name === 'SecurityError');
-      this.logEvent(`mic HATA: ${denied ? 'izin reddedildi' : String(e)}`);
-      this.onError(
-        denied
-          ? `Mikrofon izni reddedildi. ${micPermissionHint(navigator.platform || navigator.userAgent || '')}`
-          : 'Mikrofon bulunamadı.',
-      );
+      this.logEvent(`mic HATA: ${String(e)}`);
+      this.onError(micErrorMessage(e, navigator.platform || navigator.userAgent || ''));
+      return false;
+    }
+    // releaseMic bu açılış sürerken çağrıldıysa yeni akışı hemen kapat — sızıntı yok.
+    if (epoch !== this.micEpoch) {
+      for (const track of this.stream?.getTracks() ?? []) track.stop();
+      this.stream = null;
       return false;
     }
     try {
@@ -207,16 +255,25 @@ export class AudioService {
       this.gainNode.connect(dest);
       this.processedStream = dest.stream;
       this.startLevelLoop();
-    } catch {
-      // WebAudio kurulamazsa seviye 0 kalır — görsel dürüst nefes animasyonuna düşer.
+    } catch (e) {
+      // WebAudio kurulamazsa seviye 0 kalır — VAD/barge/kayıt kazancı devre dışı.
+      // Sessizce yutmak yerine dürüst geri bildirim (kullanıcı "duyulmadı" sanmasın).
+      this.logEvent(`WebAudio zinciri kurulamadı: ${String(e)} — VAD/barge devre dışı`);
+      this.onError(
+        'Ses işleme (WebAudio) başlatılamadı — seviye ölçümü ve söz kesme çalışmayabilir.',
+      );
     }
     return true;
   }
 
   private startLevelLoop(): void {
+    // Nesil: releaseMic/yeniden açılış sonrası eski döngü bir sonraki karede kendini kapatır
+    // (yalnız son RAF id'sini iptal etmek yetmiyordu — ikinci döngü kalıcı kalıyordu).
+    const gen = ++this.levelLoopGen;
     const data = new Uint8Array(this.analyser?.frequencyBinCount ?? 256);
     let lastTick = performance.now();
     const tick = () => {
+      if (gen !== this.levelLoopGen) return;
       if (this.analyser) {
         const now = performance.now();
         // Bağlam sonradan askıya düşerse (cihaz değişimi / uyku sonrası) kendiliğinden
@@ -305,136 +362,154 @@ export class AudioService {
     const waitStartMs = options.waitStartMs ?? 6000;
     const fixedMs = options.fixedMs;
 
-    if (this.recording) return { kind: 'busy' };
-    if (!(await this.ensureMic())) return { kind: 'error', message: 'Mikrofon açılamadı.' };
-    if (typeof MediaRecorder === 'undefined') {
-      return { kind: 'error', message: 'Bu ortamda ses kaydı desteklenmiyor.' };
-    }
-
-    const mime = pickRecorderMime();
-    let recorder: MediaRecorder;
+    if (this.recording || this.recordLatch) return { kind: 'busy' };
+    // Meşguliyet kilidi await'ten ÖNCE alınır: aksi hâlde iki eşzamanlı çağrı aynı
+    // stream üzerinde iki MediaRecorder açabilir.
+    this.recordLatch = true;
+    this.cancelRequested = false; // yeni kayıt — önceki turdan iptal işareti taşınmaz
     try {
-      // Kayıt İŞLENMİŞ akıştan alınır (ek kazanç + gürültü kapısı gerçekten uygulanır).
-      recorder = new MediaRecorder(
-        this.processedStream ?? this.stream!,
-        mime ? { mimeType: mime } : undefined,
-      );
-    } catch {
-      return { kind: 'error', message: 'Ses kaydı başlatılamadı.' };
-    }
-
-    const chunks: BlobPart[] = [];
-    recorder.ondataavailable = (e) => {
-      if (e.data && e.data.size > 0) chunks.push(e.data);
-    };
-
-    const started = performance.now();
-    this.recording = true;
-    this.cancelRequested = false;
-    let sawSpeech = false;
-    let peak = 0;
-    let lastVoiceAt = started;
-    // Uyarlanabilir gürültü tabanı: sessiz ortam seviyesini ölçer, eşiği ona göre yükseltir.
-    let ambient = 0.04;
-    const baseThreshold =
-      options.threshold ??
-      vadThresholdOf(useSettingsStore.getState().settings.voice.vadSensitivity);
-    const minPeak = minPeakOf(useSettingsStore.getState().settings.voice.vadSensitivity);
-
-    return await new Promise<RecordOutcome>((resolve) => {
-      let settled = false;
-      const stopWatch: { fn?: () => void } = {};
-
-      const settle = (outcome: RecordOutcome) => {
-        if (settled) return;
-        settled = true;
-        stopWatch.fn?.();
-        this.recording = false;
-        resolve(outcome);
-      };
-
-      recorder.onstop = () => {
-        const fixed = fixedMs !== undefined;
-        const silent = !sawSpeech && !fixed;
-        const tooQuiet = !fixed && peak < minPeak;
-        const effectiveOutcome = this.cancelRequested
-          ? 'iptal'
-          : silent
-            ? 'sessizlik'
-            : tooQuiet
-              ? `çok-sessiz(tepe=${peak.toFixed(2)}<${minPeak.toFixed(2)})`
-              : null;
-        if (this.cancelRequested || chunks.length === 0 || silent || tooQuiet) {
-          this.cancelRequested = false;
-          this.logEvent(`kayıt sonu: ${effectiveOutcome ?? 'sessizlik'}`);
-          settle({ kind: 'silence' });
-          return;
-        }
-        const blob = new Blob(chunks, { type: mime || 'audio/webm' });
-        const durationMs = performance.now() - started;
-        this.logEvent(`kayıt tamam: ${Math.round(durationMs)}ms, tepe=${peak.toFixed(2)}`);
-        settle({
-          kind: 'ok',
-          result: { audio: blob, durationMs, peakLevel: peak },
-        });
-      };
-
-      // VAD: konuşma başlangıcı/bitişi ve süre sınırlarını izler; bitince kaydı durdurur.
-      const watchId = setInterval(() => {
-        const now = performance.now();
-        peak = Math.max(peak, this.currentLevel);
-        // Uyarlanabilir eşik: ortam gürültüsü yükselirse hayalet tetikleme engellenir.
-        const effectiveThreshold = Math.max(baseThreshold, ambient * 2.8);
-        if (this.currentLevel >= effectiveThreshold) {
-          sawSpeech = true;
-          lastVoiceAt = now;
-        } else if (this.currentLevel < baseThreshold) {
-          ambient = ambient * 0.92 + this.currentLevel * 0.08;
-        }
-        const stopRecorder = () => {
-          try {
-            if (recorder.state !== 'inactive') recorder.stop();
-          } catch {
-            settle({ kind: 'error', message: 'Kayıt durdurulamadı.' });
-          }
-        };
-        if (this.cancelRequested) {
-          stopRecorder();
-          return;
-        }
-        // Sabit süreli kayıt (mikrofon testi): süre dolunca koşulsuz dur — VAD kuralları devre dışı.
-        if (fixedMs !== undefined && now - started > fixedMs) {
-          stopRecorder();
-          return;
-        }
-        if (!sawSpeech && now - started > waitStartMs) {
-          stopRecorder();
-          return;
-        }
-        if (sawSpeech && now - lastVoiceAt > silenceMs) {
-          stopRecorder();
-          return;
-        }
-        if (now - started > maxMs) {
-          stopRecorder();
-        }
-      }, 60);
-      stopWatch.fn = () => clearInterval(watchId);
-
-      try {
-        recorder.start();
-      } catch {
-        settle({ kind: 'error', message: 'Ses kaydı başlatılamadı.' });
+      if (!(await this.ensureMic())) return { kind: 'error', message: 'Mikrofon açılamadı.' };
+      if (typeof MediaRecorder === 'undefined') {
+        return { kind: 'error', message: 'Bu ortamda ses kaydı desteklenmiyor.' };
       }
-    });
+
+      const mime = pickRecorderMime();
+      let recorder: MediaRecorder;
+      try {
+        // Kayıt İŞLENMİŞ akıştan alınır (ek kazanç + gürültü kapısı gerçekten uygulanır).
+        recorder = new MediaRecorder(
+          this.processedStream ?? this.stream!,
+          mime ? { mimeType: mime } : undefined,
+        );
+      } catch {
+        return { kind: 'error', message: 'Ses kaydı başlatılamadı.' };
+      }
+      this.activeRecorder = recorder;
+
+      const chunks: BlobPart[] = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) chunks.push(e.data);
+      };
+
+      const started = performance.now();
+      this.recording = true;
+      let sawSpeech = false;
+      let peak = 0;
+      let lastVoiceAt = started;
+      // Uyarlanabilir gürültü tabanı: sessiz ortam seviyesini ölçer, eşiği ona göre yükseltir.
+      let ambient = 0.04;
+      const baseThreshold =
+        options.threshold ??
+        vadThresholdOf(useSettingsStore.getState().settings.voice.vadSensitivity);
+      const minPeak = minPeakOf(useSettingsStore.getState().settings.voice.vadSensitivity);
+
+      return await new Promise<RecordOutcome>((resolve) => {
+        let settled = false;
+        const stopWatch: { fn?: () => void } = {};
+
+        const settle = (outcome: RecordOutcome) => {
+          if (settled) return;
+          settled = true;
+          stopWatch.fn?.();
+          this.activeRecorder = null;
+          this.recording = false;
+          resolve(outcome);
+        };
+
+        recorder.onstop = () => {
+          const fixed = fixedMs !== undefined;
+          const silent = !sawSpeech && !fixed;
+          const tooQuiet = !fixed && peak < minPeak;
+          const effectiveOutcome = this.cancelRequested
+            ? 'iptal'
+            : silent
+              ? 'sessizlik'
+              : tooQuiet
+                ? `çok-sessiz(tepe=${peak.toFixed(2)}<${minPeak.toFixed(2)})`
+                : null;
+          if (this.cancelRequested || chunks.length === 0 || silent || tooQuiet) {
+            this.cancelRequested = false;
+            this.logEvent(`kayıt sonu: ${effectiveOutcome ?? 'sessizlik'}`);
+            settle({ kind: 'silence' });
+            return;
+          }
+          const blob = new Blob(chunks, { type: mime || 'audio/webm' });
+          const durationMs = performance.now() - started;
+          this.logEvent(`kayıt tamam: ${Math.round(durationMs)}ms, tepe=${peak.toFixed(2)}`);
+          settle({
+            kind: 'ok',
+            result: { audio: blob, durationMs, peakLevel: peak },
+          });
+        };
+
+        // VAD: konuşma başlangıcı/bitişi ve süre sınırlarını izler; bitince kaydı durdurur.
+        const watchId = setInterval(() => {
+          const now = performance.now();
+          peak = Math.max(peak, this.currentLevel);
+          // Uyarlanabilir eşik: ortam gürültüsü yükselirse hayalet tetikleme engellenir.
+          const effectiveThreshold = Math.max(baseThreshold, ambient * 2.8);
+          if (this.currentLevel >= effectiveThreshold) {
+            sawSpeech = true;
+            lastVoiceAt = now;
+          } else if (this.currentLevel < baseThreshold) {
+            ambient = ambient * 0.92 + this.currentLevel * 0.08;
+          }
+          const stopRecorder = () => {
+            try {
+              if (recorder.state !== 'inactive') recorder.stop();
+            } catch {
+              settle({ kind: 'error', message: 'Kayıt durdurulamadı.' });
+            }
+          };
+          if (this.cancelRequested) {
+            stopRecorder();
+            return;
+          }
+          // Sabit süreli kayıt (mikrofon testi): süre dolunca koşulsuz dur — VAD kuralları devre dışı.
+          if (fixedMs !== undefined && now - started > fixedMs) {
+            stopRecorder();
+            return;
+          }
+          if (!sawSpeech && now - started > waitStartMs) {
+            stopRecorder();
+            return;
+          }
+          if (sawSpeech && now - lastVoiceAt > silenceMs) {
+            stopRecorder();
+            return;
+          }
+          if (now - started > maxMs) {
+            stopRecorder();
+          }
+        }, 60);
+        stopWatch.fn = () => clearInterval(watchId);
+
+        try {
+          recorder.start();
+        } catch {
+          settle({ kind: 'error', message: 'Ses kaydı başlatılamadı.' });
+        }
+      });
+    } finally {
+      this.recordLatch = false;
+    }
   }
 
-  /** Devam eden kaydı nazikçe iptal et (uyandırma → PTT geçişi gibi). */
+  /**
+   * Devam eden kaydı iptal et (uyandırma → PTT geçişi gibi).
+   * Kayıt gerçekten sürüyorsa durdurma HEMEN tetiklenir; kayıt henüz başlamadıysa
+   * (mikrofon açılışı bekleniyorsa) iptal işareti kayıt başlar başlamaz uygulanır.
+   */
   cancelRecording(): void {
-    if (!this.recording) return;
+    if (!this.recording && !this.recordLatch) return;
     this.cancelRequested = true;
-    // watch döngüsü 60ms'de bir çalışır; recorder'ı hemen durduracak bir işaret yeterli değil,
-    // bu yüzden stop'u doğrudan tetiklemek için kısa bir yol: recording bayrağını bırakma onstop'ta olur.
+    const rec = this.activeRecorder;
+    if (!rec) return;
+    try {
+      if (rec.state !== 'inactive') rec.stop();
+    } catch {
+      // Zaten durmuş — onstop sonucu 'sessizlik' olarak çözer.
+    }
   }
 
   isRecording(): boolean {
@@ -524,8 +599,7 @@ export class AudioService {
     this.logEvent(`TTS: Edge (${voiceName || 'otomatik'})`);
     const res = await window.quatra?.tts.synthesize(text, voiceName, rate, pitch);
     if (seq !== this.speakSeq) {
-      this.pendingPlay = false;
-      return; // araya yeni komut/işlem girdi — çalma
+      return; // araya yeni komut/işlem girdi — bayraklara DOKUNMA (yeni tur onları yönetir)
     }
     if (!res || !res.ok || !res.audio) {
       this.logEvent(`TTS Edge HATA: ${res?.message ?? 'boş'} → sistem sesine düşüldü`);
@@ -537,13 +611,13 @@ export class AudioService {
       this.speakSystem(text, rate, pitch, voiceName, seq);
       return;
     }
+    // decodeAudioData hata verirse ctx kapatılmadan sızıyordu → finally ile kapat.
+    let ctx: AudioContext | null = null;
     try {
-      const ctx = new AudioContext();
+      ctx = new AudioContext();
       const buffer = await ctx.decodeAudioData(res.audio.slice(0));
       if (seq !== this.speakSeq) {
-        this.pendingPlay = false;
-        void ctx.close().catch(() => undefined);
-        return; // iptal edildi — çalma
+        return; // iptal edildi — çalma (finally ctx'i kapatır; pendingPlay'e dokunulmaz)
       }
       const source = ctx.createBufferSource();
       source.buffer = buffer;
@@ -571,12 +645,13 @@ export class AudioService {
       };
       this.speakRaf = requestAnimationFrame(tick);
 
+      const ownedCtx = ctx;
       const finish = () => {
         cancelAnimationFrame(this.speakRaf);
         this.speakRaf = 0;
         this.playingSource = null;
         this.pendingPlay = false;
-        void ctx.close().catch(() => undefined);
+        void ownedCtx.close().catch(() => undefined);
         this.playCtx = null;
         const st = useAssistantStore.getState();
         st.setLevels(st.micLevel, 0);
@@ -584,9 +659,17 @@ export class AudioService {
       };
       source.onended = finish;
       source.start();
+      ctx = null; // sahiplik finish()'e geçti — finally kapatmasın
     } catch {
+      // Yarım kurulan çalma durumu varsa temizle (TTS kilidi kalmasın).
+      cancelAnimationFrame(this.speakRaf);
+      this.speakRaf = 0;
+      this.playingSource = null;
+      this.playCtx = null;
       this.onError('Ses çözülemedi — sistem sesine geçildi.');
       this.speakSystem(text, rate, pitch, voiceName, seq);
+    } finally {
+      if (ctx) void ctx.close().catch(() => undefined);
     }
   }
 
@@ -599,6 +682,9 @@ export class AudioService {
     seq: number,
   ): void {
     if (!('speechSynthesis' in window)) {
+      // Bayrağı temizle: aksi hâlde pendingPlay true kalır ve sonraki tüm speak()
+      // çağrıları sonsuza dek kuyruğa girer (TTS kilitlenmesi).
+      this.pendingPlay = false;
       this.onError('Bu sistemde ses çıkışı (TTS) yok. Cevap yazılı olarak gösterildi.');
       this.nextSpeak(); // kuyruk kilitli kalmasın
       return;
@@ -617,13 +703,14 @@ export class AudioService {
       useAssistantStore.getState().setStatus('speaking');
     };
     utterance.onend = () => {
-      this.pendingPlay = false;
+      // Eski (iptal edilmiş) utterance'ın onend'i yeni turun bayrağını EZMEMELİ.
       if (seq !== this.speakSeq) return;
+      this.pendingPlay = false;
       this.nextSpeak();
     };
     utterance.onerror = () => {
+      if (seq !== this.speakSeq) return; // eski utterance — yeni tur bayrağa sahip
       this.pendingPlay = false;
-      if (seq !== this.speakSeq) return;
       useAssistantStore.getState().setStatus('idle');
       this.onError('Ses çalınamadı — cevap ekranda gösterildi.');
       this.nextSpeak();
@@ -667,6 +754,8 @@ export class AudioService {
 
   /** Mikrofon kaynaklarını serbest bırak (idempotent; gerekirse yeniden açılır). */
   private releaseMic(): void {
+    this.micEpoch += 1; // askıdaki açılış (await sonrası) kendini iptal eder
+    this.levelLoopGen += 1; // çalışan tüm RAF döngüleri bir sonraki karede kendini kapatır
     cancelAnimationFrame(this.raf);
     this.raf = 0;
     for (const track of this.stream?.getTracks() ?? []) track.stop();
@@ -687,8 +776,9 @@ export class AudioService {
     useAssistantStore.getState().setLevels(0, 0);
   }
 
-  /** Watchdog: tüm kaynakları serbest bırak. */
+  /** Watchdog: tüm kaynakları serbest bırak (aktif kayıt varsa iptal edilir). */
   stopAll(): void {
+    this.cancelRecording(); // kayıt iptali: recorder.stop → onstop → izleme interval'ı temizlenir
     this.stopSpeaking();
     this.releaseMic();
     this.recording = false;

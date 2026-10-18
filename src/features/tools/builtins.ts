@@ -134,6 +134,8 @@ export function createBuiltinTools(): ToolDef[] {
         required: ['text'],
       },
       permission: 'low-risk',
+      // V1.2-069: pano okuma-yazma gizli veri taşır — prompt injection panoyu sessizce ezmesin.
+      requiresConfirmation: true,
       async run(args, ctx) {
         await ctx.native.clipboardWrite(args.text);
         return { copied: true };

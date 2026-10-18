@@ -2,8 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { ToolRegistry } from '../../../src/features/tools/registry';
 import { PermissionManager } from '../../../src/features/tools/permissions';
-import { AgentLoop } from '../../../src/features/agent/loop';
-import type { NativeBridge } from '../../../src/features/tools/types';
+import {
+  AgentLoop,
+  DEFAULT_SYSTEM_PROMPT,
+  MEMORY_INSTRUCTION,
+} from '../../../src/features/agent/loop';
+import type { NativeBridge, ToolResult } from '../../../src/features/tools/types';
 import type {
   ProviderAdapter,
   ProviderChatRequest,
@@ -478,5 +482,149 @@ describe('AgentLoop — kullanım sayaçları ve tool olayları (V1-17/19)', () 
     expect(events[0]!.ok).toBe(false);
     expect(events[0]!.error).toBe('Bilinmeyen görev adı.');
     expect(typeof events[0]!.ms).toBe('number');
+  });
+});
+
+describe('AgentLoop — V1.2 düzeltmeleri', () => {
+  function alwaysToolProvider(): ProviderAdapter {
+    return scriptedProvider([
+      {
+        response: {
+          content: '',
+          toolCalls: [{ id: 'c1', name: 'echo', arguments: '{"text":"a"}' }],
+          finishReason: 'tool_calls',
+        },
+      },
+    ]);
+  }
+
+  it('maxIterations açıkça undefined geçilse de varsayılan 6 kalır (V1.2-119)', async () => {
+    const loop = new AgentLoop({
+      provider: alwaysToolProvider(),
+      registry: makeRegistry(),
+      permissions,
+      native,
+      model: 'x',
+      systemPrompt: 'test',
+      maxIterations: undefined,
+    });
+    const res = await loop.run('sonsuz döngü');
+    expect(res.stoppedByLimit).toBe(true);
+    expect(res.iterations).toBe(6); // 0 değil — hiç model çağrısı atlanmaz
+  });
+
+  it('son iterasyonda iptal → "adım sınırı" yerine iptal hatası (V1.2-120)', async () => {
+    const controller = new AbortController();
+    const registry = new ToolRegistry({ timeoutMs: 2000 });
+    registry.register({
+      name: 'iptal-et',
+      description: 'iptal',
+      schema: z.object({}),
+      parameters: { type: 'object', properties: {} },
+      permission: 'safe',
+      run: async () => {
+        controller.abort();
+        return { done: true };
+      },
+    });
+    const provider = scriptedProvider([
+      {
+        response: {
+          content: '',
+          toolCalls: [{ id: 'c1', name: 'iptal-et', arguments: '{}' }],
+          finishReason: 'tool_calls',
+        },
+      },
+    ]);
+    const loop = new AgentLoop({
+      provider,
+      registry,
+      permissions,
+      native,
+      model: 'x',
+      systemPrompt: 'test',
+      maxIterations: 1,
+      signal: controller.signal,
+    });
+    await expect(loop.run('tek adım')).rejects.toThrow(/iptal/i);
+  });
+
+  it("finishReason 'length' yanıtı kesik olarak işaretler (V1.2-071)", async () => {
+    const provider = scriptedProvider([
+      { response: { content: 'Yarıda kalan uzun bir cümle', finishReason: 'length' } },
+    ]);
+    const loop = new AgentLoop({
+      provider,
+      registry: makeRegistry(),
+      permissions,
+      native,
+      model: 'x',
+      systemPrompt: 'test',
+    });
+    const res = await loop.run('uzun anlat');
+    expect(res.truncated).toBe(true);
+  });
+
+  it("'length' dışı bitişte kesilme işareti konmaz", async () => {
+    const provider = scriptedProvider([{ response: { content: 'Tamam.', finishReason: 'stop' } }]);
+    const loop = new AgentLoop({
+      provider,
+      registry: makeRegistry(),
+      permissions,
+      native,
+      model: 'x',
+      systemPrompt: 'test',
+    });
+    const res = await loop.run('kısa anlat');
+    expect(res.truncated).toBeUndefined();
+  });
+
+  it('paylaşılan tool önbelleği yan etkiyi ve audit olayını tekrarlamaz (V1.2-070)', async () => {
+    const runSpy = vi.fn(async () => ({ saved: true }));
+    const makeCacheRegistry = () => {
+      const r = new ToolRegistry({ timeoutMs: 2000 });
+      r.register({
+        name: 'kaydet',
+        description: 'k',
+        schema: z.object({ v: z.string() }),
+        parameters: { type: 'object', properties: { v: { type: 'string' } } },
+        permission: 'safe',
+        run: runSpy,
+      });
+      return r;
+    };
+    const script = () =>
+      scriptedProvider([
+        {
+          response: {
+            content: '',
+            toolCalls: [{ id: 'c1', name: 'kaydet', arguments: '{"v":"x"}' }],
+            finishReason: 'tool_calls',
+          },
+        },
+        { response: { content: 'kaydettim.', finishReason: 'stop' } },
+      ]);
+    const cache = new Map<string, ToolResult>();
+    const events: string[] = [];
+    const makeLoop = () =>
+      new AgentLoop({
+        provider: script(),
+        registry: makeCacheRegistry(),
+        permissions,
+        native,
+        model: 'x',
+        systemPrompt: 'test',
+        toolResultCache: cache,
+        onToolEvent: (e) => events.push(e.tool),
+      });
+    await makeLoop().run('kaydet');
+    await makeLoop().run('kaydet'); // yedek deneme simülasyonu — aynı istek önbelleği
+    expect(runSpy).toHaveBeenCalledTimes(1);
+    expect(events).toEqual(['kaydet']); // ikinci kez audit olayı yayılmaz
+  });
+
+  it('hafıza talimatı ayrı sabitte — kapalıyken prompt kaydettirmez (V1.2-005)', () => {
+    expect(DEFAULT_SYSTEM_PROMPT).not.toContain('hafiza_kaydet');
+    expect(MEMORY_INSTRUCTION).toContain('hafiza_kaydet');
   });
 });

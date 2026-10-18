@@ -3,6 +3,7 @@
  * API anahtarı gerektirmez; internet gerektirir. Başarısızsa renderer sistem TTS'ine düşer.
  */
 import { MsEdgeTTS, OUTPUT_FORMAT, ProsodyOptions } from 'msedge-tts';
+import type { Readable } from 'node:stream';
 import { ProviderError } from '../src/providers/types';
 
 export interface EdgeVoice {
@@ -13,8 +14,12 @@ export interface EdgeVoice {
 
 export const DEFAULT_EDGE_VOICE = 'tr-TR-EmelNeural';
 
-let client: MsEdgeTTS | null = null;
-let currentVoice = '';
+// V1.2-031: istek başına istemci — paylaşılan client kapandığında süren sentez ölmez.
+const CONNECTION_TIMEOUT_MS = 10_000;
+const METADATA_TIMEOUT_MS = 10_000;
+const STREAM_TIMEOUT_MS = 25_000;
+
+const activeClients = new Set<MsEdgeTTS>();
 
 export async function listEdgeVoices(): Promise<EdgeVoice[]> {
   const tts = new MsEdgeTTS();
@@ -49,6 +54,46 @@ export function prosodyOf(rate: number, pitch: number): { rate: string; pitch: s
   };
 }
 
+/** Kendi zaman aşımımız — hata mesajı "timeout" olan gerçek bir hataya dönüşsün. */
+class EdgeTimeoutError extends Error {}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new EdgeTimeoutError()), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (e: unknown) => {
+        clearTimeout(timer);
+        reject(e);
+      },
+    );
+  });
+}
+
+/** Ses akışını toplar; akış sağlayıcıda asılı kalırsa net zaman aşımına düşer. */
+function readAudioStream(stream: Readable): Promise<Buffer> {
+  return new Promise<Buffer>((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    const timer = setTimeout(() => reject(new EdgeTimeoutError()), STREAM_TIMEOUT_MS);
+    stream.on('data', (c: Buffer) => chunks.push(c));
+    stream.on('end', () => {
+      clearTimeout(timer);
+      resolve(Buffer.concat(chunks));
+    });
+    stream.on('close', () => {
+      clearTimeout(timer);
+      resolve(Buffer.concat(chunks));
+    });
+    stream.on('error', (e: Error) => {
+      clearTimeout(timer);
+      reject(e);
+    });
+  });
+}
+
 export async function synthesizeEdge(
   text: string,
   voice: string,
@@ -56,67 +101,51 @@ export async function synthesizeEdge(
   pitch: number,
 ): Promise<{ audio: Buffer; mime: string }> {
   const chosen = voice || DEFAULT_EDGE_VOICE;
+  const tts = new MsEdgeTTS({
+    connectionTimeoutMs: CONNECTION_TIMEOUT_MS,
+    synthesisTimeoutMs: STREAM_TIMEOUT_MS,
+  });
+  activeClients.add(tts);
   try {
-    if (!client || currentVoice !== chosen) {
-      try {
-        client?.close();
-      } catch {
-        // yok say
-      }
-      client = new MsEdgeTTS();
-      await client.setMetadata(chosen, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
-      currentVoice = chosen;
-    }
+    await withTimeout(
+      tts.setMetadata(chosen, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3),
+      METADATA_TIMEOUT_MS,
+    );
     const prosody = new ProsodyOptions();
     const p = prosodyOf(rate, pitch);
     prosody.rate = p.rate;
     prosody.pitch = p.pitch;
 
-    const { audioStream } = client.toStream(text.slice(0, 4000), prosody);
-    const chunks: Buffer[] = [];
-    await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('timeout')), 25_000);
-      audioStream.on('data', (c: Buffer) => chunks.push(c));
-      audioStream.on('end', () => {
-        clearTimeout(timer);
-        resolve();
-      });
-      audioStream.on('close', () => {
-        clearTimeout(timer);
-        resolve();
-      });
-      audioStream.on('error', (e: Error) => {
-        clearTimeout(timer);
-        reject(e);
-      });
-    });
-    const audio = Buffer.concat(chunks);
+    const { audioStream } = tts.toStream(text.slice(0, 4000), prosody);
+    const audio = await readAudioStream(audioStream);
     if (audio.length === 0) {
       throw new ProviderError('server', 'Edge boş ses döndürdü.');
     }
     return { audio, mime: 'audio/mpeg' };
   } catch (e) {
-    try {
-      client?.close();
-    } catch {
-      // yok say
-    }
-    client = null;
-    currentVoice = '';
     if (e instanceof ProviderError) throw e;
-    if (e instanceof Error && e.message === 'timeout') {
+    if (e instanceof EdgeTimeoutError) {
       throw new ProviderError('timeout', 'Edge ses sentezi zaman aşımına uğradı.');
     }
     throw new ProviderError('network', 'Edge ses sentezi başarısız (internet gerekli).');
+  } finally {
+    activeClients.delete(tts);
+    try {
+      tts.close();
+    } catch {
+      // yok say
+    }
   }
 }
 
+/** Süren tüm sentezleri kapat (uygulama kapanışı). */
 export function disposeTts(): void {
-  try {
-    client?.close();
-  } catch {
-    // yok say
+  for (const tts of [...activeClients]) {
+    try {
+      tts.close();
+    } catch {
+      // yok say
+    }
   }
-  client = null;
-  currentVoice = '';
+  activeClients.clear();
 }

@@ -1,5 +1,5 @@
 /**
- * Ayarlar paneli — 8 kategori, her kontrol gerçekten çalışır veya "kullanılamaz" işaretlidir.
+ * Ayarlar paneli — 9 kategori, her kontrol gerçekten çalışır veya "kullanılamaz" işaretlidir.
  * Ölü buton YASAK.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -33,17 +33,107 @@ const CATEGORIES: Array<{ id: Category; label: string }> = [
   { id: 'diagnostics', label: strings.diagnostics },
 ];
 
-const ACCENTS = ['#9B87F5', '#7C9BF0', '#5FB8A6', '#E8A05F', '#E86F8C', '#C9C9D4'];
+// V1.2-155: vurgu seçenekleri ekran okuyucuya ham hex yerine anlamlı ad verir.
+const ACCENTS: Array<{ value: string; label: string }> = [
+  { value: '#9B87F5', label: 'Mor' },
+  { value: '#7C9BF0', label: 'Mavi' },
+  { value: '#5FB8A6', label: 'Turkuaz' },
+  { value: '#E8A05F', label: 'Amber' },
+  { value: '#E86F8C', label: 'Pembe' },
+  { value: '#C9C9D4', label: 'Gri' },
+];
+
+// V1.2-143: kategori panel her açılışta "Genel"e dönmesin; modül düzeyinde korunur.
+let lastCategory: Category = 'general';
+
+// V1.2-094: Önizleme kutusundaki statik ekolayzır çubuklarının göreli yükseklikleri.
+const EQ_BARS = [0.35, 0.62, 0.9, 0.5, 0.78, 0.44, 0.3];
+
+/**
+ * V1.2-020: ui.tsx'teki Select/Slider `id`/`aria-label` prop'u almadığı için etiket, kontrolü
+ * kapsar (örtük etiketleme). Görünüm eski ".field label + kontrol" düzeniyle birebir aynıdır:
+ * başlık boşluğu içteki span'a taşınır (ui.tsx'e dokunulmadan gerçek erişilebilir ad).
+ */
+function Labeled(props: { text: string; children: React.ReactNode }): React.JSX.Element {
+  return (
+    <label style={{ marginBottom: 0 }}>
+      <span style={{ display: 'block', marginBottom: 5 }}>{props.text}</span>
+      {props.children}
+    </label>
+  );
+}
 
 export function SettingsPanel(props: {
   onClose: () => void;
   controller: AssistantController;
 }): React.JSX.Element {
-  const [category, setCategory] = useState<Category>('general');
+  const [category, setCategoryState] = useState<Category>(lastCategory);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
+  const saveError = useSettingsStore((s) => s.saveError);
+  const loadError = useSettingsStore((s) => s.loadError);
+
+  const setCategory = (c: Category): void => {
+    lastCategory = c;
+    setCategoryState(c);
+  };
+
+  // V1.2-019: açılışta odak panele gelir, kapanışta açan öğeye geri verilir.
+  useEffect(() => {
+    restoreFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    panelRef.current?.focus();
+    return () => {
+      restoreFocusRef.current?.focus();
+    };
+  }, []);
+
+  // V1.2-019: Tab pane içinde döner; Esc kapatır. Onay penceresi açıkken Esc ona aittir.
+  const onPanelKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
+    if (e.key === 'Escape') {
+      // Onay penceresi açıkken Esc panele değil ona aittir (Dialog kapanışını bekler).
+      if (panelRef.current?.querySelector('.dialogBackdrop, [role="dialog"]')) return;
+      e.preventDefault();
+      props.onClose();
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    const panel = panelRef.current;
+    if (!panel) return;
+    const nodes = Array.from(
+      panel.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      ),
+    ).filter((el) => !el.hasAttribute('disabled'));
+    if (nodes.length === 0) return;
+    const first = nodes[0];
+    const last = nodes[nodes.length - 1];
+    const active = document.activeElement;
+    // Panel kabuğu (tabIndex -1) da odak olabilir; o durumda yön sınırda sayılır.
+    const inside = active instanceof HTMLElement && active !== panel && panel.contains(active);
+    if (e.shiftKey) {
+      if (!inside || active === first) {
+        e.preventDefault();
+        last.focus();
+      }
+    } else if (!inside || active === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
 
   return (
     <div className="settingsOverlay" onClick={props.onClose}>
-      <div className="settingsPanel" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="settingsPanel"
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={strings.settings}
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={onPanelKeyDown}
+      >
         <nav className="settingsNav">
           <h2>{strings.settings.toUpperCase()}</h2>
           {CATEGORIES.map((c) => (
@@ -61,6 +151,12 @@ export function SettingsPanel(props: {
           </Button>
         </nav>
         <div className="settingsContent">
+          {/* V1.2-011: store'un save/load hatası sessizce kaybolmasın (alan-altı hata store'da henüz yok). */}
+          {(loadError || saveError) && (
+            <div className="statusHint warnText" role="alert">
+              {loadError ? `Ayarlar yüklenemedi: ${loadError}` : `Ayar kaydedilemedi: ${saveError}`}
+            </div>
+          )}
           {category === 'general' && <GeneralSection />}
           {category === 'provider' && <ProviderSection />}
           {category === 'voice' && <VoiceSection controller={props.controller} />}
@@ -82,6 +178,7 @@ function GeneralSection(): React.JSX.Element {
   const restoreDefaults = useSettingsStore((s) => s.restoreDefaults);
   const setCaption = useAssistantStore((s) => s.setCaption);
   const [confirming, setConfirming] = useState(false);
+  const [confirmingImport, setConfirmingImport] = useState(false);
   const [version, setVersion] = useState('0.1.0');
   const [loginItem, setLoginItem] = useState<{ supported: boolean; enabled: boolean } | null>(null);
 
@@ -95,12 +192,27 @@ function GeneralSection(): React.JSX.Element {
       .then((r) => setLoginItem({ supported: r.supported, enabled: r.enabled }));
   }, []);
 
+  const runImport = (): void => {
+    setConfirmingImport(false);
+    void window.quatra?.settings.importFile().then((r) => {
+      if (r.ok && !r.canceled) {
+        void useSettingsStore
+          .getState()
+          .load()
+          .then(() => setCaption(strings.settingsImported));
+      } else if (!r.ok) {
+        setCaption(r.message ?? strings.settingsImportFailed);
+      }
+    });
+  };
+
   return (
     <>
       <h3>{strings.general}</h3>
       <div className="field">
-        <label>{strings.assistantName}</label>
+        <label htmlFor="set-assistant-name">{strings.assistantName}</label>
         <input
+          id="set-assistant-name"
           className="input"
           value={settings.assistantName}
           maxLength={40}
@@ -108,8 +220,9 @@ function GeneralSection(): React.JSX.Element {
         />
       </div>
       <div className="field">
-        <label>{strings.personality}</label>
+        <label htmlFor="set-personality">{strings.personality}</label>
         <textarea
+          id="set-personality"
           className="input"
           value={settings.personality}
           maxLength={2000}
@@ -118,12 +231,13 @@ function GeneralSection(): React.JSX.Element {
         <div className="hint">{strings.personalityHint}</div>
       </div>
       <div className="field">
-        <label>{strings.language}</label>
-        <Select
-          value={settings.language}
-          onChange={(v) => void update({ language: v as 'tr' })}
-          options={[{ value: 'tr', label: 'Türkçe' }]}
-        />
+        <Labeled text={strings.language}>
+          <Select
+            value={settings.language}
+            onChange={(v) => void update({ language: v as 'tr' })}
+            options={[{ value: 'tr', label: 'Türkçe' }]}
+          />
+        </Labeled>
         <div className="hint">{strings.languageTrOnly}</div>
       </div>
       <div className="field">
@@ -134,7 +248,9 @@ function GeneralSection(): React.JSX.Element {
         <label style={{ margin: 0 }}>{strings.launchAtLogin}</label>
         <Switch
           on={loginItem?.enabled ?? false}
-          disabled={loginItem !== null && !loginItem.supported}
+          // V1.2-132: durum yüklenene kadar belirsiz → etkin bırakılırsa yanlış değer yazılabilir.
+          disabled={loginItem === null || !loginItem.supported}
+          title={strings.launchAtLogin}
           onChange={(v) => {
             void window.quatra?.app.setLaunchAtLogin(v).then((r) => {
               if (r.ok && r.supported && typeof r.enabled === 'boolean') {
@@ -145,7 +261,11 @@ function GeneralSection(): React.JSX.Element {
         />
       </div>
       <div className="hint">
-        {loginItem && !loginItem.supported ? strings.launchAtLoginDev : strings.launchAtLoginHint}
+        {loginItem === null
+          ? 'Açılış durumu okunuyor…'
+          : loginItem.supported
+            ? strings.launchAtLoginHint
+            : strings.launchAtLoginDev}
       </div>
       <div className="field row">
         <Button
@@ -157,22 +277,7 @@ function GeneralSection(): React.JSX.Element {
         >
           {strings.settingsExport}
         </Button>
-        <Button
-          onClick={() => {
-            void window.quatra?.settings.importFile().then((r) => {
-              if (r.ok && !r.canceled) {
-                void useSettingsStore
-                  .getState()
-                  .load()
-                  .then(() => setCaption(strings.settingsImported));
-              } else if (!r.ok) {
-                setCaption(r.message ?? strings.settingsImportFailed);
-              }
-            });
-          }}
-        >
-          {strings.settingsImport}
-        </Button>
+        <Button onClick={() => setConfirmingImport(true)}>{strings.settingsImport}</Button>
       </div>
       <div className="hint">{strings.settingsIoHint}</div>
       <div className="field">
@@ -180,6 +285,16 @@ function GeneralSection(): React.JSX.Element {
           {strings.restoreDefaults}
         </Button>
       </div>
+      {confirmingImport && (
+        <Dialog
+          title={strings.settingsImport}
+          body="Mevcut ayarlar dosyadan gelenlerle değiştirilecek. Emin misin?"
+          confirmLabel={strings.yes}
+          cancelLabel={strings.no}
+          onConfirm={runImport}
+          onCancel={() => setConfirmingImport(false)}
+        />
+      )}
       {confirming && (
         <Dialog
           title={strings.restoreDefaults}
@@ -202,12 +317,15 @@ function KeyBlock(props: {
   id: 'deepseek' | 'groq' | 'mem0';
   label: string;
   hint: string;
+  /** V1.2-016: anahtar kaydı/silinmesi üst bölüme bildirilir (düğmeler mount'ta donmasın). */
+  onChanged?: (hasKey: boolean) => void;
 }): React.JSX.Element {
   const [keyInput, setKeyInput] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [hasKey, setHasKey] = useState(false);
   const [keyMsg, setKeyMsg] = useState<string | null>(null);
   const [savedJustNow, setSavedJustNow] = useState(false);
+  const [confirmingClear, setConfirmingClear] = useState(false);
 
   useEffect(() => {
     void window.quatra?.credentials.has(props.id).then(setHasKey);
@@ -226,6 +344,7 @@ function KeyBlock(props: {
         setHasKey(true);
         setSavedJustNow(true);
         setKeyInput('');
+        props.onChanged?.(true);
       } else {
         setKeyMsg(res.error ?? strings.connectFailed);
       }
@@ -235,17 +354,30 @@ function KeyBlock(props: {
   };
 
   const clearKey = async (): Promise<void> => {
-    await window.quatra?.credentials.clear(props.id);
+    setConfirmingClear(false);
+    setKeyMsg(null);
+    // V1.2-127: silme sonucu denetlenmeden "anahtar yok" denemez.
+    const res = await window.quatra?.credentials.clear(props.id);
+    if (!res) {
+      setKeyMsg('Kasa köprüsüne ulaşılamadı; anahtar silinmedi.');
+      return;
+    }
+    if (!res.ok) {
+      setKeyMsg('Anahtar silinemedi.');
+      return;
+    }
     setHasKey(false);
     setSavedJustNow(false);
     setKeyMsg(strings.apiKeyMissing);
+    props.onChanged?.(false);
   };
 
   return (
     <div className="field">
-      <label>{props.label}</label>
+      <label htmlFor={`key-${props.id}`}>{props.label}</label>
       <div className="row">
         <input
+          id={`key-${props.id}`}
           className="input"
           type={showKey ? 'text' : 'password'}
           placeholder={
@@ -256,16 +388,22 @@ function KeyBlock(props: {
           autoComplete="off"
           spellCheck={false}
         />
-        <Button size="small" onClick={() => setShowKey(!showKey)}>
+        <button
+          type="button"
+          className="btn small"
+          // V1.2-157: göster/gizle bir açma-kapama durumudur.
+          aria-pressed={showKey}
+          onClick={() => setShowKey(!showKey)}
+        >
           {showKey ? strings.hide : strings.show}
-        </Button>
+        </button>
         <Button variant="primary" onClick={() => void saveKey()} disabled={!keyInput.trim()}>
           {strings.saveKey}
         </Button>
         {hasKey && (
           <Button
             variant="danger"
-            onClick={() => void clearKey()}
+            onClick={() => setConfirmingClear(true)}
             title="Kayıtlı anahtarı kasasından sil"
           >
             {strings.clearKey}
@@ -280,6 +418,18 @@ function KeyBlock(props: {
       <div className="hint">{props.hint}</div>
       {savedJustNow && <div className="hint">{strings.apiKeyClearedNote}</div>}
       {keyMsg && <div className="statusHint">{keyMsg}</div>}
+      {/* V1.2-130: yıkıcı eylem onayı — metin strings.ts kapsamı dışında (B3'te taşınacak). */}
+      {confirmingClear && (
+        <Dialog
+          title="Anahtarı kaldır"
+          body={`${props.label} şifre kasasından silinecek. Emin misin?`}
+          confirmLabel={strings.yes}
+          cancelLabel={strings.no}
+          danger
+          onConfirm={() => void clearKey()}
+          onCancel={() => setConfirmingClear(false)}
+        />
+      )}
     </div>
   );
 }
@@ -292,6 +442,8 @@ function ProviderSection(): React.JSX.Element {
   const [testMsg, setTestMsg] = useState<string | null>(null);
   const [models, setModels] = useState<Array<{ id: string }>>([]);
   const [modelsLoaded, setModelsLoaded] = useState(false);
+  const [modelsLoading, setModelsLoading] = useState(false);
+  const [modelsMsg, setModelsMsg] = useState<string | null>(null);
   const [hasDeepseek, setHasDeepseek] = useState(false);
   const flash = settings.provider.flashModel;
   const pro = settings.provider.proModel;
@@ -299,6 +451,15 @@ function ProviderSection(): React.JSX.Element {
   useEffect(() => {
     void window.quatra?.credentials.has('deepseek').then(setHasDeepseek);
   }, []);
+
+  // V1.2-016: anahtar kaldırılınca model listesi/durumu bayat kalmasın.
+  useEffect(() => {
+    if (!hasDeepseek) {
+      setModels([]);
+      setModelsLoaded(false);
+      setModelsMsg(null);
+    }
+  }, [hasDeepseek]);
 
   const runTest = async (): Promise<void> => {
     setTesting(true);
@@ -315,10 +476,21 @@ function ProviderSection(): React.JSX.Element {
     }
   };
 
+  // V1.2-128: "yüklendi" yalnız başarıda işaretlenir; hatada mesaj kalır ve yeniden denenebilir.
   const loadModels = async (): Promise<void> => {
-    setModelsLoaded(true);
+    setModelsLoading(true);
+    setModelsMsg(null);
     const res = await window.quatra?.provider.models();
-    if (res?.ok && res.models) setModels(res.models);
+    setModelsLoading(false);
+    if (res?.ok && res.models && res.models.length > 0) {
+      setModels(res.models);
+      setModelsLoaded(true);
+      return;
+    }
+    setModelsLoaded(false);
+    setModelsMsg(
+      res?.ok ? 'Sağlayıcı boş model listesi döndü.' : (res?.message ?? 'Modeller alınamadı.'),
+    );
   };
 
   const modelOptions = (current: string) => {
@@ -334,68 +506,83 @@ function ProviderSection(): React.JSX.Element {
       <h3>{strings.aiProvider}</h3>
       <div className="field">
         <label>{strings.provider}</label>
-        <Select
-          value={settings.provider.id}
-          onChange={() => undefined}
-          options={[{ value: 'deepseek', label: 'DeepSeek' }]}
-        />
+        {/* V1.2-129: onChange'si olmayan ölü Select yerine gerçek durum metni. */}
+        <div className="statusHint">DeepSeek (tek sağlayıcı — değiştirilemez)</div>
       </div>
-      <KeyBlock id="deepseek" label={strings.apiKey} hint={strings.apiKeyHint} />
+      <KeyBlock
+        id="deepseek"
+        label={strings.apiKey}
+        hint={strings.apiKeyHint}
+        onChanged={setHasDeepseek}
+      />
       <div className="field">
-        <label>{strings.flashModel}</label>
-        <Select
-          value={flash}
-          onChange={(v) => void updateProvider({ flashModel: v })}
-          options={modelOptions(flash)}
-        />
-      </div>
-      <div className="field">
-        <label>{strings.proModel}</label>
-        <Select
-          value={pro}
-          onChange={(v) => void updateProvider({ proModel: v })}
-          options={modelOptions(pro)}
-        />
+        <Labeled text={strings.flashModel}>
+          <Select
+            value={flash}
+            onChange={(v) => void updateProvider({ flashModel: v })}
+            options={modelOptions(flash)}
+          />
+        </Labeled>
       </div>
       <div className="field">
-        <label>{strings.temperature}</label>
-        <Slider
-          value={settings.provider.temperature}
-          min={0}
-          max={2}
-          onChange={(v) => void updateProvider({ temperature: v })}
-          format={(v) => v.toFixed(2)}
-        />
+        <Labeled text={strings.proModel}>
+          <Select
+            value={pro}
+            onChange={(v) => void updateProvider({ proModel: v })}
+            options={modelOptions(pro)}
+          />
+        </Labeled>
       </div>
       <div className="field">
-        <label>{strings.maxTokens}</label>
-        <Slider
-          value={settings.provider.maxTokens}
-          min={256}
-          max={8192}
-          step={256}
-          onChange={(v) => void updateProvider({ maxTokens: v })}
-          format={(v) => String(v)}
-        />
+        <Labeled text={strings.temperature}>
+          <Slider
+            value={settings.provider.temperature}
+            min={0}
+            max={2}
+            onChange={(v) => void updateProvider({ temperature: v })}
+            format={(v) => v.toFixed(2)}
+          />
+        </Labeled>
       </div>
       <div className="field">
-        <label>{strings.timeout}</label>
-        <Slider
-          value={settings.provider.timeoutMs / 1000}
-          min={10}
-          max={120}
-          step={5}
-          onChange={(v) => void updateProvider({ timeoutMs: Math.round(v * 1000) })}
-          format={(v) => `${Math.round(v)}s`}
-        />
+        <Labeled text={strings.maxTokens}>
+          <Slider
+            value={settings.provider.maxTokens}
+            min={256}
+            max={8192}
+            step={256}
+            onChange={(v) => void updateProvider({ maxTokens: v })}
+            format={(v) => String(v)}
+          />
+        </Labeled>
+      </div>
+      <div className="field">
+        <Labeled text={strings.timeout}>
+          <Slider
+            value={settings.provider.timeoutMs / 1000}
+            min={10}
+            max={120}
+            step={5}
+            onChange={(v) => void updateProvider({ timeoutMs: Math.round(v * 1000) })}
+            format={(v) => `${Math.round(v)}s`}
+          />
+        </Labeled>
       </div>
       <div className="field row">
         <Button variant="primary" onClick={() => void runTest()} disabled={testing || !hasDeepseek}>
           {testing ? strings.testing : strings.testConnection}
         </Button>
-        <Button onClick={() => void loadModels()} disabled={!hasDeepseek || modelsLoaded}>
-          {modelsLoaded ? `${models.length} model` : 'Modelleri getir'}
+        <Button
+          onClick={() => void loadModels()}
+          disabled={!hasDeepseek || modelsLoading || (modelsLoaded && !modelsMsg)}
+        >
+          {modelsLoading
+            ? 'Getiriliyor…'
+            : modelsLoaded
+              ? `${models.length} model`
+              : 'Modelleri getir'}
         </Button>
+        {modelsMsg && <StatusPill kind="bad" text={modelsMsg} />}
         {testResult === 'ok' && <StatusPill kind="ok" text={testMsg ?? strings.connected} />}
         {testResult === 'bad' && <StatusPill kind="bad" text={testMsg ?? strings.connectFailed} />}
         {!hasDeepseek && <StatusPill kind="warn" text={strings.noKeyFirst} />}
@@ -499,20 +686,21 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
     <>
       <h3>{strings.voiceAudio}</h3>
       <div className="field">
-        <label>{strings.sttEngine}</label>
-        <Select
-          value={settings.voice.sttEngine}
-          onChange={(v) =>
-            void update({
-              voice: { ...settings.voice, sttEngine: v as typeof settings.voice.sttEngine },
-            })
-          }
-          options={[
-            { value: 'auto', label: strings.sttAuto },
-            { value: 'groq', label: strings.sttGroq },
-            { value: 'off', label: strings.sttOff },
-          ]}
-        />
+        <Labeled text={strings.sttEngine}>
+          <Select
+            value={settings.voice.sttEngine}
+            onChange={(v) =>
+              void update({
+                voice: { ...settings.voice, sttEngine: v as typeof settings.voice.sttEngine },
+              })
+            }
+            options={[
+              { value: 'auto', label: strings.sttAuto },
+              { value: 'groq', label: strings.sttGroq },
+              { value: 'off', label: strings.sttOff },
+            ]}
+          />
+        </Labeled>
         <div className="hint">{strings.groqKeyHint}</div>
       </div>
 
@@ -522,6 +710,7 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
           <div className="hint">{strings.continuousHint}</div>
         </div>
         <Switch
+          title={strings.continuousLabel}
           on={settings.voice.continuous}
           onChange={(v) => void update({ voice: { ...settings.voice, continuous: v } })}
         />
@@ -533,6 +722,7 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
           <div className="hint">{strings.bargeInHint}</div>
         </div>
         <Switch
+          title={strings.bargeInLabel}
           on={settings.voice.bargeIn}
           onChange={(v) => void update({ voice: { ...settings.voice, bargeIn: v } })}
         />
@@ -561,6 +751,7 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
         <div className="row between" style={{ padding: '4px 0' }}>
           <label style={{ margin: 0 }}>{strings.micNoise}</label>
           <Switch
+            title={strings.micNoise}
             on={settings.voice.micNoiseSuppression}
             onChange={(v) => void update({ voice: { ...settings.voice, micNoiseSuppression: v } })}
           />
@@ -568,6 +759,7 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
         <div className="row between" style={{ padding: '4px 0' }}>
           <label style={{ margin: 0 }}>{strings.micEcho}</label>
           <Switch
+            title={strings.micEcho}
             on={settings.voice.micEchoCancellation}
             onChange={(v) => void update({ voice: { ...settings.voice, micEchoCancellation: v } })}
           />
@@ -575,6 +767,7 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
         <div className="row between" style={{ padding: '4px 0' }}>
           <label style={{ margin: 0 }}>{strings.micGain}</label>
           <Switch
+            title={strings.micGain}
             on={settings.voice.micAutoGain}
             onChange={(v) => void update({ voice: { ...settings.voice, micAutoGain: v } })}
           />
@@ -582,15 +775,16 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
       </div>
 
       <div className="field">
-        <label>{strings.vadSensitivity}</label>
-        <Slider
-          value={settings.voice.vadSensitivity}
-          min={1}
-          max={10}
-          step={1}
-          onChange={(v) => void update({ voice: { ...settings.voice, vadSensitivity: v } })}
-          format={(v) => `${v}/10`}
-        />
+        <Labeled text={strings.vadSensitivity}>
+          <Slider
+            value={settings.voice.vadSensitivity}
+            min={1}
+            max={10}
+            step={1}
+            onChange={(v) => void update({ voice: { ...settings.voice, vadSensitivity: v } })}
+            format={(v) => `${v}/10`}
+          />
+        </Labeled>
         <div className="hint">{strings.vadSensitiveHint}</div>
       </div>
 
@@ -626,15 +820,16 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
       </div>
 
       <div className="field">
-        <label>{strings.sleepAfter}</label>
-        <Slider
-          value={settings.voice.sleepAfterSec}
-          min={2}
-          max={30}
-          step={1}
-          onChange={(v) => void update({ voice: { ...settings.voice, sleepAfterSec: v } })}
-          format={(v) => `${v} sn`}
-        />
+        <Labeled text={strings.sleepAfter}>
+          <Slider
+            value={settings.voice.sleepAfterSec}
+            min={2}
+            max={30}
+            step={1}
+            onChange={(v) => void update({ voice: { ...settings.voice, sleepAfterSec: v } })}
+            format={(v) => `${v} sn`}
+          />
+        </Labeled>
         <div className="hint">{strings.sleepAfterHint}</div>
       </div>
 
@@ -643,29 +838,31 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
       <div className="field row between">
         <label style={{ margin: 0 }}>{strings.autoSpeak}</label>
         <Switch
+          title={strings.autoSpeak}
           on={settings.voice.autoSpeak}
           onChange={(v) => void update({ voice: { ...settings.voice, autoSpeak: v } })}
         />
       </div>
 
       <div className="field">
-        <label>{strings.ttsEngineLabel}</label>
-        <Select
-          value={engine}
-          onChange={(v) =>
-            void update({
-              voice: {
-                ...settings.voice,
-                ttsEngine: v as typeof settings.voice.ttsEngine,
-                voiceName: '',
-              },
-            })
-          }
-          options={[
-            { value: 'edge', label: strings.ttsEdge },
-            { value: 'system', label: strings.ttsSystem },
-          ]}
-        />
+        <Labeled text={strings.ttsEngineLabel}>
+          <Select
+            value={engine}
+            onChange={(v) =>
+              void update({
+                voice: {
+                  ...settings.voice,
+                  ttsEngine: v as typeof settings.voice.ttsEngine,
+                  voiceName: '',
+                },
+              })
+            }
+            options={[
+              { value: 'edge', label: strings.ttsEdge },
+              { value: 'system', label: strings.ttsSystem },
+            ]}
+          />
+        </Labeled>
       </div>
 
       <div className="field">
@@ -691,24 +888,26 @@ function VoiceSection(props: { controller: AssistantController }): React.JSX.Ele
       </div>
 
       <div className="field">
-        <label>{strings.speechRate}</label>
-        <Slider
-          value={settings.voice.rate}
-          min={0.5}
-          max={2}
-          onChange={(v) => void update({ voice: { ...settings.voice, rate: v } })}
-          format={(v) => `${v.toFixed(1)}x`}
-        />
+        <Labeled text={strings.speechRate}>
+          <Slider
+            value={settings.voice.rate}
+            min={0.5}
+            max={2}
+            onChange={(v) => void update({ voice: { ...settings.voice, rate: v } })}
+            format={(v) => `${v.toFixed(1)}x`}
+          />
+        </Labeled>
       </div>
       <div className="field">
-        <label>Ses perdesi</label>
-        <Slider
-          value={settings.voice.pitch}
-          min={0.5}
-          max={1.5}
-          onChange={(v) => void update({ voice: { ...settings.voice, pitch: v } })}
-          format={(v) => v.toFixed(2)}
-        />
+        <Labeled text="Ses perdesi">
+          <Slider
+            value={settings.voice.pitch}
+            min={0.5}
+            max={1.5}
+            onChange={(v) => void update({ voice: { ...settings.voice, pitch: v } })}
+            format={(v) => v.toFixed(2)}
+          />
+        </Labeled>
       </div>
       <div className="field row">
         <Button
@@ -853,25 +1052,27 @@ function ActivationSection(): React.JSX.Element {
     <>
       <h3>{strings.activation}</h3>
       <div className="field">
-        <label>{strings.activationMode}</label>
-        <Select
-          value={settings.activation.mode}
-          onChange={(v) =>
-            void update({
-              activation: { ...settings.activation, mode: v as typeof settings.activation.mode },
-            })
-          }
-          options={[
-            { value: 'manual', label: strings.modeManual },
-            { value: 'push_to_talk', label: strings.modePtt },
-            { value: 'wake_word', label: 'Uyandırma kelimesi («Quatra»)' },
-          ]}
-        />
+        <Labeled text={strings.activationMode}>
+          <Select
+            value={settings.activation.mode}
+            onChange={(v) =>
+              void update({
+                activation: { ...settings.activation, mode: v as typeof settings.activation.mode },
+              })
+            }
+            options={[
+              { value: 'manual', label: strings.modeManual },
+              { value: 'push_to_talk', label: strings.modePtt },
+              { value: 'wake_word', label: 'Uyandırma kelimesi («Quatra»)' },
+            ]}
+          />
+        </Labeled>
       </div>
       {settings.activation.mode === 'push_to_talk' && (
         <div className="field">
-          <label>{strings.pttKey}</label>
+          <label htmlFor="set-ptt-key">{strings.pttKey}</label>
           <input
+            id="set-ptt-key"
             className="input"
             style={{ width: 240 }}
             value={settings.activation.pushToTalkKey}
@@ -884,8 +1085,9 @@ function ActivationSection(): React.JSX.Element {
       )}
       {settings.activation.mode === 'wake_word' && (
         <div className="field">
-          <label>{strings.wakeWord}</label>
+          <label htmlFor="set-wake-word">{strings.wakeWord}</label>
           <input
+            id="set-wake-word"
             className="input"
             style={{ width: 240 }}
             value={settings.activation.wakeWord}
@@ -917,6 +1119,8 @@ function AppearanceSection(): React.JSX.Element {
               onClick={() => void update({ appearance: { ...app, theme: t.id, accent: t.accent } })}
               title={`${t.label} — ${t.desc}`}
               aria-label={t.label}
+              // V1.2-155: seçili tema ekran okuyucuya bildirilir.
+              aria-pressed={app.theme === t.id}
               style={{
                 width: 30,
                 height: 30,
@@ -950,72 +1154,111 @@ function AppearanceSection(): React.JSX.Element {
         <div className="row" style={{ gap: 8 }}>
           {ACCENTS.map((c) => (
             <button
-              key={c}
-              onClick={() => void update({ appearance: { ...app, accent: c } })}
+              key={c.value}
+              onClick={() => void update({ appearance: { ...app, accent: c.value } })}
               style={{
                 width: 26,
                 height: 26,
                 borderRadius: '50%',
-                background: c,
-                border: app.accent === c ? '2px solid #fff' : '2px solid transparent',
+                background: c.value,
+                // V1.2-155: seçili çerçeve temadan bağımsız görünür (sabit #fff yerine).
+                border: app.accent === c.value ? '2px solid var(--text)' : '2px solid transparent',
                 cursor: 'pointer',
               }}
-              aria-label={c}
+              aria-label={`Vurgu: ${c.label}`}
+              aria-pressed={app.accent === c.value}
             />
           ))}
         </div>
       </div>
       <div className="field">
-        <label>{strings.intensity}</label>
-        <Slider
-          value={app.intensity}
-          min={0.3}
-          max={1}
-          onChange={(v) => void update({ appearance: { ...app, intensity: v } })}
-          format={(v) => v.toFixed(2)}
-        />
+        <Labeled text={strings.intensity}>
+          <Slider
+            value={app.intensity}
+            // V1.2-151: şema 0..1 — slider da aynı aralıkta (içe aktarılan değer kırpılmasın).
+            min={0}
+            max={1}
+            onChange={(v) => void update({ appearance: { ...app, intensity: v } })}
+            format={(v) => v.toFixed(2)}
+          />
+        </Labeled>
       </div>
       <div className="field">
-        <label>{strings.animationSpeed}</label>
-        <Slider
-          value={app.animationSpeed}
-          min={0.5}
-          max={2}
-          onChange={(v) => void update({ appearance: { ...app, animationSpeed: v } })}
-          format={(v) => `${v.toFixed(1)}x`}
-        />
+        <Labeled text={strings.animationSpeed}>
+          <Slider
+            value={app.animationSpeed}
+            min={0.5}
+            max={2}
+            onChange={(v) => void update({ appearance: { ...app, animationSpeed: v } })}
+            format={(v) => `${v.toFixed(1)}x`}
+          />
+        </Labeled>
       </div>
       <div className="field">
-        <label>{strings.glow}</label>
-        <Slider
-          value={app.glow}
-          min={0}
-          max={1}
-          onChange={(v) => void update({ appearance: { ...app, glow: v } })}
-          format={(v) => v.toFixed(2)}
-        />
+        <Labeled text={strings.glow}>
+          <Slider
+            value={app.glow}
+            min={0}
+            max={1}
+            onChange={(v) => void update({ appearance: { ...app, glow: v } })}
+            format={(v) => v.toFixed(2)}
+          />
+        </Labeled>
       </div>
       <div className="field">
-        <label>{strings.uiScale}</label>
-        <Slider
-          value={app.uiScale}
-          min={0.85}
-          max={1.3}
-          onChange={(v) => void update({ appearance: { ...app, uiScale: v } })}
-          format={(v) => `${Math.round(v * 100)}%`}
-        />
+        <Labeled text={strings.uiScale}>
+          <Slider
+            value={app.uiScale}
+            min={0.85}
+            max={1.3}
+            onChange={(v) => void update({ appearance: { ...app, uiScale: v } })}
+            format={(v) => `${Math.round(v * 100)}%`}
+          />
+        </Labeled>
       </div>
       <div className="field row between">
         <label style={{ margin: 0 }}>{strings.reducedMotion}</label>
         <Switch
+          title={strings.reducedMotion}
           on={app.reducedMotion}
           onChange={(v) => void update({ appearance: { ...app, reducedMotion: v } })}
         />
       </div>
       <div className="field">
         <label>{strings.preview}</label>
+        {/* V1.2-094: boş kutu yerine gerçek, ayarlara duyarlı mini ekolayzır önizlemesi. */}
         <div className="previewBox">
-          <span className="statusHint">Değişiklikler ana ekranda anında uygulanır</span>
+          <div
+            className="row"
+            aria-hidden="true"
+            style={{
+              alignItems: 'flex-end',
+              gap: 6,
+              height: 64,
+              boxShadow: `0 0 ${Math.round(app.glow * 28)}px color-mix(in srgb, var(--accent) 60%, transparent)`,
+              borderRadius: 10,
+              padding: '0 10px',
+            }}
+          >
+            {EQ_BARS.map((h, i) => (
+              <span
+                key={i}
+                style={{
+                  display: 'inline-block',
+                  width: 6,
+                  // V1.2-151: yoğunluk 0 iken de görünür kalsın diye taban yüksekliği var.
+                  height: Math.round(8 + h * app.intensity * 52),
+                  borderRadius: 3,
+                  background: 'var(--accent)',
+                  opacity: 0.85,
+                }}
+              />
+            ))}
+          </div>
+        </div>
+        <div className="hint">
+          Önizleme: çubuk yüksekliği görsel yoğunluğa, ışıltı ise ışıltı ayarına göre değişir; ana
+          ekranda canlı hareket eder.
         </div>
       </div>
     </>
@@ -1066,6 +1309,7 @@ function MemorySection(): React.JSX.Element {
       <div className="field row between">
         <label style={{ margin: 0 }}>{strings.memoryEnabled}</label>
         <Switch
+          title={strings.memoryEnabled}
           on={settings.memory.enabled}
           onChange={(v) => void update({ memory: { ...settings.memory, enabled: v } })}
         />
@@ -1073,25 +1317,27 @@ function MemorySection(): React.JSX.Element {
       <div className="field row between">
         <label style={{ margin: 0 }}>{strings.memoryAutoLearn}</label>
         <Switch
+          title={strings.memoryAutoLearn}
           on={settings.memory.autoLearn}
           onChange={(v) => void update({ memory: { ...settings.memory, autoLearn: v } })}
         />
       </div>
       <div className="hint">{strings.memoryAutoLearnHint}</div>
       <div className="field">
-        <label>{strings.memoryEngine}</label>
-        <Select
-          value={settings.memory.engine}
-          onChange={(v) =>
-            void update({
-              memory: { ...settings.memory, engine: v as typeof settings.memory.engine },
-            })
-          }
-          options={[
-            { value: 'local', label: strings.memoryEngineLocal },
-            { value: 'mem0', label: strings.memoryEngineMem0 },
-          ]}
-        />
+        <Labeled text={strings.memoryEngine}>
+          <Select
+            value={settings.memory.engine}
+            onChange={(v) =>
+              void update({
+                memory: { ...settings.memory, engine: v as typeof settings.memory.engine },
+              })
+            }
+            options={[
+              { value: 'local', label: strings.memoryEngineLocal },
+              { value: 'mem0', label: strings.memoryEngineMem0 },
+            ]}
+          />
+        </Labeled>
       </div>
       {settings.memory.engine === 'mem0' && (
         <KeyBlock id="mem0" label={strings.mem0Key} hint={strings.mem0KeyHint} />
@@ -1101,6 +1347,7 @@ function MemorySection(): React.JSX.Element {
           <input
             className="input"
             placeholder={strings.memoryAddPlaceholder}
+            aria-label={strings.memoryAddPlaceholder}
             value={newText}
             onChange={(e) => setNewText(e.target.value)}
             onKeyDown={(e) => {
@@ -1122,7 +1369,13 @@ function MemorySection(): React.JSX.Element {
             style={{ padding: '6px 0', borderBottom: '1px solid var(--border)' }}
           >
             <span style={{ fontSize: 12.5 }}>{e.text}</span>
-            <Button size="small" variant="danger" onClick={() => void removeEntry(e.id)}>
+            {/* V1.2-156: '✕' tek başına anlam taşımıyor — ekran okuyucuya ad verilir. */}
+            <Button
+              size="small"
+              variant="danger"
+              onClick={() => void removeEntry(e.id)}
+              ariaLabel="Kaydı sil"
+            >
               ✕
             </Button>
           </div>
@@ -1150,10 +1403,37 @@ function MemorySection(): React.JSX.Element {
   );
 }
 
+// V1.2-130: yıkıcı temizlemelerin onay metinleri — strings.ts B3 kapsamı → geçici hardcoded.
+const PRIVACY_CONFIRM = {
+  context: { title: strings.clearContext, body: 'Aktif konuşma bağlamı sıfırlanacak. Emin misin?' },
+  logs: {
+    title: strings.clearLogs,
+    body: 'Günlük dosyasındaki tüm kayıtlar silinecek. Emin misin?',
+  },
+  transcripts: {
+    title: strings.clearTranscripts,
+    body: 'Saklanan konuşma metinleri silinecek. Emin misin?',
+  },
+} as const;
+
 function PrivacySection(): React.JSX.Element {
   const settings = useSettingsStore((s) => s.settings);
   const update = useSettingsStore((s) => s.update);
   const setCaption = useAssistantStore((s) => s.setCaption);
+  const [confirming, setConfirming] = useState<'context' | 'logs' | 'transcripts' | null>(null);
+
+  const runClear = (which: 'context' | 'logs' | 'transcripts'): void => {
+    setConfirming(null);
+    if (which === 'context') {
+      void window.quatra?.agent.clearContext().then(() => setCaption(strings.contextCleared));
+    } else if (which === 'logs') {
+      void window.quatra?.log.clear().then(() => setCaption(strings.logsCleared));
+    } else {
+      void window.quatra?.privacy
+        .clearTranscripts()
+        .then(() => setCaption(strings.transcriptsCleared));
+    }
+  };
 
   return (
     <>
@@ -1162,6 +1442,7 @@ function PrivacySection(): React.JSX.Element {
         <label style={{ margin: 0 }}>{strings.retainTranscripts}</label>
         <Switch
           on={settings.privacy.retainTranscripts}
+          title={strings.retainTranscripts}
           onChange={(v) => void update({ privacy: { ...settings.privacy, retainTranscripts: v } })}
         />
       </div>
@@ -1170,37 +1451,29 @@ function PrivacySection(): React.JSX.Element {
         <label style={{ margin: 0 }}>{strings.clipboardRead}</label>
         <Switch
           on={settings.privacy.clipboardReadEnabled}
+          title={strings.clipboardRead}
           onChange={(v) =>
             void update({ privacy: { ...settings.privacy, clipboardReadEnabled: v } })
           }
         />
       </div>
       <div className="field row">
-        <Button
-          onClick={() => {
-            void window.quatra?.agent.clearContext().then(() => setCaption(strings.contextCleared));
-          }}
-        >
-          {strings.clearContext}
-        </Button>
-        <Button
-          onClick={() => {
-            void window.quatra?.log.clear().then(() => setCaption(strings.logsCleared));
-          }}
-        >
-          {strings.clearLogs}
-        </Button>
-        <Button
-          onClick={() => {
-            void window.quatra?.privacy
-              .clearTranscripts()
-              .then(() => setCaption(strings.transcriptsCleared));
-          }}
-        >
-          {strings.clearTranscripts}
-        </Button>
+        <Button onClick={() => setConfirming('context')}>{strings.clearContext}</Button>
+        <Button onClick={() => setConfirming('logs')}>{strings.clearLogs}</Button>
+        <Button onClick={() => setConfirming('transcripts')}>{strings.clearTranscripts}</Button>
       </div>
       <div className="statusHint">Ses kaydı tutulmaz; yalnızca anlık konuşma tanıma yapılır.</div>
+      {confirming && (
+        <Dialog
+          title={PRIVACY_CONFIRM[confirming].title}
+          body={PRIVACY_CONFIRM[confirming].body}
+          confirmLabel={strings.yes}
+          cancelLabel={strings.no}
+          danger
+          onConfirm={() => runClear(confirming)}
+          onCancel={() => setConfirming(null)}
+        />
+      )}
     </>
   );
 }
@@ -1216,34 +1489,31 @@ function RecordsSection(): React.JSX.Element {
     total: { prompt: number; completion: number; requests: number };
   } | null>(null);
   const [backup, setBackup] = useState<{ target: string; ts: string } | null>(null);
+  const [confirmingClear, setConfirmingClear] = useState(false);
 
-  const refresh = () => {
+  const refresh = useCallback(() => {
     void window.quatra?.audit.list().then((r) => setAudit(r.entries));
     void window.quatra?.usage
       .get()
       .then((r) => setUsage({ monthUsage: r.monthUsage, total: r.total }));
     void window.quatra?.notes.lastBackup().then((r) => setBackup(r.record));
-  };
-  const ranOnce = useRef(false);
-  useEffect(() => {
-    if (!ranOnce.current) {
-      ranOnce.current = true;
-      refresh();
-    }
   }, []);
+  // V1.2-018: ranOnce guard'ı listeyi mount anındaki görüntüde donduruyordu; refresh deps'e bağlı.
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   const fmt = (n: number) => n.toLocaleString('tr-TR');
   const fmtTs = (ts: string) => {
-    try {
-      return new Date(ts).toLocaleString('tr-TR', {
-        day: '2-digit',
-        month: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch {
-      return ts;
-    }
+    // V1.2-140: toLocaleString exception atmaz ("Invalid Date" döner) → geçerlilik önce denenir.
+    const d = new Date(ts);
+    if (Number.isNaN(d.getTime())) return ts;
+    return d.toLocaleString('tr-TR', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   return (
@@ -1262,18 +1532,28 @@ function RecordsSection(): React.JSX.Element {
         <Button size="small" onClick={refresh}>
           {strings.auditRefresh}
         </Button>
-        <Button
-          size="small"
-          onClick={() => {
+        <Button size="small" onClick={() => setConfirmingClear(true)}>
+          {strings.auditClear}
+        </Button>
+      </div>
+      {/* V1.2-130: işlem kaydı temizleme de onay ister (diğer yıkıcı eylemlerle tutarlı). */}
+      {confirmingClear && (
+        <Dialog
+          title={strings.auditClear}
+          body="İşlem kaydındaki tüm satırlar silinecek. Emin misin?"
+          confirmLabel={strings.yes}
+          cancelLabel={strings.no}
+          danger
+          onConfirm={() => {
+            setConfirmingClear(false);
             void window.quatra?.audit.clear().then(() => {
               setAudit([]);
               setCaption(strings.auditCleared);
             });
           }}
-        >
-          {strings.auditClear}
-        </Button>
-      </div>
+          onCancel={() => setConfirmingClear(false)}
+        />
+      )}
 
       <h4>{strings.usageTitle}</h4>
       {usage ? (
@@ -1327,10 +1607,20 @@ function DiagnosticsSection(): React.JSX.Element {
   const status = useAssistantStore((s) => s.status);
   const connection = useAssistantStore((s) => s.connection);
   const connectionError = useAssistantStore((s) => s.connectionError);
+  const setCaption = useAssistantStore((s) => s.setCaption);
   const settings = useSettingsStore((s) => s.settings);
   const [logs, setLogs] = useState<Array<{ text: string; kind: string }>>([]);
+  const [logFile, setLogFile] = useState<string | null>(null);
+  const [confirmingClear, setConfirmingClear] = useState(false);
 
-  // V1.2-077: effect bağımlılığı olduğundan useCallback; ranOnce guard'ı davranışı korur.
+  // V1.2-139: yol platforma göre köprüden gelir; bilinmiyorsa yanlış yol yazılmaz.
+  useEffect(() => {
+    void window.quatra?.log.path().then((r) => {
+      if (r?.ok && r.path) setLogFile(r.path);
+    });
+  }, []);
+
+  // V1.2-077: effect bağımlılığı olduğundan useCallback.
   const refresh = useCallback(() => {
     setLogs([
       {
@@ -1349,13 +1639,19 @@ function DiagnosticsSection(): React.JSX.Element {
       ...(connectionError ? [{ text: connectionError, kind: 'error' }] : []),
     ]);
   }, [connection, settings, status, connectionError]);
-  const ranOnce = useRef(false);
+  // V1.2-018: ranOnce guard'ı liste güncellemelerini engelliyordu; refresh deps'iyle senkron.
   useEffect(() => {
-    if (!ranOnce.current) {
-      ranOnce.current = true;
-      refresh();
-    }
+    refresh();
   }, [refresh]);
+
+  // V1.2-017: bu düğme listeyi yenilemiyordu, günlük dosyasını temizler (V1.2-130: onaylı).
+  const clearLogs = (): void => {
+    setConfirmingClear(false);
+    void window.quatra?.log.clear().then(() => {
+      setCaption(strings.logsCleared);
+      refresh();
+    });
+  };
 
   return (
     <>
@@ -1370,7 +1666,7 @@ function DiagnosticsSection(): React.JSX.Element {
       </div>
       <div className="field" style={{ marginTop: 14 }}>
         <div className="row">
-          <Button onClick={refresh}>{strings.clearLogs}</Button>
+          <Button onClick={() => setConfirmingClear(true)}>{strings.clearLogs}</Button>
           <Button
             variant="primary"
             onClick={() => void window.quatra?.log.openLogs()}
@@ -1380,13 +1676,25 @@ function DiagnosticsSection(): React.JSX.Element {
           </Button>
         </div>
         <div className="hint">
-          Hata günlükleri kalıcı olarak tutulur: %APPDATA%\\Quatra\\logs\\quatra.log (1MB'da
-          rotasyon).
+          {logFile
+            ? `Hata günlükleri kalıcı olarak tutulur: ${logFile} (1MB'da rotasyon).`
+            : "Hata günlükleri kalıcı olarak tutulur ve 1MB'da rotasyona uğrar; dosya konumu için 'Günlük dosyasını aç' düğmesini kullan."}
         </div>
       </div>
       <div className="statusHint">
         Sahte sağlık puanı yoktur; gösterilen her şey gerçek durumdur.
       </div>
+      {confirmingClear && (
+        <Dialog
+          title={strings.clearLogs}
+          body="Günlük dosyasındaki tüm kayıtlar silinecek. Emin misin?"
+          confirmLabel={strings.yes}
+          cancelLabel={strings.no}
+          danger
+          onConfirm={clearLogs}
+          onCancel={() => setConfirmingClear(false)}
+        />
+      )}
     </>
   );
 }

@@ -1,18 +1,33 @@
-/** Basit TR string tablosu — dış i18n bağımlılığı yok. */
+/**
+ * Basit TR string tablosu — dış i18n bağımlılığı yok.
+ * Platform bilgisi modül yüklenirken okunur (preload köprüsü hazırdır);
+ * Windows'a özgü metinler diğer platformlarda nötr karşılıklarına döner (V1.2-093).
+ */
+const isWindows =
+  typeof window !== 'undefined' && window.quatra?.platform
+    ? /^win/i.test(window.quatra.platform)
+    : typeof navigator !== 'undefined' && /^win/i.test(navigator.platform ?? '');
+
 export const strings = {
   appName: 'QUATRA',
   statusIdle: 'Hazır',
   statusIdleHint: 'Dinlemeye başlamak için seslen veya kısayolu kullan',
+  /** `{word}` yerine uyandırma kelimesi konur. */
+  statusIdleWake: 'Uyandırmak için «{word}» de',
   statusListening: 'Dinliyor…',
   statusProcessing: 'Düşünüyor…',
   statusSpeaking: 'Konuşuyor…',
   statusMuted: 'Mikrofon kapalı',
   statusError: 'Bir şey ters gitti',
   statusOffline: 'Çevrimdışı',
-  micOn: 'Mikrofon açık',
+  /** `{name}` yerine asistan adı konur. */
+  visualizerLabel: '{name} durum göstergesi',
   micOff: 'Mikrofon kapalı',
   micMute: 'Mikrofonu sustur',
   micUnmute: 'Mikrofonu aç',
+  titleMinimize: 'Küçült',
+  titleMaximize: 'Büyüt veya geri al',
+  titleClose: 'Kapat',
   settings: 'Ayarlar',
   settingsClose: 'Kapat',
   general: 'Genel',
@@ -28,8 +43,10 @@ export const strings = {
   language: 'Dil',
   languageTrOnly: 'Şimdilik yalnızca Türkçe destekleniyor',
   version: 'Sürüm',
-  launchAtLogin: 'Windows açılışında başlat',
-  launchAtLoginHint: 'Bilgisayar açıldığında Quatra kendiliğinden başlar ve tepside bekler.',
+  launchAtLogin: isWindows ? 'Windows açılışında başlat' : 'Sistem açılışında başlat',
+  launchAtLoginHint: isWindows
+    ? 'Bilgisayar açıldığında Quatra kendiliğinden başlar ve tepside bekler.'
+    : 'Bilgisayar açıldığında Quatra kendiliğinden başlar ve menü çubuğunda bekler.',
   launchAtLoginDev:
     'Yalnız kurulu (paketlenmiş) sürümde kullanılabilir; kaynak modda desteklenmez.',
   settingsExport: 'Ayarları dışa aktar',
@@ -59,6 +76,9 @@ export const strings = {
   timeout: 'Zaman aşımı (sn)',
   testConnection: 'Test et',
   testing: 'Test ediliyor…',
+  modelsLoading: 'Modeller yükleniyor…',
+  modelListFailed: 'Model listesi alınamadı',
+  modelLabel: 'Model',
   connected: 'Bağlantı başarılı',
   connectFailed: 'Bağlantı başarısız',
   noKeyFirst: 'Önce anahtarı kaydet',
@@ -131,6 +151,9 @@ export const strings = {
   no: 'Hayır',
   modeFlash: 'Hızlı',
   modePro: 'Düşünceli',
+  modeFlashHint: 'günlük sorular, hızlı yanıt',
+  modeProHint: 'kod, derin analiz',
+  modeVoiceHint: 'Sesli komut: “yazılım moduna geç” / “normal moda geç”',
   modeSelect: 'Çalışma modu',
   modelSelect: 'Model seç',
   rawModels: 'Diğer modeller',
@@ -146,13 +169,14 @@ export const strings = {
   followUpListening: 'Dinliyorum — konuşmaya devam edebilirsin',
   ttsEngineLabel: 'Konuşma motoru',
   ttsEdge: 'Edge Neural (doğal, internet gerekir) — önerilen',
-  ttsSystem: 'Windows (çevrimdışı, temel)',
+  ttsSystem: isWindows ? 'Windows (çevrimdışı, temel)' : 'Sistem sesi (çevrimdışı, temel)',
   ttsVoiceAuto: 'Otomatik (doğal Türkçe — Emel)',
   continuousLabel: 'Sürekli sohbet',
   continuousHint:
     'Cevap bitince mikrofon kendiliğinden dinlemeye döner; «Quatra» demene gerek kalmaz. Sessiz kalırsan sohbet beklemeye geçer.',
-  edgeVoiceHint:
-    'Edge sesleri ücretsiz ve doğaldır (internet ister). Çevrimdışıyken Windows sesine düşer.',
+  edgeVoiceHint: isWindows
+    ? 'Edge sesleri ücretsiz ve doğaldır (internet ister). Çevrimdışıyken Windows sesine düşer.'
+    : 'Edge sesleri ücretsiz ve doğaldır (internet ister). Çevrimdışıyken sistem sesine düşer.',
   memory: 'Hafıza',
   memoryHint:
     'Önemli bilgiler (isim, kalıcı tercihler, önemli tarihler) sohbet sırasında kendiliğinden öğrenilir; günlük konuşmalar kaydedilmez. «Hatırla: …» ile elle de ekleyebilirsin. Kayıtlar yalnızca bu cihazda saklanır.',
@@ -242,14 +266,17 @@ export const strings = {
   wakeHeardNothing: 'Sesi duyamadım — tekrar dener misin?',
   wakeReady: 'Buradayım.',
   pttGlobalNote: 'Kısayol globaldir: uygulama arka plandayken de çalışır.',
-  voicesHint:
-    'Liste, Windows’ta kurulu gerçek seslerdir. Daha fazlası için: Windows Ayarlar → Saat ve Dil → Konuşma → Sesleri ekle.',
+  voicesHint: isWindows
+    ? 'Liste, Windows’ta kurulu gerçek seslerdir. Daha fazlası için: Windows Ayarlar → Saat ve Dil → Konuşma → Sesleri ekle.'
+    : 'Liste, sistemde kurulu gerçek seslerdir. Daha fazlası için işletim sisteminin konuşma/ses ayarlarından yeni ses ekleyebilirsin.',
   refresh: 'Yenile',
   captionListening: 'Seni dinliyorum…',
   sttFailed: 'Sesin anlaşılamadı — tekrar dener misin?',
   micDenied: 'Mikrofon izni reddedildi. Sistem ayarlarından izin ver.',
   micNone: 'Mikrofon bulunamadı.',
   offlineNote: 'İnternet yok — yerel araçlar çalışır, AI yanıtı gelmez.',
+  errorBoundaryTitle: 'Quatra arayüzü yeniden başlatılmalı.',
+  errorBoundaryBody:
+    'Bir bileşen beklenmedik şekilde durdu. Uygulama diğer bölümleriyle çalışmaya devam eder.',
+  errorBoundaryRetry: 'Tekrar dene',
 } as const;
-
-export type StringKey = keyof typeof strings;

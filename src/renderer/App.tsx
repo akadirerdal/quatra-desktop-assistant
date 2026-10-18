@@ -1,7 +1,7 @@
 /**
  * Uygulama kökü — ErrorBoundary, ayarlar yükleme, first-run, PTT, Esc, mod döngüsü.
  */
-import { Component, useEffect, useRef, useState } from 'react';
+import { Component, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { MainScreen } from '../features/assistant/MainScreen';
 import { TitleBar } from '../features/assistant/TitleBar';
@@ -43,9 +43,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { broken: boolean
 export function App(): React.JSX.Element {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [firstRun, setFirstRun] = useState(false);
-  const controllerRef = useRef<AssistantController | null>(null);
-  if (!controllerRef.current) controllerRef.current = new AssistantController();
-  const controller = controllerRef.current;
+  const [controller] = useState(() => new AssistantController());
 
   const loadSettings = useSettingsStore((s) => s.load);
   const mutedByUser = useAssistantStore((s) => s.mutedByUser);

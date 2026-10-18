@@ -29,15 +29,17 @@ export function detectSleepCommand(text: string): boolean {
   );
 }
 
-/** Sesli durdurma komutu — Quatra susar, sohbet bağlamı korunur (V1-07). */
+/** Sesli durdurma komutu — Quatra susar, sohbet bağlamı korunur (V1-07).
+ *  V1.2-057: "dur" yalnız TEK BAŞINA (veya noktalama sonrası) sayılır; "dur bakalım" komut değildir. */
 export function detectStopSpeakingCommand(text: string): boolean {
   const t = text
     .toLowerCase()
     .trim()
     .replace(/[.!?…]+$/u, '');
-  return /^(sus|sussana|sus bakalım|sus artık|artık sus|kes sesini|sesini kes|sessiz ol|konuşma|yeter|yeter artık|dur)(?:[\s,.!;:]|$)/.test(
-    t,
-  );
+  const phrase =
+    /^(sus|sussana|sus bakalım|sus artık|artık sus|kes sesini|sesini kes|sessiz ol|konuşma|yeter|yeter artık|dur artık)(?:[\s,.!;:]|$)/;
+  const bare = /^dur(?:[,.!;]|$)/; // "dur" / "dur." — "dur bakalım" bunu GEÇMEZ
+  return phrase.test(t) || bare.test(t);
 }
 
 /** Sözlü izin yanıtı — "evet"/"hayır" ailesini çözer (V1-09). Anlaşılmazsa null. */
@@ -99,25 +101,42 @@ export function parseReminderIntent(text: string): ReminderIntent | null {
   return { delayMs, what };
 }
 
+/** İsim yerine geçemeyecek fiil/ifade başlangıçları (V1.2-055): "adım adım anlat", "adım at" gibi. */
+const NAME_START_VERB =
+  /^(adım|at(?=\s|$)|at(?:ma\b|mak\w*|madan\w*|maya\w*|arak\w*|ıyor\w*|tım\w*|ınca\w*)|anlat\w*|açıkla\w*|ilerle\w*|yaklaş\w*|başla\w*|devam\w*)/i;
+
+/** Cümle içinde geçen komut fiilleri — isim olamaz ("uzun uzun anlat" gibi). */
+const NAME_ANY_VERB =
+  /(^|\s)(anlat\w*|açıkla\w*|özetle\w*|hesapla\w*|çevir\w*|göster\w*|söyle\w*|adım\b|atmak\w*)(\s|$)/i;
+
+/** Ad/soyad alanını temizle ve makul olmayan yakalamaları reddet (V1.2-055). */
+function cleanNameField(raw: string): string | null {
+  const value = raw
+    .replace(/[.!?,]+$/g, '')
+    .trim()
+    .slice(0, 60);
+  if (!value) return null;
+  if (!/^[\p{L}\s'.-]+$/u.test(value)) return null; // yalnız harf/isim karakterleri
+  if (/^ne\b/i.test(value)) return null; // "adım ne?" sorusu
+  if (value.length > 40) return null; // isim olamayacak kadar uzun
+  if (value.split(/\s+/).length > 3) return null; // ad (+ ikinci ad) + soyad
+  if (NAME_START_VERB.test(value) || NAME_ANY_VERB.test(value)) return null;
+  return value;
+}
+
 /** "benim adım X" / "hatırla: Y" kalıplarını tanır (sorular hariç). */
 export function parseMemoryIntent(text: string): MemoryIntent {
   const t = text.trim();
   if (isNameQuestion(t)) return null;
   const nameMatch = t.match(/^(benim adım|adım|ismim|benim ismim)\s+(.+)$/i);
   if (nameMatch?.[2]) {
-    const name = nameMatch[2]
-      .replace(/[.!?,]+$/g, '')
-      .trim()
-      .slice(0, 60);
-    if (name && !/^ne\b/i.test(name)) return { kind: 'name', name };
+    const name = cleanNameField(nameMatch[2]);
+    if (name) return { kind: 'name', name };
   }
   const surnameMatch = t.match(/^(benim soyadım|soyadım|soyismim)\s+(.+)$/i);
   if (surnameMatch?.[2]) {
-    const surname = surnameMatch[2]
-      .replace(/[.!?,]+$/g, '')
-      .trim()
-      .slice(0, 60);
-    if (surname && !/^ne\b/i.test(surname)) return { kind: 'surname', surname };
+    const surname = cleanNameField(surnameMatch[2]);
+    if (surname) return { kind: 'surname', surname };
   }
   const rememberMatch = t.match(
     /^(hatırla|şunu hatırla|not et|not al|aklında tut|unutma|şunu unutma)[,:\s]+(.+)$/i,
@@ -128,11 +147,11 @@ export function parseMemoryIntent(text: string): MemoryIntent {
   return null;
 }
 
-/** Mod komutlarını tanır. */
+/** Mod komutlarını tanır. V1.2-056: "sohbet moduna geç" / "normal moduna geç" de eşleşir. */
 export function detectModeCommand(text: string): 'pro' | 'flash' | 'toggle' | null {
   const lower = text.toLowerCase();
-  if (/(yazılım|proje|kod) moduna geç/.test(lower)) return 'pro';
-  if (/(normal|sohbet) moda? geç/.test(lower)) return 'flash';
+  if (/(yazılım|proje|kod) modu?na?\s+geç/.test(lower)) return 'pro';
+  if (/(normal|sohbet)\s+modu?n?a?\s+geç/.test(lower)) return 'flash';
   if (/mod değiştir/.test(lower)) return 'toggle';
   return null;
 }

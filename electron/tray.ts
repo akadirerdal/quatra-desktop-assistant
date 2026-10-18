@@ -12,11 +12,32 @@ const log = appLogger.scoped('tray');
 let tray: Tray | null = null;
 let hideNotified = false;
 
-export function showMainWindow(win: BrowserWindow): void {
-  if (win.isDestroyed()) return;
+export function showMainWindow(win: BrowserWindow | null): void {
+  if (!win || win.isDestroyed()) return;
   if (!win.isVisible()) win.show();
   if (win.isMinimized()) win.restore();
   win.focus();
+}
+
+/**
+ * V1.2-032: menü, kurulduğu andaki pencereye bağlı kalmamalı.
+ * Saklanan pencere yok edilmişse (pencere yeniden oluşturulduysa) canlı pencereyi çöz.
+ */
+function liveWindow(fallback: BrowserWindow | null): BrowserWindow | null {
+  if (fallback && !fallback.isDestroyed()) return fallback;
+  const alive = BrowserWindow.getAllWindows().filter((w) => !w.isDestroyed());
+  return alive[0] ?? null;
+}
+
+/** Komutu güncel pencereye gönder; pencere yoksa sessizce atla (çökme yok). */
+function sendCommand(win: BrowserWindow | null, name: string): void {
+  const target = liveWindow(win);
+  if (!target) return;
+  try {
+    target.webContents.send('app:command', { name });
+  } catch {
+    // webContents yok edilmiş olabilir — sessizce atla.
+  }
 }
 
 export function createTray(win: BrowserWindow, quit: () => void): void {
@@ -50,28 +71,32 @@ export function createTray(win: BrowserWindow, quit: () => void): void {
   tray = new Tray(image.isEmpty() ? nativeImage.createEmpty() : image);
   tray.setToolTip('Quatra — sesli asistan');
   const menu = Menu.buildFromTemplate([
-    { label: "Quatra'yı Göster", click: () => showMainWindow(win) },
+    { label: "Quatra'yı Göster", click: () => showMainWindow(liveWindow(win)) },
     {
       label: 'Mikrofonu Aç/Kapat',
-      click: () => win.webContents.send('app:command', { name: 'toggle-mic' }),
+      click: () => sendCommand(win, 'toggle-mic'),
     },
     {
       label: 'Ayarları Aç',
       click: () => {
-        showMainWindow(win);
-        win.webContents.send('app:command', { name: 'open-settings' });
+        showMainWindow(liveWindow(win));
+        sendCommand(win, 'open-settings');
       },
     },
     { type: 'separator' },
     { label: 'Çıkış', click: quit },
   ]);
   tray.setContextMenu(menu);
-  tray.on('click', () => showMainWindow(win));
-  tray.on('double-click', () => showMainWindow(win));
+  tray.on('click', () => showMainWindow(liveWindow(win)));
+  tray.on('double-click', () => showMainWindow(liveWindow(win)));
   log.info('tepsi kuruldu');
 }
 
-/** Pencere ilk kez tepsiye inince kullanıcıyı BİR KEZ bilgilendir. */
+/** Test izolasyonu için modül düzeyi tepsi durumunu sıfırla (yalnız testlerde). */
+export function __resetTrayForTests(): void {
+  tray = null;
+  hideNotified = false;
+}
 export function notifyFirstHide(): void {
   if (hideNotified) return;
   hideNotified = true;

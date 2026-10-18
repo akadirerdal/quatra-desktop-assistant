@@ -116,6 +116,10 @@ export async function transcribeAudio(options: TranscribeOptions): Promise<Trans
   } catch (e) {
     if (e instanceof ProviderError) throw e;
     if (e instanceof Error && (e.name === 'AbortError' || e.name === 'TimeoutError')) {
+      // Dış iptal ile iç zaman aşımı ayrılır — iptal 'timeout' diye raporlanmaz.
+      if (options.signal?.aborted) {
+        throw new ProviderError('cancelled', 'Ses tanıma iptal edildi.');
+      }
       throw new ProviderError('timeout', 'Ses tanıma zaman aşımına uğradı.');
     }
     if (e instanceof TypeError) {

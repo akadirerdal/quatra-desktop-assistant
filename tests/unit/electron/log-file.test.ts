@@ -56,12 +56,13 @@ describe('log-file', () => {
     expect(fs.readFileSync(`${logFilePath()}.1`, 'utf8')).toHaveLength(1_000_001);
   });
 
-  it('clearLogFile dosyayı boşaltır, .1 yedeğine dokunmaz', () => {
+  it('clearLogFile dosyayı ve rotasyon yedeğini (.1) de temizler', () => {
     seedFile('eski içerik');
-    fs.writeFileSync(`${logFilePath()}.1`, 'yedek', 'utf8');
+    fs.writeFileSync(`${logFilePath()}.1`, 'secret içerebilir', 'utf8');
     clearLogFile();
     expect(fs.readFileSync(logFilePath(), 'utf8')).toBe('');
-    expect(fs.readFileSync(`${logFilePath()}.1`, 'utf8')).toBe('yedek');
+    // V1.2-040: eski secret içerebilecek .1 diskte kalmasın.
+    expect(fs.existsSync(`${logFilePath()}.1`)).toBe(false);
   });
 
   it('clearLogFile dosya yokken sessiz kalır', () => {

@@ -103,14 +103,132 @@ export type Settings = z.infer<typeof SettingsSchema>;
 
 export const DEFAULT_SETTINGS: Settings = SettingsSchema.parse({});
 
+/** Kurtarma raporu: geçerli alanlar korunur, geçersiz alanlar varsayılana/mevcuda çekilir. */
+export interface SettingsRecovery {
+  settings: Settings;
+  /** Kurtarılamayan alanların kısa Türkçe açıklamaları; her şey geçerliyse boş. */
+  issues: string[];
+}
+
+/** zod hatasını kısa Türkçe mesaja çevirir (V1.2-011). */
+function issueToMessage(issue: z.ZodIssue, prefix: PropertyKey[] = []): string {
+  const field = [...prefix, ...issue.path].map(String).join('.') || 'ayarlar';
+  switch (issue.code) {
+    case 'too_big':
+      return `${field}: en fazla ${issue.maximum}`;
+    case 'too_small':
+      return `${field}: en az ${issue.minimum}`;
+    case 'invalid_type':
+      return `${field}: beklenen tür ${typeLabel(issue.expected)}`;
+    case 'invalid_format':
+      return `${field}: geçersiz biçim`;
+    case 'invalid_value':
+      return `${field}: geçersiz değer`;
+    default:
+      return `${field}: geçersiz değer`;
+  }
+}
+
+function typeLabel(expected: string): string {
+  switch (expected) {
+    case 'string':
+      return 'metin';
+    case 'number':
+      return 'sayı';
+    case 'boolean':
+      return 'evet/hayır';
+    case 'object':
+      return 'nesne';
+    case 'array':
+      return 'liste';
+    default:
+      return expected;
+  }
+}
+
+/** ZodDefault/ZodOptional gibi sarmalları açıp içteki şemayı verir. */
+function unwrapSchema(schema: z.ZodType): z.ZodType {
+  let current = schema;
+  for (let i = 0; i < 5; i++) {
+    const maybe = current as unknown as { unwrap?: () => z.ZodType };
+    if (typeof maybe.unwrap !== 'function') break;
+    current = maybe.unwrap();
+  }
+  return current;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+interface RecoveredValue {
+  value: unknown;
+  issues: string[];
+}
+
 /**
- * Bilinmeyen/bozuk veriyi güvenle settings'e çevirir.
- * Geçerliyse korur; yapısal olarak bozuksa DEFAULT_SETTINGS'e düşer (recovery).
- * Hiçbir girdi için exception fırlatmaz.
+ * Alan bazlı kurtarma (V1.2-072): şemaya uymayan alan tek tek `fallback`e çekilir,
+ * uyanlar korunur. Nesne/record şemaları alt alanlarına iner.
  */
+function recoverValue(
+  schema: z.ZodType,
+  raw: unknown,
+  fallback: unknown,
+  path: PropertyKey[],
+): RecoveredValue {
+  const parsed = schema.safeParse(raw);
+  if (parsed.success) return { value: parsed.data, issues: [] };
+
+  const inner = unwrapSchema(schema);
+  if (inner instanceof z.ZodObject && isPlainObject(raw)) {
+    const fallbackObj = isPlainObject(fallback) ? fallback : {};
+    const value: Record<string, unknown> = {};
+    const issues: string[] = [];
+    for (const key of Object.keys(inner.shape)) {
+      const child = recoverValue(inner.shape[key], raw[key], fallbackObj[key], [...path, key]);
+      value[key] = child.value;
+      issues.push(...child.issues);
+    }
+    return { value, issues };
+  }
+
+  // Record'lar (ör. tools.enabled): geçerli girişler korunur, bozuklar bildirilir.
+  if (inner instanceof z.ZodRecord && isPlainObject(raw)) {
+    const value: Record<string, unknown> = {};
+    const issues: string[] = [];
+    for (const [key, entry] of Object.entries(raw)) {
+      const child = recoverValue(inner.def.valueType as z.ZodType, entry, undefined, [
+        ...path,
+        key,
+      ]);
+      if (child.issues.length === 0) value[key] = child.value;
+      else issues.push(...child.issues);
+    }
+    return { value, issues };
+  }
+
+  return { value: fallback, issues: parsed.error.issues.map((i) => issueToMessage(i, path)) };
+}
+
+/**
+ * Bilinmeyen/bozuk veriyi alan bazlı kurtarıp Settings'e çevirir.
+ * Geçerli alanlar korunur; yalnızca geçersiz alanlar `fallback`e (genelde mevcut ayarlar) çekilir.
+ * null/undefined (dosya yok) sorunsuz kabul edilir; hiçbir girdi exception fırlatmaz.
+ */
+export function recoverSettings(input: unknown, fallback: Settings): SettingsRecovery {
+  const recovered = recoverValue(SettingsSchema, input, fallback, []);
+  return { settings: recovered.value as Settings, issues: recovered.issues };
+}
+
+/** Ayarları yüklerken kullanılan sürüm: kurtarma raporunu da döner (V1.2-072). */
+export function sanitizeSettingsWithReport(input: unknown): SettingsRecovery {
+  if (input === null || input === undefined) return { settings: DEFAULT_SETTINGS, issues: [] };
+  return recoverSettings(input, DEFAULT_SETTINGS);
+}
+
+/** Geriye dönük uyumlu sade sürüm: yalnızca temizlenmiş ayarları döner. */
 export function sanitizeSettings(input: unknown): Settings {
-  const result = SettingsSchema.safeParse(input ?? {});
-  return result.success ? result.data : DEFAULT_SETTINGS;
+  return sanitizeSettingsWithReport(input).settings;
 }
 
 /** Ayarların geçerli olup olmadığını denetler (UI ön kontrolü). */
@@ -119,5 +237,5 @@ export function validateSettings(
 ): { ok: true; value: Settings } | { ok: false; issues: string[] } {
   const result = SettingsSchema.safeParse(input ?? {});
   if (result.success) return { ok: true, value: result.data };
-  return { ok: false, issues: result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`) };
+  return { ok: false, issues: result.error.issues.map((i) => issueToMessage(i)) };
 }

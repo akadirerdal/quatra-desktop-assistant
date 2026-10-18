@@ -33,6 +33,14 @@ describe('normalizeAppName', () => {
     expect(normalizeAppName('')).toBeNull();
   });
 
+  it('çok kısa parçalar yanlış uygulamaya eşlenmez (V1.2-067)', () => {
+    expect(normalizeAppName('t')).toBeNull();
+    expect(normalizeAppName('e')).toBeNull();
+    expect(normalizeAppName('d')).toBeNull();
+    expect(normalizeAppName('ca')).toBeNull();
+    expect(normalizeAppName('cmd')).toBe('cmd'); // tam eşleşme çalışmaya devam eder
+  });
+
   it('büyük/küçük harf ve boşluk farkını yok sayar', () => {
     expect(normalizeAppName('  NOT  DEFTERİ  ')).toBe('notepad');
   });

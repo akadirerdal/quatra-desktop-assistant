@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { getEventListeners } from 'node:events';
 import { z } from 'zod';
 import { ToolRegistry } from '../../../src/features/tools/registry';
-import { PermissionManager } from '../../../src/features/tools/permissions';
+import { PermissionManager, summarizeArgs } from '../../../src/features/tools/permissions';
 import { createBuiltinTools } from '../../../src/features/tools/builtins';
 import type { NativeBridge } from '../../../src/features/tools/types';
 
@@ -110,6 +111,60 @@ describe('ToolRegistry', () => {
     expect(r.error).not.toContain('abcdef1234567890abcdef');
     expect(r.error).toContain('[REDACTED]');
   });
+
+  it('abort listener fn çözülünce kaldırılır (V1.2-117)', async () => {
+    const reg = new ToolRegistry();
+    reg.register({
+      name: 'hizli',
+      description: 'h',
+      schema: z.object({}),
+      parameters: {},
+      permission: 'safe',
+      run: async () => 1,
+    });
+    const controller = new AbortController();
+    const r = await reg.execute('hizli', '{}', { native, signal: controller.signal });
+    expect(r.ok).toBe(true);
+    expect(getEventListeners(controller.signal, 'abort')).toHaveLength(0);
+  });
+
+  it('zaten iptal edilmiş signalde araç çalışmaz (V1.2-118)', async () => {
+    const reg = new ToolRegistry();
+    const runSpy = vi.fn(async () => 1);
+    reg.register({
+      name: 'calismasin',
+      description: 'c',
+      schema: z.object({}),
+      parameters: {},
+      permission: 'safe',
+      run: runSpy,
+    });
+    const controller = new AbortController();
+    controller.abort();
+    const r = await reg.execute('calismasin', '{}', { native, signal: controller.signal });
+    expect(r.ok).toBe(false);
+    expect(r.error).toContain('iptal');
+    expect(runSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('summarizeArgs — onay özeti (V1.2-009)', () => {
+  it('JSON argümanı tek satırda özetler, uzun metni kırpar', () => {
+    expect(summarizeArgs('{"name":"not defteri"}')).toBe('{"name":"not defteri"}');
+    const long = summarizeArgs(`{"text":"${'a'.repeat(500)}"}`, 50);
+    expect(long.length).toBeLessThanOrEqual(50);
+    expect(long.endsWith('…')).toBe(true);
+  });
+
+  it('secret desenlerini maskeler', () => {
+    const out = summarizeArgs('{"key":"sk-abcdef1234567890abcdef"}');
+    expect(out).not.toContain('abcdef1234567890abcdef');
+    expect(out).toContain('[REDACTED]');
+  });
+
+  it('JSON olmayan metni de maskeler', () => {
+    expect(summarizeArgs('api_key=supersecret123')).toContain('[REDACTED]');
+  });
 });
 
 describe('builtin tools', () => {
@@ -194,6 +249,16 @@ describe('builtin tools', () => {
     expect(native.writeNote).toHaveBeenCalledWith(expect.any(String), 'm.md', '/hatir');
     expect(native.pickDirectory).not.toHaveBeenCalled();
   });
+
+  it('clipboard_yaz onay gerektirir (V1.2-069)', async () => {
+    const def = createBuiltinTools().find((t) => t.name === 'clipboard_yaz');
+    expect(def?.requiresConfirmation).toBe(true);
+    // Onay fonksiyonu yoksa izin katmanı reddeder — pano sessizce ezilemez.
+    const pm = new PermissionManager();
+    const r = await pm.check('clipboard_yaz', def!.permission, def!.requiresConfirmation, '{}');
+    expect(r.allowed).toBe(false);
+    expect(native.clipboardWrite).not.toHaveBeenCalled();
+  });
 });
 
 describe('PermissionManager', () => {
@@ -217,10 +282,10 @@ describe('PermissionManager', () => {
     expect((await pm2.check('t', 'sensitive', true, {})).allowed).toBe(true);
   });
 
-  it('allowlist eşleşmesi gevşek çalışır', () => {
-    const pm = new PermissionManager();
-    expect(pm.isAppAllowed('Notepad')).toBe(true);
-    expect(pm.isAppAllowed('notepad.exe')).toBe(true);
-    expect(pm.isAppAllowed('kötücül')).toBe(false);
+  it('onay fonksiyonuna ham argüman iletilir (özet agent-service tarafında)', async () => {
+    const confirm = vi.fn(async () => true);
+    const pm = new PermissionManager({ confirm });
+    await pm.check('clipboard_yaz', 'low-risk', true, '{"text":"merhaba"}');
+    expect(confirm).toHaveBeenCalledWith('clipboard_yaz', '{"text":"merhaba"}');
   });
 });

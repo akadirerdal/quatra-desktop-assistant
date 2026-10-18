@@ -29,6 +29,18 @@ describe('redactSecrets', () => {
     expect(redactSecrets(FAKE.xApiKey)).toBe('X-API-Key: [REDACTED]');
   });
 
+  it('api_key değerindeki base64 karakterlerini (+ / =) de maskeler (V1.2-123)', () => {
+    expect(redactSecrets('api_key: ' + 'ab+CDefghi/jkl12==')).toBe('api_key: [REDACTED]');
+    expect(redactSecrets('api_key=ab+CDefghi/jkl12==')).toBe('api_key=[REDACTED]');
+  });
+
+  it('kelime ortasındaki "sk-" dizisini maskelemez (V1.2-124)', () => {
+    for (const text of ['risk-balanced', 'disk-alanı temiz', 'kiosk-mode açık']) {
+      expect(redactSecrets(text)).toBe(text);
+    }
+    expect(redactSecrets(' anahtar ' + FAKE.sk)).toBe(' anahtar sk-[REDACTED]');
+  });
+
   it('dokunmaz normal metne', () => {
     const text = 'Bugün hava güzel, alarm 06:00 için kuruldu.';
     expect(redactSecrets(text)).toBe(text);

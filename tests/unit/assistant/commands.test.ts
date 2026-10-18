@@ -51,6 +51,20 @@ describe('parseMemoryIntent', () => {
     expect(parseMemoryIntent('bunu hatırlıyor musun')).toBeNull();
   });
 
+  it('fiil/ifade kalıplarını isim sanmaz (V1.2-055)', () => {
+    expect(parseMemoryIntent('adım adım anlat')).toBeNull();
+    expect(parseMemoryIntent('adım at')).toBeNull();
+    expect(parseMemoryIntent('adım atmak istiyorum')).toBeNull();
+    expect(parseMemoryIntent('adım uzun uzun anlat')).toBeNull();
+    expect(parseMemoryIntent('adım bu cümle kesinlikle bir isim değil çünkü uzun')).toBeNull();
+  });
+
+  it('gerçek isimleri hâlâ kaydeder (V1.2-055 regresyon)', () => {
+    expect(parseMemoryIntent('adım Ata')).toEqual({ kind: 'name', name: 'Ata' });
+    expect(parseMemoryIntent('adım Mehmet Ali')).toEqual({ kind: 'name', name: 'Mehmet Ali' });
+    expect(parseMemoryIntent('soyadım Atmaca')).toEqual({ kind: 'surname', surname: 'Atmaca' });
+  });
+
   it('alakasız metinde null döner', () => {
     expect(parseMemoryIntent('saat kaç')).toBeNull();
     expect(parseMemoryIntent('hava nasıl')).toBeNull();
@@ -77,6 +91,13 @@ describe('detectModeCommand', () => {
     expect(detectModeCommand('normal moda geç')).toBe('flash');
     expect(detectModeCommand('mod değiştir')).toBe('toggle');
     expect(detectModeCommand('saat kaç')).toBeNull();
+  });
+
+  it('"sohbet/normal moduna geç" kalıplarını da tanır (V1.2-056)', () => {
+    expect(detectModeCommand('sohbet moduna geç')).toBe('flash');
+    expect(detectModeCommand('normal moduna geç')).toBe('flash');
+    expect(detectModeCommand('sohbet moduna geçer misin')).toBe('flash');
+    expect(detectModeCommand('proje moduna geç')).toBe('pro');
   });
 });
 
@@ -107,6 +128,15 @@ describe('detectStopSpeakingCommand', () => {
     expect(detectStopSpeakingCommand('durum nedir')).toBe(false);
     expect(detectStopSpeakingCommand('susuz kaldım')).toBe(false);
     expect(detectStopSpeakingCommand('saat kaç')).toBe(false);
+  });
+
+  it('"dur bakalım" gibi cümleleri yutmaz (V1.2-057)', () => {
+    expect(detectStopSpeakingCommand('dur bakalım')).toBe(false);
+    expect(detectStopSpeakingCommand('dur bir dakika')).toBe(false);
+    expect(detectStopSpeakingCommand('dur da anlat')).toBe(false);
+    expect(detectStopSpeakingCommand('dur')).toBe(true);
+    expect(detectStopSpeakingCommand('Dur!')).toBe(true);
+    expect(detectStopSpeakingCommand('dur artık')).toBe(true);
   });
 });
 

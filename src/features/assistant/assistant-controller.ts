@@ -56,6 +56,18 @@ export class AssistantController {
   private pendingConfirmTool = '';
   private pendingConfirmRequestId: string | null = null;
   private reminderTimers: Array<ReturnType<typeof setTimeout>> = [];
+  /** Her yeni yakalama/iptal bu jetonu artırır; eski yakalamalar sessizce düşer (V1.2-015). */
+  private captureToken = 0;
+  /** dispose tam ve idempotent olsun (V1.2-001). */
+  private disposed = false;
+  /** Uyandırma servisinin kurulu olduğu güncel kelime (V1.2-050). */
+  private wakeWordInUse: string | null = null;
+  /** Bekleyen takip dinlemesi — dispose'da iptal edilmeli (V1.2-001). */
+  private followTimer: ReturnType<typeof setTimeout> | null = null;
+  /** onAudioError durum sıfırlama zamanlayıcısı (V1.2-109). */
+  private errorResetTimer: ReturnType<typeof setTimeout> | null = null;
+  private onlineHandler: (() => void) | null = null;
+  private offlineHandler: (() => void) | null = null;
 
   constructor() {
     this.audio = new AudioService(
@@ -75,25 +87,72 @@ export class AssistantController {
         void this.startCommandCapture('ptt');
       }) ?? null;
 
-    window.addEventListener('online', () => {
+    this.onlineHandler = () => {
       this.offline = false;
       useAssistantStore.getState().setConnection('unknown', null);
-    });
-    window.addEventListener('offline', () => {
+    };
+    this.offlineHandler = () => {
       this.offline = true;
       useAssistantStore.getState().setConnection('offline', null);
-    });
+    };
+    window.addEventListener('online', this.onlineHandler);
+    window.addEventListener('offline', this.offlineHandler);
     this.offline = !navigator.onLine;
   }
 
   dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    this.followToken += 1; // bekleyen takip dinlemesi dispose sonrası mikrofon açmasın (V1.2-001)
+    this.captureToken += 1;
+    if (this.followTimer) {
+      clearTimeout(this.followTimer);
+      this.followTimer = null;
+    }
+    if (this.errorResetTimer) {
+      clearTimeout(this.errorResetTimer);
+      this.errorResetTimer = null;
+    }
     for (const timer of this.reminderTimers) clearTimeout(timer);
     this.reminderTimers = [];
+    if (this.onlineHandler) window.removeEventListener('online', this.onlineHandler);
+    if (this.offlineHandler) window.removeEventListener('offline', this.offlineHandler);
+    this.onlineHandler = null;
+    this.offlineHandler = null;
     this.detachAgent?.();
+    this.detachAgent = null;
     this.detachShortcut?.();
-    this.wake?.stop();
+    this.detachShortcut = null;
+    this.listening = false;
+    this.conversationActive = false;
+    this.pendingWakeCapture = false;
+    this.pendingSleep = false;
+    this.clearPendingConfirm();
+    this.stopWake();
     this.audio.stopAll();
     this.audio.stopSpeaking();
+  }
+
+  /** 'idle' yazarken kullanıcının susturmasını EZME (V1.2-002). */
+  private markIdle(): void {
+    const st = useAssistantStore.getState();
+    st.setStatus(st.mutedByUser ? 'muted' : 'idle');
+  }
+
+  /** Uyandırmayı yalnız dispose değilken ve susturulmamışken sürdür (V1.2-002). */
+  private resumeWake(): void {
+    if (this.disposed) return;
+    if (useAssistantStore.getState().mutedByUser) return;
+    if (this.wake?.isRunning()) this.wake.resume();
+  }
+
+  /** Uyandırma servisini durdur; bekleyen kayıt döngüsünü de bırak (V1.2-050). */
+  private stopWake(): void {
+    if (!this.wake) return;
+    this.wake.stop();
+    this.wake = null;
+    this.wakeWordInUse = null;
+    if (!this.listening) this.audio.stopAll();
   }
 
   /** Ayarlar değiştikçe etkinleştirme yöntemini uygular (global kısayol / uyandırma). */
@@ -122,10 +181,15 @@ export class AssistantController {
     if (mode === 'wake_word') {
       const hasGroq = (await window.quatra?.credentials.has('groq')) ?? false;
       if (!hasGroq) {
+        // Anahtar yoksa çalışan servis döngüde kalmamalı (V1.2-050) — auth hatasıyla kaydetmeye devam etmesin.
+        this.stopWake();
         useAssistantStore.getState().setCaption(strings.wakeNeedsGroq);
         return;
       }
+      // Uyandırma kelimesi değiştiyse servisi yeniden kur (V1.2-050): yeni kelime anında geçerli olur.
+      if (this.wake && this.wakeWordInUse !== s.activation.wakeWord) this.stopWake();
       if (!this.wake) {
+        this.wakeWordInUse = s.activation.wakeWord;
         this.wake = new WakeWordService(
           this.audio,
           { wakeWord: s.activation.wakeWord },
@@ -138,11 +202,11 @@ export class AssistantController {
           },
         );
       }
-      await this.wake.start();
+      // Susturulmuşken mikrofon AÇILMAZ (V1.2-002); sustur kalkınca setMuted → syncActivation başlatır.
+      if (useAssistantStore.getState().mutedByUser) this.wake.pause();
+      else await this.wake.start();
     } else if (this.wake) {
-      this.wake.stop();
-      this.wake = null;
-      if (!this.listening) this.audio.stopAll();
+      this.stopWake();
     }
   }
 
@@ -154,11 +218,13 @@ export class AssistantController {
 
   /** Kullanıcı Quatra konuşurken sözünü böldü → çalma durur, hemen dinlenir. */
   private onBarge(): void {
+    if (this.disposed) return;
     window.quatra?.log.info('barge', 'kullanıcı sözü böldü — dinlemeye geçiliyor');
+    this.currentRequestId = null; // kesilen isteğin geç hataları yutulur (V1.2-013)
+    this.pendingWakeCapture = false;
     this.audio.stopSpeaking();
     void window.quatra?.agent.cancel();
-    const st = useAssistantStore.getState();
-    st.setStatus('idle');
+    this.markIdle();
     void this.startCommandCapture('barge');
   }
 
@@ -167,6 +233,8 @@ export class AssistantController {
    * doğrudan o komut işlenir — kullanıcı iki kez konuşmak zorunda kalmaz.
    */
   private onWakeDetected(transcript: string): void {
+    // Susturulmuşken uyandırma mikrofonu AÇMAZ (V1.2-002) — yarışta kalan tetiklemeler yutulur.
+    if (this.disposed || useAssistantStore.getState().mutedByUser) return;
     const word = useSettingsStore.getState().settings.activation.wakeWord;
     const rest = extractCommandAfterWake(transcript, word);
     useAssistantStore.getState().setCaption(strings.wakeDetected);
@@ -195,38 +263,42 @@ export class AssistantController {
     source: 'ptt' | 'button' | 'wake' | 'followup' | 'barge',
   ): Promise<void> {
     const st = useAssistantStore.getState();
-    if (this.listening || st.mutedByUser) return;
+    if (this.disposed || this.listening || st.mutedByUser) return;
+    // Kilidi await'lerden ÖNCE al (V1.2-048): yarışta ikinci çağrı durumu ezemez.
+    this.listening = true;
     if (st.status === 'speaking') {
       this.interrupt();
     }
-
-    // Mikrofon meşgulse (örn. uyandırma servisi bekliyorsa) nazikçe devral.
-    if (this.audio.isRecording()) {
-      this.wake?.pause();
-      this.audio.cancelRecording();
-      await new Promise((r) => setTimeout(r, 180));
-    }
-    if (this.audio.isRecording()) {
-      // Hâlâ meşgul — hata göstermeden kısa süre sonra tekrar denenebilir.
-      st.setCaption('Bir saniye… mikrofon hazırlanıyor.');
-      return;
-    }
-
     this.followToken += 1; // bekleyen takip zamanlayıcısını iptal et
-    this.conversationActive = true;
-    this.listening = true;
-    this.wake?.pause();
-    this.audio.stopSpeaking();
-    st.setStatus('listening');
-    st.setCaption(
-      source === 'wake'
-        ? strings.wakeListening
-        : source === 'followup' || source === 'barge'
-          ? strings.followUpListening
-          : strings.captionListening,
-    );
+    const token = ++this.captureToken; // bu yakalamanın jetonu (V1.2-015)
 
     try {
+      // Mikrofon meşgulse (örn. uyandırma servisi bekliyorsa) nazikçe devral.
+      if (this.audio.isRecording()) {
+        this.wake?.pause();
+        this.audio.cancelRecording();
+        await new Promise((r) => setTimeout(r, 180));
+      }
+      // İptal/sustur sonrası eski yakalama komuta dönüşmesin (V1.2-015).
+      if (token !== this.captureToken || useAssistantStore.getState().mutedByUser) return;
+      if (this.audio.isRecording()) {
+        // Hâlâ meşgul — hata göstermeden kısa süre sonra tekrar denenebilir.
+        st.setCaption('Bir saniye… mikrofon hazırlanıyor.');
+        return;
+      }
+
+      this.conversationActive = true;
+      this.wake?.pause();
+      this.audio.stopSpeaking();
+      st.setStatus('listening');
+      st.setCaption(
+        source === 'wake'
+          ? strings.wakeListening
+          : source === 'followup' || source === 'barge'
+            ? strings.followUpListening
+            : strings.captionListening,
+      );
+
       const outcome = await this.audio.recordCommand({
         maxMs: 15_000,
         silenceMs: source === 'followup' || source === 'barge' ? 1000 : 1100,
@@ -237,12 +309,13 @@ export class AssistantController {
               ? useSettingsStore.getState().settings.voice.sleepAfterSec * 1000
               : 6000,
       });
+      // Kayıt sırasında iptal/sustur olduysa sonucu işleme (V1.2-015).
+      if (token !== this.captureToken || useAssistantStore.getState().mutedByUser) return;
       if (outcome.kind === 'busy') {
-        st.setStatus('idle');
-        return; // sessizce çık — hata değil
+        return; // sessizce çık — durumu EZMEDEN (V1.2-048)
       }
       if (outcome.kind === 'silence') {
-        st.setStatus('idle');
+        this.markIdle();
         if (source === 'followup' || source === 'barge') {
           // Sessizlik = sohbet bitti; uyandırma beklemeye dön.
           this.conversationActive = false;
@@ -264,6 +337,8 @@ export class AssistantController {
       st.setStatus('processing');
       st.setCaption(strings.transcribing);
       const res = await this.audio.transcribe(outcome.result.audio);
+      // Tanıma beklerken iptal/sustur olduysa metni GÖNDERME (V1.2-015).
+      if (token !== this.captureToken || useAssistantStore.getState().mutedByUser) return;
       if (!res.ok) {
         this.conversationActive = false;
         this.onAudioError(res.message);
@@ -273,7 +348,7 @@ export class AssistantController {
       if (!heard) {
         // Sessiz/gürültü kaydı ya da filtrelenmiş hayalet kalıp ("Altyazı M.K." gibi):
         // boş istek agent'a GİTMEZ; sessizlik dalıyla aynı davranış uygulanır.
-        st.setStatus('idle');
+        this.markIdle();
         this.conversationActive = false;
         if (source === 'followup' || source === 'barge') {
           st.setCaption('');
@@ -289,8 +364,8 @@ export class AssistantController {
     } finally {
       this.listening = false;
       // Sohbet sürüyorsa uyandırma servisi bekler (çakışma olmaz);
-      // sohbet bittiyse "Quatra" beklemeye geri döner.
-      if (!this.conversationActive && this.wake?.isRunning()) this.wake.resume();
+      // sohbet bittiyse "Quatra" beklemeye geri döner — susturulmuşsa AÇILMAZ (V1.2-002).
+      if (!this.conversationActive) this.resumeWake();
     }
   }
 
@@ -300,14 +375,16 @@ export class AssistantController {
    */
   private scheduleFollowUp(): void {
     const token = ++this.followToken;
-    setTimeout(() => {
+    if (this.followTimer) clearTimeout(this.followTimer);
+    this.followTimer = setTimeout(() => {
+      this.followTimer = null;
       void (async () => {
-        if (token !== this.followToken) return;
+        if (token !== this.followToken || this.disposed) return;
         const st = useAssistantStore.getState();
         const settings = useSettingsStore.getState().settings;
         if (!settings.voice.continuous) {
           this.conversationActive = false;
-          if (this.wake?.isRunning()) this.wake.resume();
+          this.resumeWake();
           return;
         }
         if (st.mutedByUser || st.status !== 'idle') return;
@@ -335,8 +412,8 @@ export class AssistantController {
       this.sayLocal(strings.sleepAck);
     } else {
       st.setCaption(strings.sleepAck);
-      st.setStatus('idle');
-      if (this.wake?.isRunning()) this.wake.resume();
+      this.markIdle();
+      this.resumeWake();
     }
   }
 
@@ -361,21 +438,31 @@ export class AssistantController {
     }
   }
 
-  /** Onay kararını ana sürece iletir; bekleyiş durumunu kapatır. */
-  private resolvePendingConfirm(approved: boolean): void {
-    const requestId = this.pendingConfirmRequestId;
+  /** Bekleyen onay turunu temizle — hata/iptal/sustur sonrası komut onay sanılmasın (V1.2-046). */
+  private clearPendingConfirm(): void {
     this.pendingConfirmActive = false;
     this.pendingConfirmRetries = 0;
     this.pendingConfirmTool = '';
     this.pendingConfirmRequestId = null;
+  }
+
+  /** Onay kararını ana sürece iletir; bekleyiş durumunu kapatır. */
+  private resolvePendingConfirm(approved: boolean): void {
+    const requestId = this.pendingConfirmRequestId;
+    this.clearPendingConfirm();
     if (!requestId) return;
     const store = useAssistantStore.getState();
     store.setCaption(approved ? strings.confirmApproved : strings.confirmDenied);
     store.setStatus('processing');
     const res = window.quatra?.agent.confirm(requestId, approved);
-    void res?.then((r) => {
+    if (!res) {
+      this.markIdle(); // köprü yoksa 'processing'te takılı kalma (V1.2-046)
+      return;
+    }
+    void res.then((r) => {
       if (!r?.handled) {
         useAssistantStore.getState().setCaption(strings.confirmNoResponse);
+        this.markIdle(); // yanıt işlenmedi → 'processing'te takılı kalma (V1.2-046)
       }
     });
   }
@@ -406,10 +493,11 @@ export class AssistantController {
   toggleListening(): void {
     const st = useAssistantStore.getState();
     if (this.listening) {
-      st.setStatus('idle');
+      this.captureToken += 1; // süren yakalamanın sonucu kullanılmasın (V1.2-015)
+      this.markIdle();
       this.listening = false;
       this.audio.stopAll(); // watchdog — kayıt yarıda kesilir
-      this.wake?.resume();
+      this.resumeWake();
       return;
     }
     if (st.mutedByUser) return;
@@ -418,13 +506,16 @@ export class AssistantController {
 
   interrupt(): void {
     this.followToken += 1; // takip döngüsünü durdur
+    this.captureToken += 1; // süren yakalamanın sonucu gönderilmesin (V1.2-015)
     this.conversationActive = false;
+    this.pendingWakeCapture = false;
+    this.currentRequestId = null; // eski isteğin geç hataları yenisini bozmasın (V1.2-013)
+    this.clearPendingConfirm(); // iptalde onay bekleyişi kapanır (V1.2-046)
     this.audio.cancelRecording();
     this.audio.stopSpeaking();
     void window.quatra?.agent.cancel();
-    const st = useAssistantStore.getState();
-    st.setStatus('idle');
-    if (this.wake?.isRunning()) this.wake.resume();
+    this.markIdle();
+    this.resumeWake();
   }
 
   setMuted(muted: boolean): void {
@@ -432,13 +523,16 @@ export class AssistantController {
     st.setMuted(muted);
     if (muted) {
       this.followToken += 1;
+      this.captureToken += 1; // süren yakalama sonucu kullanılmaz (V1.2-015)
       this.conversationActive = false;
+      this.pendingWakeCapture = false;
+      this.clearPendingConfirm();
       this.wake?.pause();
       this.audio.stopAll();
       this.listening = false;
       st.setStatus('muted');
     } else {
-      st.setStatus('idle');
+      this.markIdle();
       void this.syncActivation();
     }
   }
@@ -491,18 +585,19 @@ export class AssistantController {
       return;
     }
 
-    // "Sus" — sesli durdurma (V1-07): konuşmayı kes; sohbet sürüyorsa dinlemeye dön.
+    // "Sus" — sesli durdurma (V1-07 + V1.2-057): YALNIZ konuşurken uygulanır;
+    // konuşmuyorsa komut yutulmaz, agent'a normal istek olarak gider ("dur bakalım" gibi).
     if (detectStopSpeakingCommand(text)) {
       const st0 = useAssistantStore.getState();
       const wasSpeaking = st0.status === 'speaking' || this.audio.isSpeaking();
-      this.stopSpeaking();
-      useAssistantStore
-        .getState()
-        .setCaption(wasSpeaking ? strings.stoppedSpeaking : strings.alreadySilent);
-      if (this.conversationActive && !useAssistantStore.getState().mutedByUser) {
-        this.scheduleFollowUp();
+      if (wasSpeaking) {
+        this.stopSpeaking();
+        useAssistantStore.getState().setCaption(strings.stoppedSpeaking);
+        if (this.conversationActive && !useAssistantStore.getState().mutedByUser) {
+          this.scheduleFollowUp();
+        }
+        return;
       }
-      return;
     }
 
     // Hatırlatıcı (V1-11): "10 dakika sonra ... hatırlat" — modele gitmeden yerel zamanlayıcı.
@@ -665,12 +760,13 @@ export class AssistantController {
         }
         const settings = useSettingsStore.getState().settings;
         if (settings.voice.autoSpeak && !this.streamedSpeech) {
-          store.setStatus('idle');
+          this.markIdle();
           this.wake?.pause();
           this.speakText(event.text);
         } else if (!settings.voice.autoSpeak) {
-          store.setStatus('idle');
-          this.scheduleFollowUp();
+          this.markIdle();
+          // Yalnız süren sohbette tekrar dinle (V1.2-047).
+          if (this.conversationActive) this.scheduleFollowUp();
         }
         // Otomatik okuma + akış: cümleler çalıyor/sırada — durum 'speaking' kalır,
         // ses bitince onTtsEnd takip dinlemesini başlatır.
@@ -678,12 +774,17 @@ export class AssistantController {
         break;
       }
       case 'error': {
+        // İptal edilen/eski isteğin hatası yeni akışı bozmasın (V1.2-013):
+        // sessizce yut — 'connection failed' yazma, TTS'e verme.
+        if (event.category === 'cancelled' || event.requestId !== this.currentRequestId) break;
+        this.currentRequestId = null; // istek hatayla kapandı; geç gelen olaylar yutulur
         this.streamedSpeech = false;
         this.audio.stopSpeaking(); // akıştan kalan cümleler de sussun
         store.setConnection('failed', event.message);
         store.setStatus('error');
         this.conversationActive = false;
-        if (this.wake?.isRunning()) this.wake.resume();
+        this.clearPendingConfirm(); // hata sonrası komut onay sanılmasın (V1.2-046)
+        this.resumeWake();
         const task = store.tasks.find((t) => t.state === 'running');
         if (task) {
           store.updateTask(task.id, { state: 'error', detail: event.message });
@@ -705,20 +806,19 @@ export class AssistantController {
     this.conversationActive = false;
     store.setCaption(message);
     store.setStatus('error');
-    setTimeout(() => {
-      if (useAssistantStore.getState().status === 'error') {
-        useAssistantStore
-          .getState()
-          .setStatus(useAssistantStore.getState().mutedByUser ? 'muted' : 'idle');
-      }
+    // Önceki bekleyen sıfırlama varsa iptal et — tek takipli timer (V1.2-109).
+    if (this.errorResetTimer) clearTimeout(this.errorResetTimer);
+    this.errorResetTimer = setTimeout(() => {
+      this.errorResetTimer = null;
+      if (useAssistantStore.getState().status === 'error') this.markIdle();
     }, 4500);
     this.listening = false;
-    if (this.wake?.isRunning()) this.wake.resume();
+    this.resumeWake();
   }
 
   private onTtsEnd(): void {
     const store = useAssistantStore.getState();
-    if (store.status === 'speaking') store.setStatus('idle');
+    if (store.status === 'speaking') this.markIdle();
     // Karşılama ("Efendim?") bitti → dinlemeye geç.
     if (this.pendingWakeCapture) {
       this.pendingWakeCapture = false;
@@ -729,14 +829,15 @@ export class AssistantController {
     }
     // Sohbet hâlâ sürüyorsa uyandırma servisi BEKLEMEDE kalır (mikrofonu sohbete bırakır).
     // Yalnızca sohbet bittiğinde "Quatra" beklemeye döner.
-    if (this.wake?.isRunning() && !this.conversationActive) this.wake.resume();
+    if (!this.conversationActive) this.resumeWake();
     // Uyku onayı okundu → takip dinlemesi başlatma (V1-04).
     if (this.pendingSleep) {
       this.pendingSleep = false;
       return;
     }
-    // Sürekli sohbet: cevap okunduktan sonra kendiliğinden dinlemeye dön.
-    this.scheduleFollowUp();
+    // Sürekli sohbet: cevap okunduktan sonra kendiliğinden dinlemeye dön —
+    // YALNIZ gerçek konuşma sırasında (V1.2-047): ses testi/hatırlatıcı/hata anonsu mikrofon açmaz.
+    if (this.conversationActive) this.scheduleFollowUp();
   }
 
   private sayLocal(text: string): void {
@@ -755,8 +856,8 @@ export class AssistantController {
   stopSpeaking(): void {
     this.followToken += 1;
     this.audio.stopSpeaking();
-    useAssistantStore.getState().setStatus('idle');
-    if (this.wake?.isRunning()) this.wake.resume();
+    this.markIdle();
+    this.resumeWake();
   }
 
   // ---------------------------------------------------------------- mikrofon testi (Ayarlar)
@@ -786,7 +887,7 @@ export class AssistantController {
   endMicTest(): void {
     this.audio.cancelRecording();
     this.audio.stopAll();
-    if (this.wake?.isRunning()) this.wake.resume();
+    this.resumeWake();
   }
 
   get audioService(): AudioService {

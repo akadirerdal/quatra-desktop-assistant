@@ -84,6 +84,27 @@ describe('usage-store', () => {
     expect(getUsage().total).toEqual({ prompt: 2, completion: 2, requests: 1 });
   });
 
+  it('bozuk alanlar (string/null/negatif) alan bazında sıfıra normalize edilir', () => {
+    fs.writeFileSync(
+      usagePath(),
+      JSON.stringify({
+        total: { prompt: '99', completion: null, requests: 3.9 },
+        months: { [currentMonth()]: { prompt: 2, completion: -5, requests: 'x' } },
+      }),
+      'utf8',
+    );
+    const u = getUsage();
+    expect(u.total).toEqual({ prompt: 0, completion: 0, requests: 3 });
+    expect(u.monthUsage).toEqual({ prompt: 2, completion: 0, requests: 0 });
+    // Üzerine yazım da sağlam sayılarla: JSON'da null/NaN oluşmaz.
+    recordUsage(1, 1);
+    const raw = JSON.parse(fs.readFileSync(usagePath(), 'utf8')) as {
+      total: { prompt: number; completion: number; requests: number };
+    };
+    expect(raw.total).toEqual({ prompt: 1, completion: 1, requests: 4 });
+    expect(JSON.stringify(raw)).not.toContain('null');
+  });
+
   it('yazılamayan yolda sessiz kalır (throw etmez)', () => {
     // userData bir dizin değil DOSYA: yazma başarısız olmalı ama çökmemeli.
     fs.rmSync(userDataDir, { recursive: true, force: true });

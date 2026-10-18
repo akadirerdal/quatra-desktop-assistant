@@ -1,8 +1,10 @@
 /**
  * İzin yöneticisi — uygulama katmanında (native) zorunlu tutulur.
- * Model kendi iznini genişletemez; allowlist dışı işlem reddedilir.
+ * Model kendi iznini genişletemez. Uygulama allowlist'i TEK kaynaktır: app-names.ts
+ * (V1.2-068: buradaki ayrı/ölü DEFAULT_ALLOWED_APPS listesi kaldırıldı).
  */
 import type { PermissionLevel } from './types';
+import { redactSecrets } from '../../utils/redact';
 
 export interface PermissionCheck {
   allowed: boolean;
@@ -10,42 +12,42 @@ export interface PermissionCheck {
 }
 
 export interface PermissionManagerOptions {
-  /** open-app için izinli uygulama adları (küçük harf, eşleşme gevşek). */
-  allowedApps?: string[];
-  /** sensitive işlemler için onay fonksiyonu (UI'ya bağlanır). */
+  /** sensitive işlemler için onay fonksiyonu (UI'ya bağlanır); args = tool'un ham argümanı. */
   confirm?: (toolName: string, args: unknown) => Promise<boolean>;
   /** Okuma-yazma yapılamayan kilitli mod (ör. güvenli gözlem modu). */
   readOnly?: boolean;
 }
 
-const DEFAULT_ALLOWED_APPS = [
-  'notepad',
-  'calculator',
-  'explorer',
-  'cmd',
-  'powershell',
-  'terminal',
-  'finder',
-  'textedit',
-  'calculator.app',
-];
+/**
+ * Onay sorusu için güvenli argüman özeti (V1.2-009): secret maskele + tek satıra indir + kırp.
+ * Ham argüman (JSON string ya da nesne) kullanıcıya gösterilebilir kısa metne çevrilir.
+ */
+export function summarizeArgs(args: unknown, maxLength = 200): string {
+  let text = '';
+  if (typeof args === 'string') {
+    try {
+      text = JSON.stringify(JSON.parse(args)) ?? '';
+    } catch {
+      text = args; // JSON değilse ham metin (yine maskelenir)
+    }
+  } else if (args !== undefined && args !== null) {
+    try {
+      text = JSON.stringify(args) ?? '';
+    } catch {
+      text = '';
+    }
+  }
+  const safe = redactSecrets(text).replace(/\s+/g, ' ').trim();
+  return safe.length > maxLength ? `${safe.slice(0, Math.max(0, maxLength - 1))}…` : safe;
+}
 
 export class PermissionManager {
-  private readonly allowedApps: Set<string>;
   private readonly confirmFn: PermissionManagerOptions['confirm'];
   private readonly readOnly: boolean;
 
   constructor(options: PermissionManagerOptions = {}) {
-    this.allowedApps = new Set(
-      (options.allowedApps ?? DEFAULT_ALLOWED_APPS).map((a) => a.toLowerCase()),
-    );
     this.confirmFn = options.confirm;
     this.readOnly = options.readOnly ?? false;
-  }
-
-  isAppAllowed(name: string): boolean {
-    const n = name.toLowerCase();
-    return [...this.allowedApps].some((a) => n === a || n.includes(a) || a.includes(n));
   }
 
   async check(

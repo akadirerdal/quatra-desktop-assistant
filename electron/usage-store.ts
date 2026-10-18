@@ -28,6 +28,21 @@ interface UsageFile {
 
 const empty = (): UsageBucket => ({ prompt: 0, completion: 0, requests: 0 });
 
+/** Sayısal olmayan/negatif alanları 0'a indir — bozuk alan dosyaya taşınmaz. */
+function num(v: unknown): number {
+  return typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.floor(v) : 0;
+}
+
+/** V1.2-041: alan bazlı doğrulama — eksik/bozuk alanlar sıfıra normalize edilir. */
+function normalizeBucket(v: unknown): UsageBucket {
+  const o = (typeof v === 'object' && v !== null ? v : {}) as Record<string, unknown>;
+  return {
+    prompt: num(o['prompt']),
+    completion: num(o['completion']),
+    requests: num(o['requests']),
+  };
+}
+
 function usageFile(): string {
   return path.join(app.getPath('userData'), 'token-usage.json');
 }
@@ -38,8 +53,15 @@ function monthKey(d = new Date()): string {
 
 function read(): UsageFile {
   try {
-    const raw = JSON.parse(fs.readFileSync(usageFile(), 'utf8')) as UsageFile;
-    if (raw && raw.total && raw.months) return raw;
+    const raw = JSON.parse(fs.readFileSync(usageFile(), 'utf8')) as Partial<UsageFile> | null;
+    if (raw && typeof raw === 'object' && !Array.isArray(raw) && raw.total && raw.months) {
+      const months: Record<string, UsageBucket> = {};
+      const rawMonths = raw.months;
+      if (typeof rawMonths === 'object' && rawMonths !== null && !Array.isArray(rawMonths)) {
+        for (const [k, v] of Object.entries(rawMonths)) months[k] = normalizeBucket(v);
+      }
+      return { total: normalizeBucket(raw.total), months };
+    }
   } catch {
     // dosya yok/bozuk → sıfırdan başla
   }

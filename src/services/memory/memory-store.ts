@@ -19,6 +19,28 @@ function newId(): string {
   return `m-${Date.now()}-${seq}-${Math.floor(Math.random() * 1e6)}`;
 }
 
+/**
+ * Aynı dosyaya yazan tüm store örnekleri arasında paylaşılan yazma kuyruğu.
+ * Her IPC çağrısı yeni bir MemoryStore açabildiği için kilit modül düzeyindedir (V1.2-012).
+ */
+const writeQueues = new Map<string, Promise<void>>();
+
+function withFileLock<T>(file: string, task: () => Promise<T>): Promise<T> {
+  const key = path.resolve(file);
+  const prev = writeQueues.get(key) ?? Promise.resolve();
+  // Önceki yazma hata verse de kuyruk devam eder (task, reject durumunda da çalışır).
+  const run = prev.then(task, task);
+  const tail = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  writeQueues.set(key, tail);
+  void tail.then(() => {
+    if (writeQueues.get(key) === tail) writeQueues.delete(key);
+  });
+  return run;
+}
+
 export class MemoryStore {
   constructor(
     private readonly file: string,
@@ -39,37 +61,44 @@ export class MemoryStore {
   async add(text: string, source: MemoryEntry['source']): Promise<MemoryEntry> {
     const trimmed = text.trim().slice(0, 500);
     if (!trimmed) throw new Error('Boş hafıza kaydı.');
-    const entries = await this.load();
-    const existing = entries.find((e) => e.text === trimmed || isNearDuplicate(e.text, trimmed));
-    if (existing) {
-      // Aynı/çok benzer kayıt zaten var — sessizce geri dön.
-      return existing;
-    }
-    const entry: MemoryEntry = {
-      id: newId(),
-      text: trimmed,
-      createdAt: new Date().toISOString(),
-      source,
-    };
-    entries.push(entry);
-    if (entries.length > this.maxEntries) entries.splice(0, entries.length - this.maxEntries);
-    await this.save(entries);
-    return entry;
+    // load→değiştir→save kilitsiz kalırsa eşzamanlı eklemelerden biri kaybolur (V1.2-012).
+    return withFileLock(this.file, async () => {
+      const entries = await this.load();
+      const existing = entries.find((e) => e.text === trimmed || isNearDuplicate(e.text, trimmed));
+      if (existing) {
+        // Aynı/çok benzer kayıt zaten var — sessizce geri dön.
+        return existing;
+      }
+      const entry: MemoryEntry = {
+        id: newId(),
+        text: trimmed,
+        createdAt: new Date().toISOString(),
+        source,
+      };
+      entries.push(entry);
+      if (entries.length > this.maxEntries) entries.splice(0, entries.length - this.maxEntries);
+      await this.save(entries);
+      return entry;
+    });
   }
 
   async remove(id: string): Promise<void> {
-    const entries = await this.load();
-    const next = entries.filter((e) => e.id !== id);
-    if (next.length === entries.length) return; // kayıt zaten yok — dosyaya dokunma
-    await this.backup();
-    await this.save(next);
+    await withFileLock(this.file, async () => {
+      const entries = await this.load();
+      const next = entries.filter((e) => e.id !== id);
+      if (next.length === entries.length) return; // kayıt zaten yok — dosyaya dokunma
+      await this.backup();
+      await this.save(next);
+    });
   }
 
   async clear(): Promise<void> {
-    const entries = await this.load();
-    if (entries.length === 0) return;
-    await this.backup();
-    await this.save([]);
+    await withFileLock(this.file, async () => {
+      const entries = await this.load();
+      if (entries.length === 0) return;
+      await this.backup();
+      await this.save([]);
+    });
   }
 
   /** Sorguyla ilgili kayıtları (basit anahtar kelime skorlaması) döner. */
@@ -97,8 +126,10 @@ export class MemoryStore {
     if (relevant.length === 0) return '';
     let block = 'Kullanıcı hakkında hatırlananlar:\n';
     for (const e of relevant) {
-      block += `- ${e.text}\n`;
-      if (block.length > maxChars) break;
+      const line = `- ${e.text}\n`;
+      // Sınır eklemeden ÖNCE kontrol edilir; blok maxChars'ı aşmaz (V1.2-121).
+      if (block.length + line.length > maxChars) break;
+      block += line;
     }
     return block;
   }
@@ -115,7 +146,8 @@ export class MemoryStore {
   }
 
   private async save(entries: MemoryEntry[]): Promise<void> {
-    const tmp = `${this.file}.tmp`;
+    // Benzersiz tmp adı: aynı dosyaya eşzamanlı yazan süreçler birbirini ezmesin (V1.2-012).
+    const tmp = `${this.file}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
     await fs.promises.mkdir(path.dirname(this.file), { recursive: true });
     await fs.promises.writeFile(tmp, JSON.stringify({ version: 1, entries }, null, 2), 'utf8');
     await fs.promises.rename(tmp, this.file);
@@ -123,9 +155,14 @@ export class MemoryStore {
 
   /** Çöp kayıtları temizler ("Kullanıcının adı: ne" gibi eski bug kalıntıları). */
   async cleanupGarbage(): Promise<number> {
-    const entries = await this.load();
-    const clean = entries.filter((e) => !isGarbageEntry(e.text));
-    if (clean.length !== entries.length) await this.save(clean);
-    return entries.length - clean.length;
+    return withFileLock(this.file, async () => {
+      const entries = await this.load();
+      const clean = entries.filter((e) => !isGarbageEntry(e.text));
+      if (clean.length !== entries.length) {
+        await this.backup(); // remove/clear ile aynı yedek politikası (V1.2-122)
+        await this.save(clean);
+      }
+      return entries.length - clean.length;
+    });
   }
 }

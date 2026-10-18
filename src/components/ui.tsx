@@ -8,10 +8,17 @@ export function Button(props: {
   size?: 'normal' | 'small';
   disabled?: boolean;
   title?: string;
+  ariaLabel?: string;
 }): React.JSX.Element {
   const cls = ['btn', props.variant ?? 'default', props.size ?? 'normal'].join(' ');
   return (
-    <button className={cls} onClick={props.onClick} disabled={props.disabled} title={props.title}>
+    <button
+      className={cls}
+      onClick={props.onClick}
+      disabled={props.disabled}
+      title={props.title}
+      aria-label={props.ariaLabel}
+    >
       {props.children}
     </button>
   );

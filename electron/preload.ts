@@ -3,9 +3,11 @@
  * API anahtarı bu köprüden GEÇMEZ (sadece var/yok bilgisi).
  */
 import { contextBridge, ipcRenderer } from 'electron';
+import pkg from '../package.json';
 
 const quatra = {
-  version: '0.1.0',
+  // V1.2-074: sürüm TEK kaynaktan — package.json (esbuild JSON'u bundle'a inline eder).
+  version: pkg.version,
 
   /** Çalışılan platform (salt okunur) — arayüz platforma göre uyum sağlar. */
   platform: process.platform,
@@ -32,8 +34,14 @@ const quatra = {
       audio: ArrayBuffer,
       mimeType: string,
       language?: string,
-    ): Promise<{ ok: boolean; text?: string; code?: string; message?: string }> =>
-      ipcRenderer.invoke('stt:transcribe', audio, mimeType, language),
+      // V1.2-101: main 'filtered' (hayalet kalıp teşhisi) döndürür — tip köprüde de eksiksiz olmalı.
+    ): Promise<{
+      ok: boolean;
+      text?: string;
+      filtered?: string;
+      code?: string;
+      message?: string;
+    }> => ipcRenderer.invoke('stt:transcribe', audio, mimeType, language),
   },
 
   tts: {

@@ -1,8 +1,11 @@
 /**
  * IPC kayıtları — renderer ile güvenli köprü.
  * Kanallar sabit listededir; keyfi kanal/dinamik handler YOKTUR.
+ * Kayıtlar süreç başına BİR KEZ yapılır (V1.2-033); her çağrı yalnız ana pencerenin
+ * ana çerçevesinden kabul edilir (V1.2-096) ve kritik girdiler doğrulanır (V1.2-044).
  */
 import { app, BrowserWindow, dialog, globalShortcut, ipcMain, systemPreferences } from 'electron';
+import { z } from 'zod';
 import { clearApiKey, credentialsAvailable, getApiKey, hasApiKey, setApiKey } from './credentials';
 import type { CredentialId } from './credentials';
 import { loadSettingsFile, saveSettingsFile } from './settings-file';
@@ -25,38 +28,131 @@ import { lastNoteBackup, restoreLastNoteBackup } from './note-backups';
 import { appLogger } from '../src/services/log/logger';
 import fs from 'node:fs';
 import path from 'node:path';
-import type { AgentRunRequest } from './agent-service';
+
+const ipcLog = appLogger.scoped('ipc');
 
 let registeredShortcut: string | null = null;
+/** V1.2-033: kayıt yalnız bir kez yapılır; pencere yeniden kurulsa da güncel pencere kullanılır. */
+let ipcRegistered = false;
+let currentWin: BrowserWindow | null = null;
 
 function isCredentialId(v: unknown): v is CredentialId {
   return v === 'deepseek' || v === 'groq' || v === 'mem0';
 }
 
+/** Güncel (yok edilmemiş) pencere — pencere yeniden oluşturulduysa yenisini döner. */
+function liveWindow(): BrowserWindow | null {
+  return currentWin && !currentWin.isDestroyed() ? currentWin : null;
+}
+
+/**
+ * V1.2-096: IPC yalnızca kendi penceremizin ANA çerçevesinden kabul edilir.
+ * Alt çerçeve (iframe) ya da başka bir webContents kaynaklı çağrı reddedilir;
+ * böylece preload köprüsü üzerinden yabancı içerik main'e erişemez.
+ */
+function isTrustedSender(event: Electron.IpcMainInvokeEvent | Electron.IpcMainEvent): boolean {
+  const frame = event.senderFrame;
+  if (frame && frame.parent !== null) return false; // yalnız ana çerçeve
+  return BrowserWindow.fromWebContents(event.sender) !== null;
+}
+
+type IpcHandler<TArgs extends unknown[] = unknown[]> = (
+  event: Electron.IpcMainInvokeEvent,
+  ...args: TArgs
+) => unknown;
+
+/** Guard'lı ipcMain.handle — tüm kanallar buradan kaydolur. */
+function handle<TArgs extends unknown[]>(channel: string, fn: IpcHandler<TArgs>): void {
+  ipcMain.handle(channel, (event, ...args) => {
+    if (!isTrustedSender(event)) {
+      ipcLog.warn(`yetkisiz IPC çağrısı reddedildi: ${channel}`);
+      throw new Error(`Yetkisiz IPC isteği: ${channel}`);
+    }
+    // Not: `args` renderer'dan gelen ham değerlerdir; tip yalnız köprü sözleşmesidir
+    // (beyan edilen türler main tarafında ayrıca doğrulanır — V1.2-044).
+    return fn(event, ...(args as TArgs));
+  });
+}
+
+type IpcListener<TArgs extends unknown[] = unknown[]> = (
+  event: Electron.IpcMainEvent,
+  ...args: TArgs
+) => void;
+
+/** Guard'lı ipcMain.on — yetkisiz çağrı sessizce yok sayılır (yanıt kanalı yok). */
+function listen<TArgs extends unknown[]>(channel: string, fn: IpcListener<TArgs>): void {
+  ipcMain.on(channel, (event, ...args) => {
+    if (!isTrustedSender(event)) {
+      ipcLog.warn(`yetkisiz IPC çağrısı yok sayıldı: ${channel}`);
+      return;
+    }
+    fn(event, ...(args as TArgs));
+  });
+}
+
+/**
+ * V1.2-044: renderer doğrulaması güven sınırı DEĞİLDİR — agent isteği main'de de doğrulanır
+ * (aşırı uzun metin / eksik alan / beklenmeyen tür main'e ulaşamaz). Şema dışı alanlar atılır.
+ */
+const agentRunSchema = z.object({
+  text: z.string().trim().min(1).max(8000),
+  model: z.string().trim().min(1).max(120),
+  temperature: z.number().min(0).max(2).optional(),
+  maxTokens: z.number().int().min(1).max(65_536).optional(),
+  personality: z.string().max(2000).optional(),
+  useMemory: z.boolean().optional(),
+  detailed: z.boolean().optional(),
+  memoryEngine: z.enum(['local', 'mem0']).optional(),
+  autoLearn: z.boolean().optional(),
+  retainTranscripts: z.boolean().optional(),
+});
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
 export function registerIpc(win: BrowserWindow): void {
+  currentWin = win; // pencere yeniden kurulduysa güncel örnek kullanılır
+  if (ipcRegistered) return; // V1.2-033: ikinci ipcMain.handle kaydı "Attempted to register a second handler" ile tüm kaydı çökertirdi
+  ipcRegistered = true;
+
   // ---------------------------------------------------------------- ayarlar
-  ipcMain.handle('settings:load', async () => loadSettingsFile());
-  ipcMain.handle('settings:save', async (_e, data: unknown) => {
+  handle('settings:load', async () => loadSettingsFile());
+  handle('settings:save', async (_e, data: unknown) => {
+    if (!isPlainObject(data)) return { ok: false, message: 'Ayarlar nesne olmalı.' };
+    let size = 0;
+    try {
+      size = JSON.stringify(data)?.length ?? 0;
+    } catch {
+      return { ok: false, message: 'Ayarlar serileştirilemedi.' };
+    }
+    if (size > 512_000) return { ok: false, message: 'Ayarlar beklenenden büyük.' };
     await saveSettingsFile(data);
     return { ok: true };
   });
 
   // ---------------------------------------------------------------- credentials (anahtarlar renderer'a ASLA dönmez)
-  ipcMain.handle('credentials:has', async (_e, id: unknown) =>
-    hasApiKey(isCredentialId(id) ? id : 'deepseek'),
-  );
-  ipcMain.handle('credentials:available', async () => credentialsAvailable());
-  ipcMain.handle('credentials:set', async (_e, id: unknown, key: string) => {
+  // V1.2-100: geçersiz id sessizce 'deepseek'e DÜŞMEZ; has/clear/set aynı doğrulamayı uygular.
+  handle('credentials:has', async (_e, id: unknown) => {
+    if (!isCredentialId(id)) {
+      ipcLog.warn(`credentials:has geçersiz id: ${String(id)}`);
+      return false;
+    }
+    return hasApiKey(id);
+  });
+  handle('credentials:available', async () => credentialsAvailable());
+  handle('credentials:set', async (_e, id: unknown, key: string) => {
     if (!isCredentialId(id)) return { ok: false, error: 'Geçersiz anahtar türü.' };
     return setApiKey(id, String(key));
   });
-  ipcMain.handle('credentials:clear', async (_e, id: unknown) => {
-    if (isCredentialId(id)) await clearApiKey(id);
+  handle('credentials:clear', async (_e, id: unknown) => {
+    if (!isCredentialId(id)) return { ok: false, error: 'Geçersiz anahtar türü.' };
+    await clearApiKey(id);
     return { ok: true };
   });
 
   // ---------------------------------------------------------------- provider (DeepSeek)
-  ipcMain.handle('provider:test', async (_e, model: string) => {
+  handle('provider:test', async (_e, model: string) => {
     try {
       const client = new DeepSeekClient({
         getApiKey: () => getApiKey('deepseek'),
@@ -69,7 +165,7 @@ export function registerIpc(win: BrowserWindow): void {
       return { ok: false, code: err.code, message: err.message };
     }
   });
-  ipcMain.handle('provider:models', async () => {
+  handle('provider:models', async () => {
     try {
       const client = new DeepSeekClient({
         getApiKey: () => getApiKey('deepseek'),
@@ -84,7 +180,7 @@ export function registerIpc(win: BrowserWindow): void {
   });
 
   // ---------------------------------------------------------------- ses tanıma (Groq Whisper)
-  ipcMain.handle(
+  handle(
     'stt:transcribe',
     async (_e, audio: ArrayBuffer | Uint8Array, mimeType: string, language?: string) => {
       try {
@@ -110,7 +206,7 @@ export function registerIpc(win: BrowserWindow): void {
   );
 
   // ---------------------------------------------------------------- Edge Neural TTS (ücretsiz, doğal sesler)
-  ipcMain.handle('tts:voices', async () => {
+  handle('tts:voices', async () => {
     try {
       const voices = await listEdgeVoices();
       return { ok: true, voices };
@@ -120,40 +216,45 @@ export function registerIpc(win: BrowserWindow): void {
       return { ok: false, code: err.code, message: err.message };
     }
   });
-  ipcMain.handle(
-    'tts:synthesize',
-    async (_e, text: string, voice: string, rate: number, pitch: number) => {
-      try {
-        const res = await synthesizeEdge(
-          String(text),
-          String(voice ?? ''),
-          Number(rate) || 1,
-          Number(pitch) || 1,
-        );
-        // Buffer → ArrayBuffer (IPC aktarımı)
-        const ab = res.audio.buffer.slice(
-          res.audio.byteOffset,
-          res.audio.byteOffset + res.audio.byteLength,
-        );
-        return { ok: true, audio: ab as ArrayBuffer, mime: res.mime };
-      } catch (e) {
-        const err =
-          e instanceof ProviderError ? e : new ProviderError('unknown', 'Ses sentezi başarısız.');
-        return { ok: false, code: err.code, message: err.message };
-      }
-    },
-  );
+  handle('tts:synthesize', async (_e, text: string, voice: string, rate: number, pitch: number) => {
+    try {
+      const res = await synthesizeEdge(
+        String(text),
+        String(voice ?? ''),
+        Number(rate) || 1,
+        Number(pitch) || 1,
+      );
+      // Buffer → ArrayBuffer (IPC aktarımı)
+      const ab = res.audio.buffer.slice(
+        res.audio.byteOffset,
+        res.audio.byteOffset + res.audio.byteLength,
+      );
+      return { ok: true, audio: ab as ArrayBuffer, mime: res.mime };
+    } catch (e) {
+      const err =
+        e instanceof ProviderError ? e : new ProviderError('unknown', 'Ses sentezi başarısız.');
+      return { ok: false, code: err.code, message: err.message };
+    }
+  });
 
   // ---------------------------------------------------------------- agent
-  ipcMain.handle('agent:run', async (_e, req: AgentRunRequest) => {
-    void runAgent(win, req); // olaylar 'agent:event' ile akar
+  handle('agent:run', async (_e, req: unknown) => {
+    // V1.2-044: istek main tarafında doğrulanır; geçersizse agent hiç başlatılmaz.
+    const parsed = agentRunSchema.safeParse(req);
+    if (!parsed.success) {
+      ipcLog.warn(`agent:run geçersiz istek: ${parsed.error.issues[0]?.message ?? 'şema hatası'}`);
+      return { started: false };
+    }
+    const w = liveWindow();
+    if (!w) return { started: false };
+    void runAgent(w, parsed.data); // olaylar 'agent:event' ile akar
     return { started: true };
   });
-  ipcMain.handle('agent:cancel', async () => {
+  handle('agent:cancel', async () => {
     cancelActiveAgent();
     return { ok: true };
   });
-  ipcMain.handle('agent:confirm', async (_e, requestId: string, approved: boolean) => {
+  handle('agent:confirm', async (_e, requestId: string, approved: boolean) => {
     // Sözlü izin akışı (V1-09): bekleyen onayı çözer; eşleşme yoksa sessizce yok sayar.
     return { ok: true, handled: resolveAgentConfirm(String(requestId ?? ''), approved === true) };
   });
@@ -162,11 +263,11 @@ export function registerIpc(win: BrowserWindow): void {
   // Gerçek durum İŞLETİM SİSTEMİNDEN okunur (kayıt defteri). Kaynak modda dürüstçe "desteklenmiyor".
   const loginItemSupported = (): boolean =>
     (process.platform === 'win32' || process.platform === 'darwin') && app.isPackaged;
-  ipcMain.handle('app:login-item-get', async () => {
+  handle('app:login-item-get', async () => {
     if (!loginItemSupported()) return { ok: true, supported: false, enabled: false };
     return { ok: true, supported: true, enabled: app.getLoginItemSettings().openAtLogin };
   });
-  ipcMain.handle('app:login-item-set', async (_e, enabled: boolean) => {
+  handle('app:login-item-set', async (_e, enabled: boolean) => {
     if (!loginItemSupported()) {
       return {
         ok: false,
@@ -179,24 +280,24 @@ export function registerIpc(win: BrowserWindow): void {
   });
 
   // ---------------------------------------------------------------- işlem günlüğü / sayaçlar (V1-17/19)
-  ipcMain.handle('audit:list', async () => ({ ok: true, entries: listAudit(50) }));
-  ipcMain.handle('audit:clear', async () => {
+  handle('audit:list', async () => ({ ok: true, entries: listAudit(50) }));
+  handle('audit:clear', async () => {
     clearAudit();
     return { ok: true };
   });
-  ipcMain.handle('usage:get', async () => ({ ok: true, ...getUsage() }));
-  ipcMain.handle('notes:last-backup', async () => ({ ok: true, record: lastNoteBackup() }));
-  ipcMain.handle('notes:restore', async () => restoreLastNoteBackup());
-  ipcMain.handle('agent:clear-context', async () => {
+  handle('usage:get', async () => ({ ok: true, ...getUsage() }));
+  handle('notes:last-backup', async () => ({ ok: true, record: lastNoteBackup() }));
+  handle('notes:restore', async () => restoreLastNoteBackup());
+  handle('agent:clear-context', async () => {
     clearAgentContext();
     return { ok: true };
   });
-  ipcMain.handle('log:clear', async () => {
+  handle('log:clear', async () => {
     appLogger.clear();
     clearLogFile();
     return { ok: true };
   });
-  ipcMain.handle('privacy:clear-transcripts', async () => {
+  handle('privacy:clear-transcripts', async () => {
     try {
       fs.writeFileSync(path.join(app.getPath('userData'), 'transcripts.jsonl'), '', 'utf8');
       return { ok: true };
@@ -207,8 +308,8 @@ export function registerIpc(win: BrowserWindow): void {
 
   // ---------------------------------------------------------------- ayar dışa/içe aktarma
   // Not: settings.json API anahtarı İÇERMEZ (anahtarlar ayrı credential vault'ta).
-  ipcMain.handle('settings:export', async () => {
-    const parent = win && !win.isDestroyed() ? win : undefined;
+  handle('settings:export', async () => {
+    const parent = liveWindow() ?? undefined;
     const opts = {
       defaultPath: 'quatra-ayarlar.json',
       filters: [{ name: 'JSON', extensions: ['json'] }],
@@ -225,8 +326,8 @@ export function registerIpc(win: BrowserWindow): void {
       return { ok: false, message: 'Ayarlar dosyaya yazılamadı.' };
     }
   });
-  ipcMain.handle('settings:import', async () => {
-    const parent = win && !win.isDestroyed() ? win : undefined;
+  handle('settings:import', async () => {
+    const parent = liveWindow() ?? undefined;
     const opts = {
       properties: ['openFile' as const],
       filters: [{ name: 'JSON', extensions: ['json'] }],
@@ -248,36 +349,39 @@ export function registerIpc(win: BrowserWindow): void {
   });
 
   // ---------------------------------------------------------------- global bas-konuş
-  ipcMain.handle('shortcut:register', async (_e, accelerator: string) => {
+  handle('shortcut:register', async (_e, accelerator: string) => {
     const log = appLogger.scoped('shortcut');
     try {
-      if (registeredShortcut) {
-        globalShortcut.unregister(registeredShortcut);
-        registeredShortcut = null;
-      }
       const combo = String(accelerator || '').trim();
       if (!combo) return { ok: false, message: 'Kısayol boş.' };
+      if (combo === registeredShortcut) return { ok: true }; // değişiklik yok
+      // V1.2-034: ÖNCE yeni kombinasyon denenir; başarısızsa çalışan kısayol KORUNUR
+      // (eskiden önce unregister ediliyordu → kayıt başarısızsa kullanıcı kısayolsuz kalıyordu).
       const ok = globalShortcut.register(combo, () => {
-        if (!win.isDestroyed()) win.webContents.send('ptt:trigger');
+        const w = liveWindow();
+        if (w) w.webContents.send('ptt:trigger');
       });
-      if (ok) {
-        registeredShortcut = combo;
-        log.info(`global kısayol kayıtlı: ${combo}`);
-        return { ok: true };
+      if (!ok) {
+        return {
+          ok: false,
+          message: `"${combo}" kaydedilemedi (başka uygulama kullanıyor olabilir).${
+            registeredShortcut ? ` Önceki kısayol korundu: ${registeredShortcut}` : ''
+          }`,
+        };
       }
-      return {
-        ok: false,
-        message: `"${combo}" kaydedilemedi (başka uygulama kullanıyor olabilir).`,
-      };
+      if (registeredShortcut) globalShortcut.unregister(registeredShortcut);
+      registeredShortcut = combo;
+      log.info(`global kısayol kayıtlı: ${combo}`);
+      return { ok: true };
     } catch {
       return { ok: false, message: 'Kısayol kaydedilemedi.' };
     }
   });
 
   // ---------------------------------------------------------------- günlükler
-  ipcMain.handle('log:open', async () => openLogsFolder());
-  ipcMain.handle('log:path', async () => ({ ok: true, path: logFilePath(), dir: logDir() }));
-  ipcMain.on('log:renderer', (_e, level: unknown, scope: unknown, message: unknown) => {
+  handle('log:open', async () => openLogsFolder());
+  handle('log:path', async () => ({ ok: true, path: logFilePath(), dir: logDir() }));
+  listen('log:renderer', (_e, level: unknown, scope: unknown, message: unknown) => {
     const logger = appLogger.scoped(String(scope ?? 'renderer'));
     const msg = String(message ?? '');
     if (level === 'error') logger.error(msg);
@@ -290,8 +394,8 @@ export function registerIpc(win: BrowserWindow): void {
   registerMemoryIpc();
 
   // ---------------------------------------------------------------- pencere kontrolleri (özel başlık çubuğu)
-  ipcMain.on('window:minimize', (e) => BrowserWindow.fromWebContents(e.sender)?.minimize());
-  ipcMain.on('window:toggle-maximize', (e) => {
+  listen('window:minimize', (e) => BrowserWindow.fromWebContents(e.sender)?.minimize());
+  listen('window:toggle-maximize', (e) => {
     const w = BrowserWindow.fromWebContents(e.sender);
     if (!w) return;
     if (w.isFullScreen()) {
@@ -302,14 +406,17 @@ export function registerIpc(win: BrowserWindow): void {
       w.maximize();
     }
   });
-  ipcMain.on('window:close', (e) => BrowserWindow.fromWebContents(e.sender)?.close());
+  listen('window:close', (e) => BrowserWindow.fromWebContents(e.sender)?.close());
 
   // ---------------------------------------------------------------- native yardımcılar
-  ipcMain.handle('tools:pickDirectory', async () => createNativeBridge(win).pickDirectory());
-  ipcMain.handle('app:version', async () => app.getVersion());
+  handle('tools:pickDirectory', async () => {
+    const w = liveWindow();
+    return w ? createNativeBridge(w).pickDirectory() : null;
+  });
+  handle('app:version', async () => app.getVersion());
   // macOS mikrofon izni (TCC): getUserMedia tetiklemeden önce açıkça sorulur.
   // Windows/Linux'ta böyle bir izin kavramı yok — doğrudan "izinli" döner.
-  ipcMain.handle('app:mic-access', async () => {
+  handle('app:mic-access', async () => {
     if (process.platform !== 'darwin') return { ok: true, granted: true };
     try {
       const granted = await systemPreferences.askForMediaAccess('microphone');
@@ -319,16 +426,10 @@ export function registerIpc(win: BrowserWindow): void {
       return { ok: true, granted: true }; // hata → getUserMedia kendi akışını dener
     }
   });
-  ipcMain.on('app:renderer-ready', () => {
+  listen('app:renderer-ready', () => {
     appLogger.scoped('main').info('renderer hazır — React mount edildi');
   });
-  ipcMain.handle('app:openExternal', async (_e, url: string) => {
-    if (/^https?:\/\//i.test(String(url))) {
-      await createNativeBridge(win).openUrl(String(url));
-      return { ok: true };
-    }
-    return { ok: false, message: 'Yalnızca http/https' };
-  });
+  // ---------------------------------------------------------------- native yardımcılar
 }
 
 export function disposeGlobals(): void {

@@ -68,6 +68,24 @@ describe('note-backups', () => {
     expect(fs.readFileSync(target, 'utf8')).toBe('ilk sürüm');
   });
 
+  it('geri alma önce mevcut hali yedekler ve kaydı tüketir (aynı yedek ikinci kez uygulanmaz)', () => {
+    const target = note('not.md', 'ilk sürüm');
+    backupBeforeWrite(target);
+    fs.writeFileSync(target, 'aradaki düzenleme', 'utf8');
+    expect(restoreLastNoteBackup()).toEqual({ ok: true, message: 'Not geri alındı.' });
+    expect(fs.readFileSync(target, 'utf8')).toBe('ilk sürüm');
+    // V1.2-035: eski(ilk) kayıt tüketildi; sıradaki kayıt geri alma öncesi hali taşır.
+    const records = JSON.parse(fs.readFileSync(recordsPath(), 'utf8')) as Array<{
+      backup: string;
+      ts: string;
+    }>;
+    expect(records).toHaveLength(1);
+    expect(fs.readFileSync(records[0]!.backup, 'utf8')).toBe('aradaki düzenleme');
+    // İkinci geri alma stale yedeği değil, bir önceki hali döndürür.
+    expect(restoreLastNoteBackup()).toEqual({ ok: true, message: 'Not geri alındı.' });
+    expect(fs.readFileSync(target, 'utf8')).toBe('aradaki düzenleme');
+  });
+
   it('yedek kaydı yokken anlamlı hata döner', () => {
     expect(restoreLastNoteBackup()).toEqual({
       ok: false,

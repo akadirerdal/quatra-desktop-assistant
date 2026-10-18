@@ -6,7 +6,7 @@
  */
 import type { AudioService } from './audio-service';
 
-/** Bilinen telaffuz varyantları — fuzzy eşleşmeye ek güvenlik ağı. */
+/** Bilinen telaffuz varyantları — fuzzy eşleşmeye ek güvenlik ağı (yalnız VARSAYILAN kelimede). */
 const WAKE_ALIASES = [
   'quatra',
   'kuatra',
@@ -16,9 +16,13 @@ const WAKE_ALIASES = [
   'katra',
   'kotra',
   'kvatra',
-  'kvatra',
   'kuatre',
 ];
+
+/** Telaffuz alias'ları yalnızca varsayılan kelime için geçerli — kullanıcı özel kelime seçtiyse uygulanmaz. */
+function aliasesFor(target: string): readonly string[] {
+  return target === 'quatra' ? WAKE_ALIASES : [];
+}
 
 /** Normalize + bulanık eşleşme: "kuatra", "quatro", "kotra" gibi telaffuzları da yakalar. */
 export function matchesWakeWord(transcript: string, wakeWord: string): boolean {
@@ -29,11 +33,12 @@ export function matchesWakeWord(transcript: string, wakeWord: string): boolean {
       .split(/\s+/)
       .filter(Boolean);
   const target = norm(wakeWord)[0] ?? 'quatra';
+  const aliases = aliasesFor(target);
   const tokens = norm(transcript);
   return tokens.some(
     (t) =>
       t === target ||
-      WAKE_ALIASES.includes(t) ||
+      aliases.includes(t) ||
       similarity(t, target) >= 0.66 ||
       (t.length > 3 && t.includes(target)) ||
       (target.length > 3 && target.includes(t)),
@@ -66,27 +71,33 @@ function tokenize(s: string): string[] {
     .filter(Boolean);
 }
 
+/** Ham metindeki kelimeleri bitiş konumlarıyla döner (uyandırma sonrası dilim için). */
+function tokenizeWithEnd(s: string): Array<{ token: string; end: number }> {
+  const out: Array<{ token: string; end: number }> = [];
+  for (const m of s.matchAll(/[\p{L}\p{N}]+/gu)) {
+    out.push({ token: m[0].toLowerCase(), end: (m.index ?? 0) + m[0].length });
+  }
+  return out;
+}
+
 /**
  * "quatra benim adım Ali" → uyandırma kelimesinden SONRASINI komut olarak döner.
  * Böylece bütün cümle tek seferde yakalanır; kullanıcı iki kez konuşmak zorunda kalmaz.
  */
 export function extractCommandAfterWake(transcript: string, wakeWord: string): string {
-  const tokens = transcript.trim().split(/\s+/);
-  const normTokens = tokenize(transcript);
   const target = tokenize(wakeWord)[0] ?? 'quatra';
-  let idx = -1;
-  for (let i = 0; i < normTokens.length; i++) {
-    const t = normTokens[i]!;
-    if (t === target || WAKE_ALIASES.includes(t) || similarity(t, target) >= 0.66) {
-      idx = i;
-      break;
-    }
-  }
-  if (idx === -1) return '';
-  return tokens
-    .slice(idx + 1)
-    .join(' ')
-    .trim();
+  const aliases = aliasesFor(target);
+  const hit = tokenizeWithEnd(transcript).find(
+    ({ token }) => token === target || aliases.includes(token) || similarity(token, target) >= 0.66,
+  );
+  if (!hit) return '';
+  // Dilim HAM metinden yapılır: normalize token indeksini ham split'e uygulamak
+  // noktalama yüzünden kayıyor, komuta uyandırma kelimesi/tire kalıyordu.
+  // Yalnız baş/son noktalama-bozluk kalıntısı temizlenir (kelime içi korunur).
+  return transcript
+    .slice(hit.end)
+    .replace(/^[\s\p{P}\p{S}]+/u, '')
+    .replace(/[\s\p{P}\p{S}]+$/u, '');
 }
 
 export interface WakeWordCallbacks {
@@ -109,6 +120,10 @@ export class WakeWordService {
   private paused = false;
   /** Dış istek (sohbet) mikrofonu tutuyorsa cooldown sonrası otomatik açılma engellenir. */
   private holdRequested = false;
+  /** Başlatma sözü — hızlı ardışık start() çağrıları iki dinleme döngüsü açmasın (single-flight). */
+  private starting: Promise<boolean> | null = null;
+  /** start() beklerken stop() çağrılırsa başlatma iptal edilir. */
+  private startToken = 0;
 
   constructor(
     private readonly audio: AudioService,
@@ -118,15 +133,25 @@ export class WakeWordService {
 
   async start(): Promise<boolean> {
     if (this.running) return true;
-    const micOk = await this.audio.ensureMic();
-    if (!micOk) return false;
-    this.running = true;
-    this.callbacks.onState?.('armed');
-    void this.loop();
-    return true;
+    if (!this.starting) {
+      const token = ++this.startToken;
+      this.starting = (async () => {
+        const micOk = await this.audio.ensureMic();
+        // Bu sırada stop() çağrıldıysa mikrofon açıldıysa bile dinleme başlatılmaz.
+        if (!micOk || token !== this.startToken) return false;
+        this.running = true;
+        this.callbacks.onState?.('armed');
+        void this.loop();
+        return true;
+      })().finally(() => {
+        this.starting = null;
+      });
+    }
+    return this.starting;
   }
 
   stop(): void {
+    this.startToken += 1; // bekleyen start() iptal
     this.running = false;
   }
 

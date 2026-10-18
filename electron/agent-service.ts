@@ -8,12 +8,21 @@ import path from 'node:path';
 import { z } from 'zod';
 import { DeepSeekClient } from '../src/providers/deepseek/client';
 import { ToolRegistry } from '../src/features/tools/registry';
-import { PermissionManager } from '../src/features/tools/permissions';
+import { PermissionManager, summarizeArgs } from '../src/features/tools/permissions';
 import { createBuiltinTools } from '../src/features/tools/builtins';
-import { AgentLoop, DEFAULT_SYSTEM_PROMPT, type AgentRunResult } from '../src/features/agent/loop';
+import {
+  AgentLoop,
+  DEFAULT_SYSTEM_PROMPT,
+  MEMORY_INSTRUCTION,
+  type AgentRunResult,
+} from '../src/features/agent/loop';
+import type { ToolResult } from '../src/features/tools/types';
+import { DEEPSEEK_CHAT_MODEL } from '../src/features/agent/models';
 import { MemoryStore } from '../src/services/memory/memory-store';
 import { getApiKey } from './credentials';
 import { createNativeBridge } from './native';
+import { loadSettingsFile } from './settings-file';
+import { sanitizeSettings } from '../src/state/settings-schema';
 import { mem0Add, mem0Search } from './mem0-service';
 import {
   EXTRACTION_PROMPT,
@@ -50,12 +59,22 @@ export interface AgentRunRequest {
   autoLearn?: boolean;
   /** Konuşma metinleri yerel dosyaya yazılsın mı (varsayılan kapalı — opt-in). */
   retainTranscripts?: boolean;
+  /** Pano okuma aracı izni (gizlilik ayarı; verilmezse settings.json'dan okunur). */
+  clipboardReadEnabled?: boolean;
+  /** tools.enabled haritası (verilmezse settings.json'dan okunur; false = aracı kaydetme). */
+  toolsEnabled?: Record<string, boolean>;
 }
 
 export type AgentEvent =
   | { type: 'start'; requestId: string }
   | { type: 'sentence'; requestId: string; text: string }
-  | { type: 'confirm'; requestId: string; tool: string }
+  | {
+      type: 'confirm';
+      requestId: string;
+      tool: string;
+      /** V1.2-009: kullanıcıya gösterilecek sanitize edilmiş argüman özeti (kırpılmış + maskeli). */
+      argsSummary?: string;
+    }
   | { type: 'caption'; requestId: string; text: string }
   | { type: 'done'; requestId: string; text: string; iterations: number; toolCalls: number }
   | { type: 'error'; requestId: string; category: string; message: string };
@@ -122,6 +141,13 @@ export async function runAgent(win: BrowserWindow, req: AgentRunRequest): Promis
       return;
     }
 
+    // V1.2-005/006/065: gizlilik/araç ayarları renderer'dan gelmediyse main'deki
+    // settings.json'dan okunur — anahtar renderer'a güvenmeden burada da zorlanır.
+    const saved = sanitizeSettings(await loadSettingsFile());
+    const autoLearn = req.autoLearn ?? saved.memory.autoLearn;
+    const clipboardReadEnabled = req.clipboardReadEnabled ?? saved.privacy.clipboardReadEnabled;
+    const toolsEnabled = req.toolsEnabled ?? saved.tools.enabled;
+
     let client = new DeepSeekClient({
       getApiKey: () => getApiKey('deepseek'),
       timeoutMs: 60_000,
@@ -129,8 +155,9 @@ export async function runAgent(win: BrowserWindow, req: AgentRunRequest): Promis
 
     const permissions = new PermissionManager({
       // V1-09: ekran kutusu YOK — Quatra sesle sorar ("Evet mi, hayır mı?"); yanıt bu Promise'i çözer.
-      confirm: (toolName) => {
-        emit({ type: 'confirm', requestId, tool: toolName });
+      confirm: (toolName, args) => {
+        // V1.2-009: onay sorusu yalnız araç adı değil, sanitize edilmiş argüman özetini de taşır.
+        emit({ type: 'confirm', requestId, tool: toolName, argsSummary: summarizeArgs(args) });
         return new Promise<boolean>((resolve) => {
           const state: { timer?: ReturnType<typeof setTimeout> } = {};
           const wrapped = (approved: boolean) => {
@@ -142,6 +169,9 @@ export async function runAgent(win: BrowserWindow, req: AgentRunRequest): Promis
               pendingConfirm = null;
               resolve(false);
               emit({ type: 'caption', requestId, text: 'Onay gelmediği için işlemi yapmadım.' });
+              // V1.2-046: onay penceresi kapandı — isteği terminal duruma getir (cancelled);
+              // controller 'processing'te takılı kalmasın. B7 renderer tarafı 'cancelled'ı sessiz filtreler.
+              abort.abort();
             }
           }, 20_000);
           pendingConfirm = { requestId, resolve: wrapped };
@@ -150,7 +180,13 @@ export async function runAgent(win: BrowserWindow, req: AgentRunRequest): Promis
     });
 
     const registry = new ToolRegistry({ timeoutMs: 20_000 });
-    for (const tool of createBuiltinTools()) registry.register(tool);
+    for (const tool of createBuiltinTools()) {
+      // V1.2-006: pano okuma yalnız ayar açıkken modele sunulur.
+      if (tool.name === 'clipboard_oku' && !clipboardReadEnabled) continue;
+      // V1.2-065: tools.enabled haritasında false olan araç registry'ye hiç girmez.
+      if (toolsEnabled[tool.name] === false) continue;
+      registry.register(tool);
+    }
 
     // Hafıza: kullanıcı izin verdiyse ilgili kayıtlar prompt'a eklenir (yalnız yerel).
     const memoryStore = new MemoryStore(path.join(app.getPath('userData'), 'memory.json'));
@@ -179,34 +215,42 @@ export async function runAgent(win: BrowserWindow, req: AgentRunRequest): Promis
     }
 
     // Model, konuşma içinde öğrendiği KALICI bilgileri SESSİZCE hafızaya yazar.
-    registry.register({
-      name: 'hafiza_kaydet',
-      description:
-        'Kullanıcı hakkında KALICI değer taşıyan bir bilgiyi hafızaya ekler (isim, yaş, kalıcı tercih, ilişki, önemli tarih). Geçici şeyleri (anlık durum, hava durumu, sohbet dolgusu) kaydetme. Kaydettiğini kullanıcıya SÖYLEME; yanıtında "hatırladım/not aldım" deme, doğal sohbete devam et. Kısa ve öz yaz (ör. "Kullanıcının adı: Ali").',
-      schema: z.object({ text: z.string().min(2).max(500) }),
-      parameters: {
-        type: 'object',
-        properties: {
-          text: { type: 'string', description: 'Hatırlanacak bilgi (ör. "Kullanıcının adı: Ali")' },
+    // V1.2-005: otomatik öğrenme kapalıyken bu araç registry'ye HİÇ eklenmez.
+    if (autoLearn) {
+      registry.register({
+        name: 'hafiza_kaydet',
+        description:
+          'Kullanıcı hakkında KALICI değer taşıyan bir bilgiyi hafızaya ekler (isim, yaş, kalıcı tercih, ilişki, önemli tarih). Geçici şeyleri (anlık durum, hava durumu, sohbet dolgusu) kaydetme. Kaydettiğini kullanıcıya SÖYLEME; yanıtında "hatırladım/not aldım" deme, doğal sohbete devam et. Kısa ve öz yaz (ör. "Kullanıcının adı: Ali").',
+        schema: z.object({ text: z.string().min(2).max(500) }),
+        parameters: {
+          type: 'object',
+          properties: {
+            text: {
+              type: 'string',
+              description: 'Hatırlanacak bilgi (ör. "Kullanıcının adı: Ali")',
+            },
+          },
+          required: ['text'],
         },
-        required: ['text'],
-      },
-      permission: 'safe',
-      run: async (args: { text: string }) => {
-        const text = String(args.text).trim();
-        if (!text || isGarbageEntry(text)) return { saved: false };
-        const existing = (await memoryStore.load()).find((e) => shouldReplaceEntry(e.text, text));
-        if (existing) await memoryStore.remove(existing.id);
-        await memoryStore.add(text, 'assistant');
-        return { saved: true };
-      },
-    });
+        permission: 'safe',
+        run: async (args: { text: string }) => {
+          const text = String(args.text).trim();
+          if (!text || isGarbageEntry(text)) return { saved: false };
+          const existing = (await memoryStore.load()).find((e) => shouldReplaceEntry(e.text, text));
+          if (existing) await memoryStore.remove(existing.id);
+          await memoryStore.add(text, 'assistant');
+          return { saved: true };
+        },
+      });
+    }
 
     const systemPrompt =
       (memoryBlock ? `${memoryBlock}\n\n` : '') +
       (req.personality
         ? `${DEFAULT_SYSTEM_PROMPT}\nKullanıcı tercihi: ${req.personality}`
         : DEFAULT_SYSTEM_PROMPT) +
+      // V1.2-005: kaydetme talimatı yalnız otomatik öğrenme açıkken prompt'a girer.
+      (autoLearn ? `\n${MEMORY_INSTRUCTION}` : '') +
       (req.detailed
         ? '\nKullanıcı detaylı yanıt istiyor — bu yanıtı kapsamlı ve ayrıntılı ver.'
         : '');
@@ -215,7 +259,16 @@ export async function runAgent(win: BrowserWindow, req: AgentRunRequest): Promis
       `agent başladı — model=${req.model}, hafıza=${memoryBlock ? 'var' : 'yok'}, sıcaklık=${req.temperature ?? '-'}`,
     );
 
-    const buildLoop = (provider: DeepSeekClient, model: string) =>
+    // V1.2-070: istek düzeyinde tool önbelleği + cümle bastırma — yedek denemede
+    // ilk denemenin yan etkileri/TTS cümleleri ikinci kez işlenmez.
+    const toolResultCache = new Map<string, ToolResult>();
+    let firstAttemptSpoke = false;
+
+    const buildLoop = (
+      provider: DeepSeekClient,
+      model: string,
+      opts: { suppressSentences?: boolean } = {},
+    ) =>
       new AgentLoop({
         provider,
         registry,
@@ -227,13 +280,26 @@ export async function runAgent(win: BrowserWindow, req: AgentRunRequest): Promis
         maxTokens: req.maxTokens,
         signal: abort.signal,
         context: contextToMessages(contextHistory),
-        onSentence: (text) => emit({ type: 'sentence', requestId, text }),
+        toolResultCache,
+        onSentence: opts.suppressSentences
+          ? undefined
+          : (text) => {
+              firstAttemptSpoke = true;
+              emit({ type: 'sentence', requestId, text });
+            },
         onToolEvent: (info) => {
+          // V1.2-038: hassas araçların (ör. pano) ham çıktısı audit'e YAZILMAZ; diğerleri 300 karakterle kırpılır.
+          const tool = registry.get(info.tool);
+          const sensitive = tool?.permission === 'sensitive';
+          const detail =
+            sensitive && info.ok
+              ? '(hassas sonuç — gizlilik gereği kaydedilmedi)'
+              : (info.error ?? info.resultJson).slice(0, 300);
           appendAudit({
             ts: new Date().toISOString(),
             tool: info.tool,
             ok: info.ok,
-            detail: info.error ?? info.resultJson,
+            detail,
             ms: info.ms,
           });
         },
@@ -261,7 +327,10 @@ export async function runAgent(win: BrowserWindow, req: AgentRunRequest): Promis
         maxRetries: 1,
       });
       usedFallback = true;
-      result = await buildLoop(client, GROQ_FALLBACK_MODEL).run(req.text);
+      // İlk deneme cümle akıttıysa yedeğin cümlelerini TEKRAR akıtma (çift seslendirme olmasın).
+      result = await buildLoop(client, GROQ_FALLBACK_MODEL, {
+        suppressSentences: firstAttemptSpoke,
+      }).run(req.text);
     }
 
     log.info(
@@ -273,7 +342,14 @@ export async function runAgent(win: BrowserWindow, req: AgentRunRequest): Promis
     if (result.usage) recordUsage(result.usage.promptTokens, result.usage.completionTokens);
     // Konuşma kaydı (opt-in, varsayılan kapalı).
     if (req.retainTranscripts) appendTranscript(req.text, result.text);
-    emit({ type: 'caption', requestId, text: result.text });
+    // V1.2-071: token sınırında kesilen yanıt görsel olarak işaretlenir (sesli okuma temiz kalır).
+    emit({
+      type: 'caption',
+      requestId,
+      text: result.truncated
+        ? `${result.text}\n\n(Yanıt token sınırına ulaştı — kesilmiş olabilir.)`
+        : result.text,
+    });
     emit({
       type: 'done',
       requestId,
@@ -289,9 +365,17 @@ export async function runAgent(win: BrowserWindow, req: AgentRunRequest): Promis
       result.text,
       client,
       memoryStore,
-      usedFallback ? GROQ_FALLBACK_MODEL : 'deepseek-chat',
+      usedFallback ? GROQ_FALLBACK_MODEL : DEEPSEEK_CHAT_MODEL,
+      autoLearn,
     );
   } catch (e) {
+    // V1.2-013: iptal edilen istek sessiz terminal yoldur — category 'cancelled',
+    // requestId korunur (controller B7 bu hatayı filtreler).
+    if (abort.signal.aborted) {
+      log.info('agent iptal edildi');
+      emit({ type: 'error', requestId, category: 'cancelled', message: 'İptal edildi.' });
+      return;
+    }
     const msg = e instanceof Error ? e.message : 'Bilinmeyen hata';
     const category =
       e instanceof Error && 'code' in e && typeof (e as { code?: unknown }).code === 'string'
@@ -306,10 +390,31 @@ export async function runAgent(win: BrowserWindow, req: AgentRunRequest): Promis
 
 // ---- Hafıza çıkarımı: yalnızca KALICI bilgiler, sessizce ----
 
+/** transcripts.jsonl üst sınırı (V1.2-045): bu boyutu aşınca dosya son kısmına kırpılır. */
+const TRANSCRIPT_MAX_BYTES = 5 * 1024 * 1024;
+const TRANSCRIPT_KEEP_BYTES = 2 * 1024 * 1024;
+
+/** Dosya sınırı aştıysa yalnız son ~2 MB'ı (satır sınırında) bırakır — sınırsız büyüme olmaz. */
+function trimTranscriptIfNeeded(file: string): void {
+  let size = 0;
+  try {
+    size = fs.statSync(file).size;
+  } catch {
+    return; // dosya henüz yok
+  }
+  if (size <= TRANSCRIPT_MAX_BYTES) return;
+  const raw = fs.readFileSync(file, 'utf8');
+  let tail = raw.slice(-TRANSCRIPT_KEEP_BYTES);
+  const firstNewline = tail.indexOf('\n'); // ortadan kesilmiş satır bırakma
+  if (firstNewline >= 0) tail = tail.slice(firstNewline + 1);
+  fs.writeFileSync(file, tail, 'utf8');
+}
+
 /** Konuşma kaydı (opt-in) — userData/transcripts.jsonl; secret'lar redact edilir. */
 function appendTranscript(userText: string, assistantText: string): void {
   try {
     const file = path.join(app.getPath('userData'), 'transcripts.jsonl');
+    trimTranscriptIfNeeded(file); // V1.2-045: sınır/rotasyon
     fs.appendFileSync(
       file,
       JSON.stringify({
@@ -330,11 +435,12 @@ async function persistMemory(
   client: DeepSeekClient,
   store: MemoryStore,
   chatModel: string,
+  autoLearn: boolean,
 ): Promise<void> {
   const log = appLogger.scoped('memory');
   try {
     // Kapılar: kapalıysa veya mesajda kişisel sinyal yoksa hiç model çağrısı yapılmaz.
-    if (req.autoLearn === false) return;
+    if (!autoLearn) return;
     if (!hasMemorySignal(req.text)) return;
 
     // 1) mem0 motoru seçiliyse buluta da yaz (kullanıcı bu motoru seçtiyse).

@@ -40,7 +40,7 @@ describe('SettingsPanel — API anahtarı akışı', () => {
   it('kaydedince başarı rozeti gösterir, alanı temizler ve anahtarı köprüye iletir', async () => {
     const controller = new AssistantController();
     render(<SettingsPanel onClose={() => undefined} controller={controller} />);
-    fireEvent.click(screen.getByText('AI Sağlayıcı'));
+    fireEvent.click(screen.getByRole('button', { name: 'AI Sağlayıcı' }));
 
     const input = screen.getAllByPlaceholderText('Anahtarı yapıştır')[0] as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'test-abc-123' } });
@@ -61,7 +61,7 @@ describe('SettingsPanel — API anahtarı akışı', () => {
     });
     const controller = new AssistantController();
     render(<SettingsPanel onClose={() => undefined} controller={controller} />);
-    fireEvent.click(screen.getByText('AI Sağlayıcı'));
+    fireEvent.click(screen.getByRole('button', { name: 'AI Sağlayıcı' }));
 
     fireEvent.change(screen.getAllByPlaceholderText('Anahtarı yapıştır')[0]!, {
       target: { value: 'x' },
@@ -76,7 +76,7 @@ describe('SettingsPanel — API anahtarı akışı', () => {
     hasState = { deepseek: true };
     const controller = new AssistantController();
     render(<SettingsPanel onClose={() => undefined} controller={controller} />);
-    fireEvent.click(screen.getByText('AI Sağlayıcı'));
+    fireEvent.click(screen.getByRole('button', { name: 'AI Sağlayıcı' }));
     expect(await screen.findByText('Anahtar kayıtlı')).toBeTruthy();
     controller.dispose();
   });
@@ -86,7 +86,7 @@ describe('SettingsPanel — mikrofon testi ve kademeli ayarlar', () => {
   it('ses bölümünde yeni kontroller görünür', () => {
     const controller = new AssistantController();
     render(<SettingsPanel onClose={() => undefined} controller={controller} />);
-    fireEvent.click(screen.getByText('Ses ve Giriş'));
+    fireEvent.click(screen.getByRole('button', { name: 'Ses ve Giriş' }));
     expect(screen.getByText('Mikrofonu test et')).toBeTruthy();
     expect(screen.getByText('Ek kazanç')).toBeTruthy();
     expect(screen.getByText('Gürültü kapısı')).toBeTruthy();

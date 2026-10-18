@@ -82,6 +82,9 @@ function normalize(s: string): string {
   );
 }
 
+/** Kısa parçaların yanlış eşleşmesini önleyen alt sınır (V1.2-067): 't', 'e' artık notepad'e eşlenmez. */
+const MIN_MATCH_LENGTH = 3;
+
 /** Kullanıcı/model girdisini kanonik uygulama anahtarına normalize eder; eşleşmezse null. */
 export function normalizeAppName(input: string): string | null {
   const hay = normalize(input);
@@ -89,7 +92,10 @@ export function normalizeAppName(input: string): string | null {
   for (const app of KNOWN_APPS) {
     for (const alias of app.aliases) {
       const a = normalize(alias);
-      if (hay === a || hay.includes(a) || a.includes(hay)) return app.key;
+      if (hay === a) return app.key;
+      // Parça eşleşmesi yalnızca yeterince uzun parçalarla: tam kelime/başlangıç yanlış eşleşmesin.
+      if (hay.length >= MIN_MATCH_LENGTH && a.includes(hay)) return app.key;
+      if (a.length >= MIN_MATCH_LENGTH && hay.includes(a)) return app.key;
     }
   }
   return null;

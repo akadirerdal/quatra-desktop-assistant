@@ -3,6 +3,7 @@ import {
   hasMemorySignal,
   isGarbageEntry,
   isNearDuplicate,
+  normalizeForCompare,
   parseExtractedFacts,
   shouldReplaceEntry,
 } from '../../../src/services/memory/extraction';
@@ -33,6 +34,15 @@ describe('parseExtractedFacts', () => {
     expect(parseExtractedFacts('x')).toEqual([]);
     expect(parseExtractedFacts('[]')).toEqual([]);
   });
+
+  it('dizideki string olmayan elemanları atar ("[object Object]" yazılmaz)', () => {
+    expect(
+      parseExtractedFacts('[{"fact":"Kullanıcı 21 yaşında"}, "Kullanıcı Fenerbahçeli"]'),
+    ).toEqual(['Kullanıcı Fenerbahçeli']);
+    expect(parseExtractedFacts('{"facts":["Kullanıcı çay sever",{"fact":"x"}]}')).toEqual([
+      'Kullanıcı çay sever',
+    ]);
+  });
 });
 
 describe('hasMemorySignal', () => {
@@ -43,6 +53,12 @@ describe('hasMemorySignal', () => {
     expect(hasMemorySignal('hatırla: yarın toplantı var')).toBe(true);
   });
 
+  it('Türkçe harfle başlayan ekleri de tanır (ASCII \\b kaçağı)', () => {
+    // "şehrim" ş ile başladığı için eski /\\b...\\b/ deseniyle hiç eşleşmiyordu (V1.2-115).
+    expect(hasMemorySignal('şehrim İstanbul')).toBe(true);
+    expect(hasMemorySignal('çok seviyorum bu şarkıyı')).toBe(true);
+  });
+
   it('günlük sohbeti sinyal saymaz', () => {
     expect(hasMemorySignal('bugün hava nasıl')).toBe(false);
     expect(hasMemorySignal('saat kaç')).toBe(false);
@@ -50,9 +66,20 @@ describe('hasMemorySignal', () => {
   });
 });
 
+describe('normalizeForCompare', () => {
+  it('Türkçe İ/ı tutarlılığını sağlar', () => {
+    expect(normalizeForCompare('İstanbul')).toBe('istanbul');
+    expect(normalizeForCompare('ışık')).toBe('isik');
+  });
+});
+
 describe('isNearDuplicate', () => {
   it('noktalama/büyük-küçük harf farkını yok sayar', () => {
     expect(isNearDuplicate('Kullanıcı çay sever.', 'kullanıcı çay sever')).toBe(true);
+  });
+
+  it('İstanbul ↔ istanbul yakın kopya sayılır', () => {
+    expect(isNearDuplicate('Kullanıcı İstanbul', 'kullanıcı istanbul')).toBe(true);
   });
 
   it('farklı kayıtları ayırır', () => {
@@ -69,8 +96,37 @@ describe('shouldReplaceEntry', () => {
     expect(shouldReplaceEntry('Kullanıcının yaşı: 20', 'Kullanıcının yaşı: 21')).toBe(true);
   });
 
+  it('genişletilmiş anahtar seti: doğum, meslek, şehir, hobi', () => {
+    expect(
+      shouldReplaceEntry(
+        'Kullanıcının doğum tarihi: 1 Ocak 1990',
+        'Kullanıcının doğum günü: 2 Şubat',
+      ),
+    ).toBe(true);
+    expect(shouldReplaceEntry('Kullanıcının mesleği: öğretmen', 'Kullanıcının işi: aşçı')).toBe(
+      true,
+    );
+    expect(shouldReplaceEntry('Kullanıcının şehri: Ankara', 'Kullanıcının memleketi: İzmir')).toBe(
+      true,
+    );
+    expect(
+      shouldReplaceEntry('Kullanıcının hobileri: satranç', 'Kullanıcının hobisi: futbol'),
+    ).toBe(true);
+  });
+
+  it('doğal ifadeler de tekil anahtar taşır (V1.2-063)', () => {
+    expect(shouldReplaceEntry('Kullanıcının yaşı: 20', 'Kullanıcı 21 yaşında')).toBe(true);
+    expect(
+      shouldReplaceEntry('Kullanıcının mesleği: öğretmen', 'Kullanıcı doktor olarak çalışıyor'),
+    ).toBe(true);
+    expect(shouldReplaceEntry('Kullanıcının şehri: Ankara', "Kullanıcı İzmir'de yaşıyor")).toBe(
+      true,
+    );
+  });
+
   it('farklı tür kayıtları değiştirmez', () => {
     expect(shouldReplaceEntry('Kullanıcı çay sever', 'Kullanıcının adı: Veli')).toBe(false);
+    expect(shouldReplaceEntry('Kullanıcı çay sever', 'Kullanıcı 21 yaşında')).toBe(false);
   });
 });
 

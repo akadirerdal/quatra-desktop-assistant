@@ -7,6 +7,8 @@
     "strict": true,
     "noEmit": true,
     "isolatedModules": true,
+    // V1.2-074: electron/preload.ts sürümü package.json'dan okur (esbuild JSON'u bundle'a gömer).
+    "resolveJsonModule": true,
     "lib": ["ES2022"],
     "types": ["node"]
   },

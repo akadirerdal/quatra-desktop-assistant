@@ -3,7 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- CSP tek kaynaktan gelir: electron/main.ts (onHeadersReceived) — dev modda Vite preamble'ı için gevşetilir. -->
+    <!-- CSP iki katmanlıdır ve İKİSİ BİRDEN uygulanır (tarayıcı politikaları kesiştirir):
+         1) Birincil: electron/main.ts → onHeadersReceived (üretimde katı: script-src 'self')
+         2) Bu meta: header'a ulaşılamayan yükleme yolları için fallback (V1.2-097).
+         Dev'de Vite'ın inline preamble/HMR script'leri için 'unsafe-inline' şarttır; üretimde
+         sıkı header zaten etkin olduğundan bu gevşeklik fiilen devre dışı kalır. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ws://localhost:*; media-src 'self' blob:; font-src 'self' data:"
+    />
     <title>Quatra</title>
   </head>
   <body>

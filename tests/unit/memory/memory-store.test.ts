@@ -93,4 +93,57 @@ describe('MemoryStore', () => {
     expect(entries).toHaveLength(3);
     expect(entries[0]?.text).toBe('kayıt 2');
   });
+
+  it('eşzamanlı eklemelerde kayıt kaybı olmaz (yazma kuyruğu)', async () => {
+    const s = store();
+    await Promise.all(Array.from({ length: 10 }, (_, i) => s.add(`eşzamanlı kayıt ${i}`, 'user')));
+    expect(await s.load()).toHaveLength(10);
+  });
+
+  it('farklı store örnekleri aynı dosyaya yazsa da kayıt kaybolmaz', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'quatra-mem-'));
+    tempDirs.push(dir);
+    const file = path.join(dir, 'memory.json');
+    // Her IPC çağrısı yeni store örneği açar — kilit dosya bazında paylaşılmalı.
+    const a = new MemoryStore(file);
+    const b = new MemoryStore(file);
+    await Promise.all([a.add('birinci kayıt', 'user'), b.add('ikinci kayıt', 'user')]);
+    expect(await a.load()).toHaveLength(2);
+  });
+
+  it('dosya yazımı sınırları aşan contextBlock üretmez', async () => {
+    const s = store();
+    for (let i = 0; i < 8; i++) await s.add(`kayıt ${'x'.repeat(100)} ${i}`, 'user');
+    const block = await s.contextBlock('kayıt', 300);
+    expect(block.length).toBeLessThanOrEqual(300);
+    expect(block).toContain('hatırlananlar');
+  });
+
+  it('cleanupGarbage silmeden önce yedek bırakır', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'quatra-mem-'));
+    tempDirs.push(dir);
+    const file = path.join(dir, 'memory.json');
+    const s = new MemoryStore(file);
+    await s.add('Kullanıcının adı: Ali', 'user');
+    await s.add('Kullanıcının adı: ne', 'user');
+    const removed = await s.cleanupGarbage();
+    expect(removed).toBe(1);
+    const bak = JSON.parse(fs.readFileSync(`${file}.bak`, 'utf8')) as {
+      entries: Array<{ text: string }>;
+    };
+    expect(bak.entries.map((e) => e.text)).toEqual([
+      'Kullanıcının adı: Ali',
+      'Kullanıcının adı: ne',
+    ]);
+    expect(await s.load()).toHaveLength(1);
+  });
+
+  it('geçici tmp dosyası bırakmaz', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'quatra-mem-'));
+    tempDirs.push(dir);
+    const s = new MemoryStore(path.join(dir, 'memory.json'));
+    await s.add('bir kayıt', 'user');
+    const leftovers = fs.readdirSync(dir).filter((f) => f.endsWith('.tmp'));
+    expect(leftovers).toEqual([]);
+  });
 });

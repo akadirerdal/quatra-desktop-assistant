@@ -11,14 +11,17 @@ interface SecretPattern {
 }
 
 const SECRET_PATTERNS: SecretPattern[] = [
-  // OpenAI/DeepSeek tarzı anahtarlar: sk-...
-  { re: /sk-[A-Za-z0-9_-]{8,}/g, replacement: 'sk-[REDACTED]' },
+  // OpenAI/DeepSeek tarzı anahtarlar: sk-... (kelime başı koruması: "risk-balanced" bozulmasın) (V1.2-124)
+  { re: /(^|[^\w-])sk-[A-Za-z0-9_-]{8,}/g, replacement: '$1sk-[REDACTED]' },
   // Groq anahtarları: gsk_...
   { re: /gsk_[A-Za-z0-9_-]{8,}/g, replacement: 'gsk_[REDACTED]' },
   // Authorization: Bearer <token>
   { re: /(bearer\s+)[A-Za-z0-9._-]{10,}/gi, replacement: '$1[REDACTED]' },
-  // api_key=... / api-key: "..." / x-api-key
-  { re: /(x?api[_-]?key["']?\s*[:=]\s*["']?)[A-Za-z0-9._-]{8,}/gi, replacement: '$1[REDACTED]' },
+  // api_key=... / api-key: "..." / x-api-key — base64 değerleri için + / = de kapsanır (V1.2-123)
+  {
+    re: /(x?api[_-]?key["']?\s*[:=]\s*["']?)[A-Za-z0-9._+/=-]{8,}/gi,
+    replacement: '$1[REDACTED]',
+  },
 ];
 
 /**

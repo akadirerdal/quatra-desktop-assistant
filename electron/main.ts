@@ -3,13 +3,15 @@
  * Güvenlik: contextIsolation açık, nodeIntegration kapalı, CSP header'lı.
  * Çökme koruması: main asla sessizce ölmez; renderer çökerse pencere yenilenir.
  */
-import { app, BrowserWindow, session, Menu } from 'electron';
+import { app, BrowserWindow, session, Menu, shell } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
-import { registerIpc } from './ipc';
+import { pathToFileURL } from 'node:url';
+import { disposeGlobals, registerIpc } from './ipc';
 import { appLogger } from '../src/services/log/logger';
 import { appendLogLine, logFilePath } from './log-file';
 import { createTray, notifyFirstHide, showMainWindow } from './tray';
+import { disposeTts } from './tts-service';
 
 // Chromium mikrofon yakalarken sistem mikrofon sesini otomatik ayarlamasın.
 // (wake-word dinlemesi açıkken seviyenin kendi kendine 45 → 80+ çıkmasının nedeni buydu)
@@ -26,18 +28,39 @@ appLogger.addSink((entry) => {
 /**
  * Kalıcı veri yolu — sürümden/güncellemeden bağımsız SABİT konum (%APPDATA%\Quatra).
  * Eski konumlardan (quatra-desktop-assistant / Electron) bir kez göç ettirir.
- * Böylece güncelleme/kurulumda anahtarlar ve ayarlar KORUNUR.
+ * Böylece güncelleme/kurulumda anahtarlar, ayarlar ve hafıza KORUNUR.
  */
+// V1.2-037: göç yalnız anahtarlarla sınırlı değil — tüm kullanıcı verisi taşınır.
+const DATA_FILES = [
+  'credentials.json',
+  'settings.json',
+  'memory.json',
+  'token-usage.json',
+  'audit.jsonl',
+  'transcripts.jsonl',
+  'note-backups.json',
+  'notes-dir.txt',
+];
+
 function bootUserDataPath(): void {
   try {
     const appDataDir = app.getPath('appData');
+    // V1.2-083: E2E kancaları gerçek profili ASLA kirletmesin — ayrı test profili kullanılır
+    // (kancalar anahtar yazar/siler; bu yüzden göç de yapılmaz, gerçek veriye dokunulmaz).
+    if (String(process.env['QUATRA_E2E'] ?? '').trim()) {
+      const testDir = path.join(appDataDir, 'Quatra-e2e');
+      fs.mkdirSync(testDir, { recursive: true });
+      app.setPath('userData', testDir);
+      log.info(`QUATRA_E2E aktif — ayrı test profili: ${testDir}`);
+      return;
+    }
     const stable = path.join(appDataDir, 'Quatra');
     const legacyDirs = ['quatra-desktop-assistant', 'Electron'].map((d) =>
       path.join(appDataDir, d),
     );
     fs.mkdirSync(stable, { recursive: true });
     for (const dir of legacyDirs) {
-      for (const file of ['credentials.json', 'settings.json']) {
+      for (const file of DATA_FILES) {
         try {
           const src = path.join(dir, file);
           const dst = path.join(stable, file);
@@ -60,6 +83,8 @@ bootUserDataPath();
 let mainWindow: BrowserWindow | null = null;
 // V1-13: X ile kapanma tepsiye iner; gerçek çıkış tepsi menüsünden veya uygulama kapanışından.
 let isQuitting = false;
+/** V1.2-043: art arda bu kadar çökmeden sonra otomatik yeniden yükleme durur. */
+const MAX_RENDERER_RELOADS = 3;
 
 function quitApp(): void {
   isQuitting = true;
@@ -90,6 +115,14 @@ function setupApplicationMenu(): void {
 function createWindow(): void {
   setupApplicationMenu();
 
+  const devUrl = process.env['VITE_DEV_SERVER_URL'];
+  // İzinli tek adres: dev sunucusu ya da paketlenmiş index.html — navigasyon kilidi buna bakar.
+  const appUrlPrefix = devUrl
+    ? `${devUrl.replace(/\/+$/, '')}/`
+    : pathToFileURL(path.join(__dirname, '../dist/index.html')).href;
+  // V1.2-043: art arda çöken renderer sonsuz yeniden yükleme döngüsüne girmesin.
+  let rendererReloads = 0;
+
   mainWindow = new BrowserWindow({
     width: 1100,
     height: 750,
@@ -103,13 +136,16 @@ function createWindow(): void {
     ...(process.platform === 'darwin'
       ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 14, y: 11 } }
       : { frame: false }),
-    // İlk açılışta tam ekran (F11 ile çıkılabilir/girilebilir).
-    fullscreen: true,
+    // V1.2-105: tam ekran YALNIZ Windows'ta; macOS'ta menü çubuğu/Dock gizlenmesin (⌃⌘F ile açılabilir).
+    fullscreen: process.platform === 'win32',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false, // FAZ 7'de sandbox + CSP sertleştirmesiyle kaldırılacak (TODO 7.2)
+      // V1.2-104: sandbox açık — preload yalnızca `electron` (contextBridge/ipcRenderer) ve
+      // `process.platform` kullanır; ikisi de sandbox'lı preload'da desteklenir. Denenmemiş
+      // bir kombinasyon değil: `npm run dev:electron` ile doğrulandı (bkz. V1.2 raporu).
+      sandbox: true,
       // Tepsiye inince zamanlayıcılar kısılmasın (sesli asistan arka planda çalışır).
       backgroundThrottling: false,
     },
@@ -119,6 +155,23 @@ function createWindow(): void {
   // Güvenlik ağı: ready-to-show herhangi bir nedenle tetiklenmezse ilk yüklemede yine göster.
   mainWindow.webContents.once('did-finish-load', () => {
     if (mainWindow && !mainWindow.isVisible()) mainWindow.show();
+  });
+
+  // V1.2-008: pencere YALNIZ kendi sayfasında kalır. Sürüklenen bağlantı/dosya ya da bir
+  // window.open ile harici sayfa yüklenirse preload o sayfaya da enjekte olur ve
+  // window.quatra (agent/memory/settings/credentials) açığa çıkardı.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
+    log.warn(`yeni pencere engellendi: ${url}`);
+    return { action: 'deny' };
+  });
+  mainWindow.webContents.on('will-navigate', (e, url) => {
+    // Dev'de Vite tam yeniden yüklemesi (HMR) aynı adrese gider — izinli.
+    if (url === appUrlPrefix || url.startsWith(appUrlPrefix)) return;
+    e.preventDefault();
+    log.warn(`navigasyon engellendi: ${url}`);
+    // Dış bağlantı isteği kullanıcıyı kaybetmesin: sistem tarayıcısında aç.
+    if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
   });
 
   // F11: tam ekran aç/kapat.
@@ -137,7 +190,9 @@ function createWindow(): void {
   });
   mainWindow.webContents.on('did-finish-load', () => {
     log.info('renderer yüklendi');
-    // E2E doğrulama kancası (yalnız QUATRA_E2E env ile; normal kullanımda çalışmaz).
+    rendererReloads = 0; // V1.2-043: çökme sayacı başarılı yüklemede sıfırlanır
+    // E2E doğrulama kancası (yalnız QUATRA_E2E env ile; normal kullanımda çalışmaz ve
+    // V1.2-083 gereği ayrı test profilinde koşar — gerçek anahtarlar ezilmez/silinmez).
     if (process.env['QUATRA_E2E'] === 'credentials') {
       void mainWindow?.webContents
         .executeJavaScript(
@@ -181,15 +236,28 @@ function createWindow(): void {
     }
   });
 
-  // Renderer çökerse uygulama yaşar: pencere yeniden yüklenir.
+  // Renderer çökerse uygulama yaşar: pencere ART ARDA çökmedikçe yeniden yüklenir (V1.2-043).
   mainWindow.webContents.on('render-process-gone', (_e, details) => {
     log.error(`renderer çöktü: ${details.reason}`);
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.reload();
+    if (isQuitting || details.reason === 'clean-exit') return;
+    const win = mainWindow;
+    if (!win || win.isDestroyed()) return;
+    rendererReloads += 1;
+    if (rendererReloads > MAX_RENDERER_RELOADS) {
+      log.error(
+        `${MAX_RENDERER_RELOADS} ardışık çökme — otomatik yeniden yükleme durduruldu (sonsuz döngü koruması)`,
+      );
+      return;
     }
+    const delayMs = 500 * 2 ** (rendererReloads - 1); // 500 ms → 1 s → 2 s
+    log.warn(
+      `yeniden yükleme planlandı: ${delayMs} ms (deneme ${rendererReloads}/${MAX_RENDERER_RELOADS})`,
+    );
+    setTimeout(() => {
+      if (!win.isDestroyed()) win.reload();
+    }, delayMs);
   });
 
-  const devUrl = process.env['VITE_DEV_SERVER_URL'];
   if (devUrl) {
     void mainWindow.loadURL(devUrl);
   } else {
@@ -250,14 +318,22 @@ app.on('before-quit', () => {
   isQuitting = true;
 });
 
+// V1.2-098: kapanışta global kısayollar ve TTS istemcisi bırakılır (dispose'lar artık gerçekten çağrılıyor).
+app.on('will-quit', () => {
+  disposeGlobals();
+  disposeTts();
+});
+
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
 // Ana süreç güvenliği: beklenmeyen hatalar loglanır, uygulama kilitli kalmaz.
+// V1.2-103: yalnız mesaj değil, yığın izi (stack) da günlüğe girer.
 process.on('uncaughtException', (err) => {
-  log.error(`uncaughtException: ${err.message}`);
+  log.error(`uncaughtException: ${err.stack ?? err.message}`);
 });
 process.on('unhandledRejection', (reason) => {
-  log.error(`unhandledRejection: ${String(reason)}`);
+  const detail = reason instanceof Error ? (reason.stack ?? reason.message) : String(reason);
+  log.error(`unhandledRejection: ${detail}`);
 });

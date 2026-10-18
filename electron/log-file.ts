@@ -38,4 +38,10 @@ export function clearLogFile(): void {
   } catch {
     // dosya yoksa/erişilemezse sorun değil
   }
+  try {
+    // V1.2-040: rotasyon dosyası da temizlenir — eski secret'lar diskte kalmasın.
+    fs.rmSync(`${logFilePath()}.1`, { force: true });
+  } catch {
+    // yok say
+  }
 }

@@ -141,7 +141,10 @@ export class DeepSeekClient implements ProviderAdapter {
         },
         signal,
       );
-      if (!res.ok) throw mapHttpError(res.status);
+      if (!res.ok) {
+        this.cancelBody(res); // okunmayan hata gövdesi soket birikmesin
+        throw mapHttpError(res.status);
+      }
       return await this.readStream(res, onDelta, signal);
     } catch (e) {
       throw this.normalizeError(e, req.signal);
@@ -155,7 +158,10 @@ export class DeepSeekClient implements ProviderAdapter {
     const { signal, controller, timer } = this.prepareSignal(undefined);
     try {
       const res = await this.request('GET', '/models', undefined, signal);
-      if (!res.ok) throw mapHttpError(res.status);
+      if (!res.ok) {
+        this.cancelBody(res);
+        throw mapHttpError(res.status);
+      }
       const data = (await res.json()) as { data?: Array<{ id?: string; owned_by?: string }> };
       return (data.data ?? [])
         .filter((m) => typeof m.id === 'string')
@@ -197,17 +203,39 @@ export class DeepSeekClient implements ProviderAdapter {
           e instanceof ProviderError && (e.code === 'rate_limit' || e.code === 'server');
         if (!retryable || attempt === this.maxRetries || userSignal?.aborted) throw e;
         const delay = Math.min(this.retryDelayMs * 2 ** attempt, 16_000);
-        await new Promise((r) => setTimeout(r, delay));
+        // İptal edilebilir uyku: aksi hâlde kullanıcı iptali son denemeye kadar
+        // (500+1000+2000+4000 ms) gecikir.
+        await this.sleep(delay, userSignal);
       }
     }
     throw lastError;
+  }
+
+  /**
+   * İptal edilebilir bekleme — abort sinyali uykuyu hemen keser; döngü başındaki
+   * `userSignal?.aborted` kontrolü iptali 'cancelled' hatasına çevirir.
+   */
+  private sleep(ms: number, signal?: AbortSignal): Promise<void> {
+    if (signal?.aborted) return Promise.resolve();
+    return new Promise((resolve) => {
+      const done = () => {
+        clearTimeout(timer);
+        signal?.removeEventListener('abort', done);
+        resolve();
+      };
+      const timer = setTimeout(done, ms);
+      signal?.addEventListener('abort', done, { once: true });
+    });
   }
 
   private async chatOnce(req: ProviderChatRequest): Promise<ProviderChatResponse> {
     const { signal, controller, timer } = this.prepareSignal(req.signal);
     try {
       const res = await this.request('POST', '/chat/completions', this.buildBody(req), signal);
-      if (!res.ok) throw mapHttpError(res.status);
+      if (!res.ok) {
+        this.cancelBody(res);
+        throw mapHttpError(res.status);
+      }
       const data = (await res.json()) as DeepSeekResponse;
       const choice = data.choices?.[0];
       const message = choice?.message;
@@ -278,6 +306,11 @@ export class DeepSeekClient implements ProviderAdapter {
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
       signal,
     });
+  }
+
+  /** Okunmayan HTTP hata gövdesini iptal et — rate limit altında soket birikmesini önler. */
+  private cancelBody(res: Response): void {
+    void res.body?.cancel().catch(() => undefined);
   }
 
   private normalizeError(e: unknown, userSignal?: AbortSignal): ProviderError {

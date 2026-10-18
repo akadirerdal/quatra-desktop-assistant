@@ -58,7 +58,8 @@ export function lastNoteBackup(): NoteBackupRecord | null {
 }
 
 export function restoreLastNoteBackup(): { ok: boolean; message: string } {
-  const rec = lastNoteBackup();
+  const list = readRecords();
+  const rec = list.length ? (list[list.length - 1] as NoteBackupRecord) : null;
   if (!rec) return { ok: false, message: 'Geri alınacak not yedeği yok.' };
   try {
     if (!fs.existsSync(rec.backup)) return { ok: false, message: 'Yedek dosyası bulunamadı.' };
@@ -66,11 +67,27 @@ export function restoreLastNoteBackup(): { ok: boolean; message: string } {
     if (path.dirname(path.resolve(rec.backup)) !== path.dirname(path.resolve(rec.target))) {
       return { ok: false, message: 'Yedek konumu doğrulanamadı.' };
     }
-    fs.copyFileSync(rec.backup, rec.target);
+    // İçeriği şimdi belleğe al: backupBeforeWrite aynı `.bak` yolunu ezebilir.
+    const restored = fs.readFileSync(rec.backup);
+    // V1.2-035: üzerine yazmadan ÖNCE mevcut hali yedekle (aradaki düzenlemeler kaybolmasın).
+    if (fs.existsSync(rec.target) && !backupBeforeWrite(rec.target)) {
+      return { ok: false, message: 'Mevcut not yedeklenemediği için geri alınamadı.' };
+    }
+    fs.writeFileSync(rec.target, restored);
+    consumeRecord(rec);
     log.info(`not geri alındı: ${rec.target}`);
     return { ok: true, message: 'Not geri alındı.' };
   } catch (e) {
     log.warn(`geri alma başarısız: ${String(e)}`);
     return { ok: false, message: 'Geri alma başarısız oldu.' };
   }
+}
+
+/** V1.2-035: geri alınan kaydı listeden düş — aynı yedek ikinci kez uygulanmasın. */
+function consumeRecord(rec: NoteBackupRecord): void {
+  const list = readRecords();
+  const idx = list.findIndex(
+    (r) => r.ts === rec.ts && r.backup === rec.backup && r.target === rec.target,
+  );
+  if (idx >= 0) writeRecords([...list.slice(0, idx), ...list.slice(idx + 1)]);
 }

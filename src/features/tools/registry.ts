@@ -92,22 +92,27 @@ export class ToolRegistry {
   }
 
   private async withTimeout<T>(fn: () => Promise<T> | T, signal?: AbortSignal): Promise<T> {
+    // V1.2-118: zaten iptal edilmiş sinyalde 'abort' listener'ı hiç ateşlenmez — araç yine çalışırdı.
+    if (signal?.aborted) throw new Error('Görev iptal edildi.');
+
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let onAbort: (() => void) | undefined;
     const timeout = new Promise<never>((_, reject) => {
       timer = setTimeout(
         () => reject(new Error(`Görev zaman aşımına uğradı (${this.timeoutMs}ms).`)),
         this.timeoutMs,
       );
     });
-    const onAbort = new Promise<never>((_, reject) => {
-      signal?.addEventListener('abort', () => reject(new Error('Görev iptal edildi.')), {
-        once: true,
-      });
+    const aborted = new Promise<never>((_, reject) => {
+      onAbort = () => reject(new Error('Görev iptal edildi.'));
+      signal?.addEventListener('abort', onAbort, { once: true });
     });
     try {
-      return await Promise.race([Promise.resolve().then(fn), timeout, onAbort]);
+      return await Promise.race([Promise.resolve().then(fn), timeout, aborted]);
     } finally {
       clearTimeout(timer);
+      // V1.2-117: listener fn çözülünce kaldırılır — uzun oturumda birikip MaxListeners uyarısı vermesin.
+      if (onAbort) signal?.removeEventListener('abort', onAbort);
     }
   }
 }

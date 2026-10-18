@@ -19,6 +19,12 @@ export interface ThemeVars {
   overlay: string;
   /** Vurgu rengi üzerindeki metin. */
   onAccent: string;
+  /** Semantik durum renkleri — açık temada koyulaştırılır (V1.2-021). */
+  green: string;
+  red: string;
+  yellow: string;
+  /** Native kontroller/scrollbar için renk şeması (V1.2-150). */
+  colorScheme: 'dark' | 'light';
 }
 
 export interface Theme {
@@ -46,6 +52,10 @@ export const THEMES: Theme[] = [
       glass: 'rgba(15, 16, 23, 0.72)',
       overlay: 'rgba(4, 5, 8, 0.65)',
       onAccent: '#0b0c10',
+      green: '#3fd68f',
+      red: '#f06a6a',
+      yellow: '#e8b85c',
+      colorScheme: 'dark',
     },
   },
   {
@@ -63,6 +73,10 @@ export const THEMES: Theme[] = [
       glass: 'rgba(12, 20, 32, 0.72)',
       overlay: 'rgba(3, 7, 14, 0.65)',
       onAccent: '#06101c',
+      green: '#3fd68f',
+      red: '#f06a6a',
+      yellow: '#e8b85c',
+      colorScheme: 'dark',
     },
   },
   {
@@ -80,6 +94,10 @@ export const THEMES: Theme[] = [
       glass: 'rgba(11, 21, 16, 0.72)',
       overlay: 'rgba(3, 9, 6, 0.65)',
       onAccent: '#06110b',
+      green: '#3fd68f',
+      red: '#f06a6a',
+      yellow: '#e8b85c',
+      colorScheme: 'dark',
     },
   },
   {
@@ -97,6 +115,10 @@ export const THEMES: Theme[] = [
       glass: 'rgba(23, 16, 9, 0.72)',
       overlay: 'rgba(12, 6, 3, 0.65)',
       onAccent: '#180d04',
+      green: '#3fd68f',
+      red: '#f06a6a',
+      yellow: '#e8b85c',
+      colorScheme: 'dark',
     },
   },
   {
@@ -114,6 +136,10 @@ export const THEMES: Theme[] = [
       glass: 'rgba(22, 11, 18, 0.72)',
       overlay: 'rgba(13, 6, 10, 0.65)',
       onAccent: '#1d0a12',
+      green: '#3fd68f',
+      red: '#f06a6a',
+      yellow: '#e8b85c',
+      colorScheme: 'dark',
     },
   },
   {
@@ -131,6 +157,10 @@ export const THEMES: Theme[] = [
       glass: 'rgba(18, 18, 20, 0.72)',
       overlay: 'rgba(8, 8, 10, 0.65)',
       onAccent: '#101012',
+      green: '#3fd68f',
+      red: '#f06a6a',
+      yellow: '#e8b85c',
+      colorScheme: 'dark',
     },
   },
   {
@@ -148,6 +178,11 @@ export const THEMES: Theme[] = [
       glass: 'rgba(255, 255, 255, 0.8)',
       overlay: 'rgba(226, 229, 238, 0.72)',
       onAccent: '#ffffff',
+      // Açık zeminde okunurluk için koyulaştırılmış semantik renkler (V1.2-021).
+      green: '#0f7a4f',
+      red: '#c62f2f',
+      yellow: '#8a6a16',
+      colorScheme: 'light',
     },
   },
 ];
@@ -183,10 +218,45 @@ export function mixHex(a: string, b: string, t: number): string {
   return toHex(m(pa.r, pb.r), m(pa.g, pb.g), m(pa.b, pb.b));
 }
 
-/** Vurgu renginden açık/koyu tonlar üretir (--accent-bright / --accent-dim). */
-export function accentFamily(accent: string): { bright: string; dim: string } {
+/** WCAG bağıl parlaklık (0..1). */
+function relativeLuminance(hex: string): number {
+  const { r, g, b } = parseHex(hex);
+  const f = (v: number): number => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+}
+
+/** WCAG kontrast oranı (1..21). */
+export function contrastRatio(a: string, b: string): number {
+  const la = relativeLuminance(a);
+  const lb = relativeLuminance(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+/** Rengi, zeminle en az `min` kontrast verecek kadar zeminin tersine kaydırır (V1.2-138). */
+function ensureContrast(color: string, bg: string, min = 4.5): string {
+  let c = color;
+  const toward = relativeLuminance(bg) > 0.5 ? '#000000' : '#ffffff';
+  for (let i = 0; i < 12 && contrastRatio(c, bg) < min; i++) c = mixHex(c, toward, 0.18);
+  return c;
+}
+
+/**
+ * Vurgu renginden açık/koyu tonlar üretir (--accent-bright / --accent-dim).
+ * Koyu zeminde `bright` aydınlatılır; açık zeminde koyulaştırılıp okunurluğa kısıtlanır.
+ */
+export function accentFamily(
+  accent: string,
+  scheme: 'dark' | 'light' = 'dark',
+): { bright: string; dim: string } {
+  const bright =
+    scheme === 'light'
+      ? ensureContrast(mixHex(accent, '#000000', 0.22), '#ffffff')
+      : ensureContrast(mixHex(accent, '#ffffff', 0.28), '#000000');
   return {
-    bright: mixHex(accent, '#ffffff', 0.28),
+    bright,
     dim: mixHex(accent, '#000000', 0.32),
   };
 }
@@ -199,7 +269,7 @@ function normaliseHex(hex: string): string | null {
 export function buildThemeVars(themeId: string, accentOverride?: string): Record<string, string> {
   const theme = getTheme(themeId);
   const accent = normaliseHex(accentOverride ?? '') ?? theme.accent;
-  const fam = accentFamily(accent);
+  const fam = accentFamily(accent, theme.vars.colorScheme);
   return {
     '--bg': theme.vars.bg,
     '--panel': theme.vars.panel,
@@ -213,12 +283,16 @@ export function buildThemeVars(themeId: string, accentOverride?: string): Record
     '--accent': accent,
     '--accent-bright': fam.bright,
     '--accent-dim': fam.dim,
+    '--green': theme.vars.green,
+    '--red': theme.vars.red,
+    '--yellow': theme.vars.yellow,
+    '--color-scheme': theme.vars.colorScheme,
   };
 }
 
 /**
  * Görünüm ayarlarını DOM'a uygular:
- * tema + vurgu → CSS değişkenleri; arayüz ölçeği → zoom; hareket azaltma → sınıf.
+ * tema + vurgu → CSS değişkenleri; arayüz ölçeği → #root zoom; hareket azaltma → sınıf.
  */
 export function applyAppearance(app: {
   theme: string;
@@ -231,6 +305,8 @@ export function applyAppearance(app: {
   for (const [key, value] of Object.entries(buildThemeVars(app.theme, app.accent))) {
     root.style.setProperty(key, value);
   }
-  document.body.style.setProperty('zoom', String(app.uiScale));
+  // V1.2-144: zoom #root'ta uygulanır; body'deki zoom vh/fixed öğeleri kaydırıyordu.
+  const zoomTarget = document.getElementById('root') ?? document.body;
+  zoomTarget.style.setProperty('zoom', String(app.uiScale));
   document.body.classList.toggle('reduced-motion', app.reducedMotion);
 }

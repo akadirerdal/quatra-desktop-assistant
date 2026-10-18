@@ -22,6 +22,21 @@ function openMacApp(appName: string): Promise<string> {
   });
 }
 
+/**
+ * V1.2-042: `~` ve ortam değişkenlerini ($HOME, %USERPROFILE%) genişletir.
+ * Model "~/Belgeler" derse not sessizce yanlış yere düşmesin.
+ */
+function expandUserPath(input: string): string {
+  let p = input.trim();
+  if (p === '~' || p.startsWith('~/') || p.startsWith('~\\')) {
+    p = path.join(os.homedir(), p.slice(1));
+  }
+  p = p.replace(/%([A-Za-z_][A-Za-z0-9_]*)%/g, (m, name: string) => process.env[name] ?? m);
+  p = p.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g, (m, name: string) => process.env[name] ?? m);
+  p = p.replace(/\$([A-Za-z_][A-Za-z0-9_]*)/g, (m, name: string) => process.env[name] ?? m);
+  return p;
+}
+
 export function createNativeBridge(win: BrowserWindow | null): NativeBridge {
   return {
     async sysinfo() {
@@ -65,7 +80,7 @@ export function createNativeBridge(win: BrowserWindow | null): NativeBridge {
 
     async writeNote(text: string, filename: string, directory: string) {
       const safeName = path.basename(filename).replace(/[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ._-]+/g, '_');
-      const dir = path.resolve(directory);
+      const dir = path.resolve(expandUserPath(directory));
       if (!fs.existsSync(dir)) {
         throw new Error('Hedef klasör mevcut değil.');
       }
@@ -94,7 +109,7 @@ export function createNativeBridge(win: BrowserWindow | null): NativeBridge {
 
     async folderExists(dir: string) {
       try {
-        return fs.statSync(path.resolve(dir)).isDirectory();
+        return fs.statSync(path.resolve(expandUserPath(dir))).isDirectory();
       } catch {
         return false;
       }
@@ -103,7 +118,8 @@ export function createNativeBridge(win: BrowserWindow | null): NativeBridge {
     async getNotesDirectory() {
       try {
         const file = path.join(app.getPath('userData'), 'notes-dir.txt');
-        const dir = (await fs.promises.readFile(file, 'utf8')).trim();
+        const raw = (await fs.promises.readFile(file, 'utf8')).trim();
+        const dir = expandUserPath(raw);
         return dir && fs.existsSync(dir) ? dir : '';
       } catch {
         return '';
@@ -113,7 +129,7 @@ export function createNativeBridge(win: BrowserWindow | null): NativeBridge {
     async rememberNotesDirectory(dir: string) {
       try {
         const file = path.join(app.getPath('userData'), 'notes-dir.txt');
-        await fs.promises.writeFile(file, path.resolve(dir), 'utf8');
+        await fs.promises.writeFile(file, path.resolve(expandUserPath(dir)), 'utf8');
       } catch {
         // hatırlama kritik değil — not yine de yazıldı
       }

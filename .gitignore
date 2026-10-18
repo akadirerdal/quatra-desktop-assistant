@@ -5,6 +5,7 @@ out
 release
 *.log
 .DS_Store
+tsconfig.tsbuildinfo
 
 # Secrets — asla commit'lenmez
 .env

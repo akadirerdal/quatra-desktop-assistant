@@ -3,6 +3,8 @@
  * Her seviye GERÇEK bir model + gerçek parametre kombinasyonudur (uydurma yok).
  */
 import type { Settings } from '../../state/settings-schema';
+import { DEFAULT_SETTINGS } from '../../state/settings-schema';
+import { DEEPSEEK_CHAT_MODEL, DEEPSEEK_REASONER_MODEL } from '../agent/models';
 
 export interface ModelTier {
   id: string;
@@ -17,7 +19,7 @@ export const MODEL_TIERS: ModelTier[] = [
   {
     id: 'low',
     label: 'Düşük',
-    model: 'deepseek-chat',
+    model: DEEPSEEK_CHAT_MODEL,
     temperature: 0.3,
     maxTokens: 1024,
     desc: 'En hızlı ve en tutumlu — kısa sorular',
@@ -25,7 +27,7 @@ export const MODEL_TIERS: ModelTier[] = [
   {
     id: 'default',
     label: 'Varsayılan',
-    model: 'deepseek-chat',
+    model: DEEPSEEK_CHAT_MODEL,
     temperature: 0.7,
     maxTokens: 2048,
     desc: 'Günlük kullanım dengesi',
@@ -33,7 +35,7 @@ export const MODEL_TIERS: ModelTier[] = [
   {
     id: 'high',
     label: 'Yüksek',
-    model: 'deepseek-reasoner',
+    model: DEEPSEEK_REASONER_MODEL,
     temperature: 0.7,
     maxTokens: 4096,
     desc: 'Derin düşünme — kod ve analiz',
@@ -41,7 +43,7 @@ export const MODEL_TIERS: ModelTier[] = [
   {
     id: 'max',
     label: 'Max',
-    model: 'deepseek-reasoner',
+    model: DEEPSEEK_REASONER_MODEL,
     temperature: 1.0,
     maxTokens: 8192,
     desc: 'En yüksek kalite, uzun cevaplar',
@@ -49,35 +51,62 @@ export const MODEL_TIERS: ModelTier[] = [
   {
     id: 'ultra',
     label: 'Ultra Max',
-    model: 'deepseek-reasoner',
+    model: DEEPSEEK_REASONER_MODEL,
     temperature: 1.2,
     maxTokens: 8192,
     desc: 'Sınırları zorla — en yaratıcı',
   },
 ];
 
+/**
+ * V1.2-061: moda özel parametre alanları. Ayarlar şeması bu alanları eklediğinde
+ * seviye seçimi yalnız aktif modun parametrelerini yazar; diğer mod bozulmaz.
+ */
+export interface PerModeProviderSettings {
+  flashTemperature?: number;
+  flashMaxTokens?: number;
+  proTemperature?: number;
+  proMaxTokens?: number;
+}
+
+/** applyTier dönüşü: mevcut şema alanları + (varsa) moda özel parametreler. */
+export type TierPatch = Partial<Settings['provider']> & PerModeProviderSettings;
+
+/** Şema moda özel alanları içeriyor mu? (İçermiyorsa eski ortak alan davranışı korunur.) */
+const PROVIDER_SUPPORTS_PER_MODE =
+  'flashTemperature' in (DEFAULT_SETTINGS.provider as Record<string, unknown>) ||
+  'proTemperature' in (DEFAULT_SETTINGS.provider as Record<string, unknown>);
+
 /** Aktif moda göre mevcut ayarın hangi seviyeye denk geldiğini bulur. */
 export function currentTierId(settings: Settings, mode: 'flash' | 'pro'): string | null {
-  const model = mode === 'pro' ? settings.provider.proModel : settings.provider.flashModel;
-  const temp = settings.provider.temperature;
-  const tokens = settings.provider.maxTokens;
+  const p = settings.provider as Settings['provider'] & PerModeProviderSettings;
+  const model = mode === 'pro' ? p.proModel : p.flashModel;
+  // V1.2-061: moda özel alan varsa onu, yoksa ortak alanı kullan.
+  const temp = (mode === 'pro' ? p.proTemperature : p.flashTemperature) ?? p.temperature;
+  const tokens = (mode === 'pro' ? p.proMaxTokens : p.flashMaxTokens) ?? p.maxTokens;
   const match = MODEL_TIERS.find(
     (t) => t.model === model && Math.abs(t.temperature - temp) < 0.05 && t.maxTokens === tokens,
   );
   return match?.id ?? null;
 }
 
-/** Seviye seçimini ayarlara uygular (aktif modun modeli + ortak parametreler). */
+/**
+ * Seviye seçimini ayarlara uygular (aktif modun modeli + moda özel parametreler).
+ * V1.2-061: şema destekliyorsa yalnız o modun temperature/maxTokens alanları yazılır.
+ */
 export function applyTier(
   _settings: Settings,
   mode: 'flash' | 'pro',
   tierId: string,
-): Partial<Settings['provider']> | null {
+): TierPatch | null {
   const tier = MODEL_TIERS.find((t) => t.id === tierId);
   if (!tier) return null;
-  return {
-    ...(mode === 'pro' ? { proModel: tier.model } : { flashModel: tier.model }),
-    temperature: tier.temperature,
-    maxTokens: tier.maxTokens,
-  };
+  const modelPatch = mode === 'pro' ? { proModel: tier.model } : { flashModel: tier.model };
+  if (PROVIDER_SUPPORTS_PER_MODE) {
+    return mode === 'pro'
+      ? { ...modelPatch, proTemperature: tier.temperature, proMaxTokens: tier.maxTokens }
+      : { ...modelPatch, flashTemperature: tier.temperature, flashMaxTokens: tier.maxTokens };
+  }
+  // Şema henüz moda özel alan içermiyor: eski ortak alanlara yaz (davranış aynı kalır).
+  return { ...modelPatch, temperature: tier.temperature, maxTokens: tier.maxTokens };
 }

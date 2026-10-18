@@ -76,13 +76,24 @@ describe('audit', () => {
 
   it('800 kayıt sınırını aşınca en yeniler kalır, dosya kırpılır', () => {
     const lines: string[] = [];
-    for (let i = 1; i <= 810; i++) lines.push(JSON.stringify(entry(`t${i}`)));
+    for (let i = 1; i <= 1000; i++) lines.push(JSON.stringify(entry(`t${i}`)));
     fs.writeFileSync(auditPath(), lines.join('\n') + '\n', 'utf8');
     appendAudit(entry('son'));
     const kept = fileLines();
     expect(kept).toHaveLength(800);
     expect((JSON.parse(kept[kept.length - 1]!) as AuditEntry).tool).toBe('son');
     expect(listAudit(800)[0]!.tool).toBe('son');
+  });
+
+  it('kırpma toplu yapılır: pay dolunca tek seferde 800 kayda iner', () => {
+    const lines: string[] = [];
+    for (let i = 0; i < 850; i++) lines.push(JSON.stringify(entry(`b${i}`)));
+    fs.writeFileSync(auditPath(), lines.join('\n') + '\n', 'utf8');
+    // 850 + 51 = 901 satır → pay (800+100) aşılır, tek kırpma ile 800'e iner.
+    for (let i = 0; i < 51; i++) appendAudit(entry(`e${i}`));
+    const kept = fileLines();
+    expect(kept).toHaveLength(800);
+    expect((JSON.parse(kept[kept.length - 1]!) as AuditEntry).tool).toBe('e50');
   });
 
   it('clearAudit dosyayı boşaltır', () => {
