@@ -25,6 +25,10 @@ export function Visualizer(props: { width?: number; height?: number }): React.JS
   micRef.current = micLevel;
   const speakRef = useRef(speakLevel);
   speakRef.current = speakLevel;
+  // V1.2-136: appearance nesnesi her ayar tuşunda yeni referans üretir → RAF sıfırlanıyordu.
+  // Ref üzerinden okunur; effect yalnız status/size değişince yeniden kurulur.
+  const appearanceRef = useRef(appearance);
+  appearanceRef.current = appearance;
 
   // V1.2-077: effect bağımlılıkları ilkel değerler (nesne her render'da yeniden oluşmasın).
   const sizeW = props.width ?? 420;
@@ -37,19 +41,34 @@ export function Visualizer(props: { width?: number; height?: number }): React.JS
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // V1.2-022: Retina (devicePixelRatio) için backing store'u ölçekle.
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    canvas.width = Math.round(sizeW * dpr);
+    canvas.height = Math.round(sizeH * dpr);
+    canvas.style.width = `${sizeW}px`;
+    canvas.style.height = `${sizeH}px`;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // V1.2-134: matchMedia her karede çağrılmaz — bir kez hesapla, change dinle.
+    const reducedMq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let systemReduced = reducedMq.matches;
+    const onReducedChange = (e: MediaQueryListEvent) => {
+      systemReduced = e.matches;
+    };
+    reducedMq.addEventListener('change', onReducedChange);
+
     let raf = 0;
     let t = 0;
     let last = performance.now();
-    const appRef = appearance;
     const stateRef: { status: VisualizerState } = { status };
 
     const draw = (now: number) => {
       const dt = Math.min(now - last, 50);
       last = now;
       const focused = document.hasFocus();
-      const speed = appRef.animationSpeed;
-      const reduced =
-        appRef.reducedMotion || matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const app = appearanceRef.current;
+      const speed = app.animationSpeed;
+      const reduced = app.reducedMotion || systemReduced;
       if (focused && !reduced) t += dt * 0.001 * speed;
 
       const w = sizeW;
@@ -58,11 +77,12 @@ export function Visualizer(props: { width?: number; height?: number }): React.JS
       const cy = h / 2;
       ctx.clearRect(0, 0, w, h);
 
-      const glow = appRef.glow;
-      const intensity = appRef.intensity;
-      const accent = appRef.accent;
+      const glow = app.glow;
+      const intensity = app.intensity;
+      const accent = app.accent;
+      // V1.2-135: tema/vurgu değerleri effect başına bir kez hesaplanır.
       const accentBright = accentFamily(accent).bright;
-      const mutedColor = getTheme(appRef.theme).vars.muted;
+      const mutedColor = getTheme(app.theme).vars.muted;
 
       const drawLine = (y: number, half: number, alpha: number) => {
         ctx.save();
@@ -197,8 +217,11 @@ export function Visualizer(props: { width?: number; height?: number }): React.JS
     };
 
     raf = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(raf);
-  }, [status, appearance, sizeW, sizeH]);
+    return () => {
+      cancelAnimationFrame(raf);
+      reducedMq.removeEventListener('change', onReducedChange);
+    };
+  }, [status, sizeW, sizeH]);
 
   return (
     <canvas
@@ -206,7 +229,9 @@ export function Visualizer(props: { width?: number; height?: number }): React.JS
       width={sizeW}
       height={sizeH}
       style={{ width: sizeW, height: sizeH }}
+      role="img"
       aria-label="Quatra durum göstergesi"
+      aria-live="polite"
     />
   );
 }

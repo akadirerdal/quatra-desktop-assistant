@@ -71,6 +71,7 @@ export function createBridgeMock(overrides: Partial<QuatraBridge> = {}): QuatraB
       openLogs: vi.fn(async () => ({ ok: true })),
       path: vi.fn(async () => ({ ok: true })),
       clear: vi.fn(async () => ({ ok: true })),
+      read: vi.fn(async () => ({ ok: true, lines: [] as string[] })),
       rendererError: vi.fn(),
       info: vi.fn(),
     },

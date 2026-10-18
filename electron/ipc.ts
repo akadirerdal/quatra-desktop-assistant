@@ -20,7 +20,7 @@ import {
   runAgent,
 } from './agent-service';
 import { listEdgeVoices, synthesizeEdge } from './tts-service';
-import { clearLogFile, logDir, logFilePath, openLogsFolder } from './log-file';
+import { clearLogFile, logDir, logFilePath, openLogsFolder, readLogLines } from './log-file';
 import { registerMemoryIpc } from './memory';
 import { listAudit, clearAudit } from './audit';
 import { getUsage } from './usage-store';
@@ -296,6 +296,14 @@ export function registerIpc(win: BrowserWindow): void {
     appLogger.clear();
     clearLogFile();
     return { ok: true };
+  });
+  handle('log:read', async (_e, maxLines?: number) => {
+    try {
+      const lines = readLogLines(typeof maxLines === 'number' ? maxLines : 60);
+      return { ok: true, lines };
+    } catch {
+      return { ok: false, lines: [] as string[] };
+    }
   });
   handle('privacy:clear-transcripts', async () => {
     try {

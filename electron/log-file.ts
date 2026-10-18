@@ -31,7 +31,16 @@ export async function openLogsFolder(): Promise<{ ok: boolean; path?: string; me
   }
 }
 
-/** Günlük dosyasını boşalt (Ayarlar → "Günlükleri temizle" gerçek çalışır). */
+/** Günlük dosyasının son N satırını döner (Teşhis paneli için). */
+export function readLogLines(maxLines = 60): string[] {
+  try {
+    const raw = fs.readFileSync(logFilePath(), 'utf8');
+    const lines = raw.split('\n').filter((l) => l.trim() !== '');
+    return lines.slice(-Math.max(1, Math.min(maxLines, 500)));
+  } catch {
+    return [];
+  }
+}
 export function clearLogFile(): void {
   try {
     fs.writeFileSync(logFilePath(), '', 'utf8');

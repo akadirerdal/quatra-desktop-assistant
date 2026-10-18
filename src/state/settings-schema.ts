@@ -61,11 +61,20 @@ const ActivationSchema = z.object({
   wakeWord: z.string().min(2).max(20).default('quatra'),
 });
 
+// V1.2-137: tema kimliklerinin tek kaynağı — themes.ts ThemeId bu listeyi kullanır.
+export const THEME_IDS = [
+  'gece',
+  'okyanus',
+  'zumrut',
+  'gunbatimi',
+  'gul',
+  'grafit',
+  'safak',
+] as const;
+
 const AppearanceSchema = z.object({
-  /** Tema paleti — id listesi src/renderer/themes.ts ile senkron tutulmalı. */
-  theme: z
-    .enum(['gece', 'okyanus', 'zumrut', 'gunbatimi', 'gul', 'grafit', 'safak'])
-    .default('gece'),
+  /** Tema paleti — id listesi THEME_IDS ile senkron (tek kaynak). */
+  theme: z.enum(THEME_IDS).default('gece'),
   accent: z
     .string()
     .regex(/^#[0-9a-fA-F]{6}$/)

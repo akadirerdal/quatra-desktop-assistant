@@ -8,7 +8,7 @@ import { useSettingsStore } from '../../state/settings-store';
 import { useAssistantStore } from '../../state/assistant-store';
 import { strings } from '../../renderer/strings';
 import { THEMES, getTheme } from '../../renderer/themes';
-import type { AssistantController } from '../assistant/assistant-controller';
+import { AssistantController, TOOL_LABELS } from '../assistant/assistant-controller';
 
 type Category =
   | 'general'
@@ -1594,14 +1594,7 @@ function RecordsSection(): React.JSX.Element {
 }
 
 // V1.2-077: refresh'in useCallback bağımlılığı olmasın diye modül düzeyinde sabit.
-const DIAG_TOOL_LIST = [
-  'sysinfo',
-  'open_app',
-  'open_url',
-  'not_al',
-  'clipboard_yaz',
-  'clipboard_oku',
-];
+const DIAG_TOOL_LIST = Object.keys(TOOL_LABELS);
 
 function DiagnosticsSection(): React.JSX.Element {
   const status = useAssistantStore((s) => s.status);
@@ -1611,6 +1604,7 @@ function DiagnosticsSection(): React.JSX.Element {
   const settings = useSettingsStore((s) => s.settings);
   const [logs, setLogs] = useState<Array<{ text: string; kind: string }>>([]);
   const [logFile, setLogFile] = useState<string | null>(null);
+  const [logTail, setLogTail] = useState<string[]>([]);
   const [confirmingClear, setConfirmingClear] = useState(false);
 
   // V1.2-139: yol platforma göre köprüden gelir; bilinmiyorsa yanlış yol yazılmaz.
@@ -1622,9 +1616,19 @@ function DiagnosticsSection(): React.JSX.Element {
 
   // V1.2-077: effect bağımlılığı olduğundan useCallback.
   const refresh = useCallback(() => {
+    const connectionLabel =
+      connection === 'connected'
+        ? 'bağlı'
+        : connection === 'failed'
+          ? 'bağlantı hatası'
+          : connection === 'testing'
+            ? 'test ediliyor'
+            : connection === 'offline'
+              ? 'çevrimdışı'
+              : 'bilinmiyor';
     setLogs([
       {
-        text: `${strings.providerState}: ${connection}`,
+        text: `${strings.providerState}: ${connectionLabel}`,
         kind: connection === 'failed' ? 'error' : '',
       },
       {
@@ -1638,6 +1642,10 @@ function DiagnosticsSection(): React.JSX.Element {
       { text: `${strings.tools}: ${DIAG_TOOL_LIST.join(', ')}`, kind: '' },
       ...(connectionError ? [{ text: connectionError, kind: 'error' }] : []),
     ]);
+    // Gerçek günlük dosyasının son satırlarını çek (V1.2-095).
+    void window.quatra?.log.read(40).then((r) => {
+      if (r?.ok && Array.isArray(r.lines)) setLogTail(r.lines);
+    });
   }, [connection, settings, status, connectionError]);
   // V1.2-018: ranOnce guard'ı liste güncellemelerini engelliyordu; refresh deps'iyle senkron.
   useEffect(() => {
@@ -1664,6 +1672,15 @@ function DiagnosticsSection(): React.JSX.Element {
           </div>
         ))}
       </div>
+      {logTail.length > 0 && (
+        <div className="diagList" style={{ marginTop: 10, maxHeight: 180, overflow: 'auto' }}>
+          {logTail.map((l, i) => (
+            <div key={i} className="line" style={{ fontSize: 10.5, opacity: 0.85 }}>
+              {l}
+            </div>
+          ))}
+        </div>
+      )}
       <div className="field" style={{ marginTop: 14 }}>
         <div className="row">
           <Button onClick={() => setConfirmingClear(true)}>{strings.clearLogs}</Button>

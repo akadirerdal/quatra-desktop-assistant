@@ -20,13 +20,15 @@ export function MainScreen(props: {
   const connection = useAssistantStore((s) => s.connection);
   const activation = useSettingsStore((s) => s.settings.activation);
   const [captionVisible, setCaptionVisible] = useState(false);
+  const [captionNonce, setCaptionNonce] = useState(0);
 
-  // Caption 5 sn sonra solar.
+  // Caption 5 sn sonra solar; aynı metin tekrar gelirse de görünür (nonce ile).
   useEffect(() => {
     if (!caption) {
       setCaptionVisible(false);
       return;
     }
+    setCaptionNonce((n) => n + 1);
     setCaptionVisible(true);
     const timer = setTimeout(() => setCaptionVisible(false), 5000);
     return () => clearTimeout(timer);
@@ -78,13 +80,19 @@ export function MainScreen(props: {
         {status === 'muted' ? strings.micOff : ''}
       </div>
 
-      <div className="caption" style={{ opacity: captionVisible ? 1 : 0 }}>
+      <div
+        className="caption"
+        style={{ opacity: captionVisible ? 1 : 0 }}
+        aria-live="polite"
+        aria-atomic="true"
+        key={captionNonce}
+      >
         {caption}
       </div>
 
       {/* Saydam görev balonları */}
-      <div className="taskStack">
-        {tasks.map((t) => (
+      <div className="taskStack" aria-live="polite">
+        {tasks.slice(0, 5).map((t) => (
           <div key={t.id} className={`taskBubble ${t.state} ${t.state === 'done' ? 'fading' : ''}`}>
             <div className="title">{t.title}</div>
             <div className="detail">{t.detail}</div>

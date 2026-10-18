@@ -26,7 +26,7 @@ import { strings } from '../../renderer/strings';
 import type { AgentEvent } from '../../renderer/global';
 
 /** Araç adlarının kullanıcıya dönük Türkçe etiketleri (sözlü izin sorusu için). */
-const TOOL_LABELS: Record<string, string> = {
+export const TOOL_LABELS: Record<string, string> = {
   not_al: 'not yazma',
   open_app: 'uygulama açma',
   open_url: 'bağlantı açma',
@@ -83,7 +83,8 @@ export class AssistantController {
     );
     // Söz kesme: mikrofon döngüsü kullanıcının konuştuğunu yakalarsa buraya gelir.
     this.audio.setBargeHandler(() => this.onBarge());
-    this.detachAgent = window.quatra?.agent.onEvent((e) => this.onAgentEvent(e)) ?? null;
+    this.detachAgent =
+      window.quatra?.agent.onEvent((e) => this.onAgentEvent(e as AgentEvent)) ?? null;
     this.detachShortcut =
       window.quatra?.shortcut.onTrigger(() => {
         // Çift tetikleme koruması (register aynı kısayolu iki kez alabilir)

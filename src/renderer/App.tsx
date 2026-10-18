@@ -78,6 +78,10 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        if (firstRun) {
+          setFirstRun(false);
+          return;
+        }
         if (settingsOpen) {
           setSettingsOpen(false);
           return;
@@ -89,7 +93,7 @@ export function App(): React.JSX.Element {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [controller, settingsOpen]);
+  }, [controller, settingsOpen, firstRun]);
 
   // Etkinleştirme değişince global kısayol / uyandırma servisini uygula.
   const loaded = useSettingsStore((s) => s.loaded);
@@ -138,9 +142,9 @@ export function App(): React.JSX.Element {
           </ErrorBoundary>
         )}
         {firstRun && (
-          <div className="firstRun">
+          <div className="firstRun" role="dialog" aria-modal="true" aria-labelledby="firstRunTitle">
             <div className="card">
-              <h2>{strings.firstRunTitle}</h2>
+              <h2 id="firstRunTitle">{strings.firstRunTitle}</h2>
               <p>{strings.firstRunBody}</p>
               <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
                 <button className="btn" onClick={() => setFirstRun(false)}>

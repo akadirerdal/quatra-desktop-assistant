@@ -305,7 +305,7 @@ textarea,
 .taskStack {
   position: absolute;
   right: 16px;
-  bottom: 14px;
+  bottom: 74px;
   display: flex;
   flex-direction: column-reverse;
   gap: 8px;

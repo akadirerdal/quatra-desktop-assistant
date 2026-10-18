@@ -140,6 +140,8 @@ const quatra = {
     path: (): Promise<{ ok: boolean; path?: string; dir?: string }> =>
       ipcRenderer.invoke('log:path'),
     clear: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('log:clear'),
+    read: (maxLines?: number): Promise<{ ok: boolean; lines: string[] }> =>
+      ipcRenderer.invoke('log:read', maxLines),
     rendererError: (level: 'warn' | 'error', message: string): void =>
       ipcRenderer.send('log:renderer', level, 'renderer', message),
     info: (scope: string, message: string): void =>

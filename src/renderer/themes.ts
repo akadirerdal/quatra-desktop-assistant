@@ -4,7 +4,9 @@
  * SPRINT: saf fonksiyonlar test edilir; DOM'a yazma tek noktada (applyAppearance).
  */
 
-export type ThemeId = 'gece' | 'okyanus' | 'zumrut' | 'gunbatimi' | 'gul' | 'grafit' | 'safak';
+import { THEME_IDS } from '../state/settings-schema';
+
+export type ThemeId = (typeof THEME_IDS)[number];
 
 export interface ThemeVars {
   bg: string;
