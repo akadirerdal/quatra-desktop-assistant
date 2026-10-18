@@ -756,14 +756,14 @@ export class AssistantController {
         // V1.2: medya (müzik/uygulama) açıldı — wake servisi duraklatılır; müzik
         // kendi kendine uyandırmayı tetiklemesin. 30 sn sonra (veya PTT ile) yeniden devreye girer.
         window.quatra?.log.info('wake', 'media event alındı — wake duraklatılıyor');
-        this.wake?.pause();
+        this.wake?.pauseFor(60_000);
         if (this.mediaResumeTimer) clearTimeout(this.mediaResumeTimer);
         this.mediaResumeTimer = setTimeout(() => {
           this.mediaResumeTimer = null;
           if (!useAssistantStore.getState().mutedByUser) this.resumeWake();
-        }, 30_000);
+        }, 60_000);
         store.setCaption(
-          'Müzik/uygulama açıldı. Uyandırmak için mikrofon düğmesine bas veya 30 sn bekle.',
+          'Müzik/uygulama açıldı. Uyandırmak için mikrofon düğmesine bas veya 60 sn bekle.',
         );
         break;
       }

@@ -138,6 +138,7 @@ export interface WakeService {
   start(): Promise<boolean>;
   stop(): void;
   pause(): void;
+  pauseFor(ms: number): void;
   resume(): void;
   isRunning(): boolean;
 }
@@ -199,9 +200,13 @@ export class WakeWordService implements WakeService {
 
   /** Sohbet/komut sırasında uyandırma aramayı duraklat (cooldown sonrası açılmaz). */
   pause(): void {
+    this.pauseFor(20_000);
+  }
+
+  /** Belirli süre duraklat (medya çalarken uzun tutulur). */
+  pauseFor(ms: number): void {
     this.holdRequested = true;
     this.paused = true;
-    // Güvenlik ağı: controller resume çağırmayı unutsa bile mikrofon 20 sn sonra yeniden devreye girsin.
     if (this.holdSafetyTimer) clearTimeout(this.holdSafetyTimer);
     this.holdSafetyTimer = setTimeout(() => {
       this.holdSafetyTimer = null;
@@ -210,7 +215,7 @@ export class WakeWordService implements WakeService {
         this.paused = false;
         this.callbacks.onState?.('armed');
       }
-    }, 20_000);
+    }, ms);
   }
 
   resume(): void {
@@ -273,6 +278,17 @@ export class WakeWordService implements WakeService {
         (outcome.result.durationMs < 700 || outcome.result.peakLevel < 0.15)
       ) {
         await sleep(150);
+        if (!this.running) return;
+        continue;
+      }
+      // Müzik/sürekli gürültü: uzun + yüksek enerjili patlamalar transkribe edilmez.
+      if (
+        outcome.kind === 'ok' &&
+        outcome.result.durationMs > 1500 &&
+        outcome.result.peakLevel > 0.45
+      ) {
+        await sleep(300);
+        if (!this.running) return;
         continue;
       }
       this.callbacks.onState?.('burst');

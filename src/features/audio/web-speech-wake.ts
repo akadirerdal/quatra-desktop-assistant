@@ -168,6 +168,20 @@ export class WebSpeechWakeService implements WakeService {
     }
   }
 
+  pauseFor(ms: number): void {
+    this.pause();
+    // Güvenlik ağı ms sonra auto-resume.
+    if (this.restartTimer) clearTimeout(this.restartTimer);
+    this.restartTimer = setTimeout(() => {
+      this.restartTimer = null;
+      if (this.running && this.holdRequested) {
+        this.holdRequested = false;
+        this.paused = false;
+        this.startRecognition();
+      }
+    }, ms);
+  }
+
   resume(): void {
     this.holdRequested = false;
     this.paused = false;
